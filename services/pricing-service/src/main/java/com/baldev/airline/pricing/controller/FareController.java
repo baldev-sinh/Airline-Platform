@@ -1,5 +1,7 @@
 package com.baldev.airline.pricing.controller;
 
+import com.baldev.airline.common.web.CurrentUser;
+import com.baldev.airline.pricing.service.support.FlightOwnershipVerifier;
 import com.baldev.airline.common.payload.request.FareRequest;
 import com.baldev.airline.common.payload.response.FareResponse;
 import com.baldev.airline.pricing.service.FareService;
@@ -18,11 +20,13 @@ import java.util.Map;
 public class FareController {
 
     private final FareService fareService;
+    private final FlightOwnershipVerifier ownership;
 
 
     @PostMapping
     public ResponseEntity<FareResponse> createFare(
-            @Valid @RequestBody FareRequest fareRequest) {
+            @Valid @RequestBody FareRequest fareRequest, CurrentUser user) {
+        ownership.requireOwnedFlight(user, fareRequest.getFlightId());
 
         return ResponseEntity.status(HttpStatus.CREATED).body(
                 fareService.createFare(fareRequest)
@@ -75,12 +79,15 @@ public class FareController {
     @PutMapping("/{id}")
     public ResponseEntity<FareResponse> updateFare(
             @PathVariable Long id,
-            @Valid @RequestBody FareRequest request) {
+            @Valid @RequestBody FareRequest request, CurrentUser user) {
+        ownership.requireOwnedFlight(user, fareService.getFareById(id).getFlightId());
+        ownership.requireOwnedFlight(user, request.getFlightId());
         return ResponseEntity.ok(fareService.updateFare(id, request));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteFare(@PathVariable Long id) {
+    public ResponseEntity<Void> deleteFare(@PathVariable Long id, CurrentUser user) {
+        ownership.requireOwnedFlight(user, fareService.getFareById(id).getFlightId());
         fareService.deleteFare(id);
         return ResponseEntity.noContent().build();
     }

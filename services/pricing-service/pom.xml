@@ -13,4 +13,12 @@
     <artifactId>pricing-service</artifactId>
     <name>pricing-service</name>
     <description>Fares, fare rules and baggage policies.</description>
+
+    <!-- Common dependencies are inherited from services/pom.xml -->
+    <dependencies>
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-openfeign</artifactId>
+        </dependency>
+    </dependencies>
 </project>

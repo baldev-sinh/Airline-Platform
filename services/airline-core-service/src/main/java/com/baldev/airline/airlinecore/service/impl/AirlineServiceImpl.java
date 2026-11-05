@@ -1,5 +1,6 @@
 package com.baldev.airline.airlinecore.service.impl;
 
+import com.baldev.airline.common.exception.ConflictException;
 import com.baldev.airline.common.exception.ResourceNotFoundException;
 import com.baldev.airline.common.enums.AirlineStatus;
 import com.baldev.airline.airlinecore.mapper.AirlineMapper;
@@ -25,6 +26,9 @@ public class AirlineServiceImpl implements AirlineService {
 
     @Override
     public AirlineResponse createAirline(AirlineRequest request, Long ownerId) {
+        if (airlineRepository.findByOwnerId(ownerId).isPresent()) {
+            throw new ConflictException("AIRLINE_EXISTS", "This account already owns an airline");
+        }
 
         Airline airline= AirlineMapper.toEntity(request,ownerId);
 
@@ -74,6 +78,9 @@ public class AirlineServiceImpl implements AirlineService {
                 .orElseThrow(
                         ()->new ResourceNotFoundException("airline not found with ownerId "+ownerId)
                 );
+        if (!airline.getId().equals(id)) {
+            throw new ResourceNotFoundException("airline not found with id " + id);
+        }
         airlineRepository.delete(airline);
     }
 

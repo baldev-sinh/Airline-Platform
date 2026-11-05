@@ -1,43 +1,43 @@
 package com.baldev.airline.user.config;
 
+import com.baldev.airline.user.model.User;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.GrantedAuthority;
-import org.springframework.stereotype.Service;
+import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
-import java.util.Collection;
+import java.nio.charset.StandardCharsets;
+import java.time.Clock;
+import java.time.Instant;
 import java.util.Date;
-import java.util.HashSet;
-import java.util.Set;
+import java.util.List;
+import java.util.UUID;
 
-@Service
+/** Issues short-lived access tokens. The gateway validates signature, expiry and issuer. */
+@Component
 public class JwtProvider {
 
-    private final SecretKey key= Keys.hmacShaKeyFor(
-            JwtConstant.SECRET_KEY.getBytes()
-    );
+    private final SecretKey key;
+    private final SecurityProperties.Jwt jwt;
+    private final Clock clock;
 
-    public String generateToken(Authentication auth, Long userId){
-        Collection<? extends GrantedAuthority> authorities = auth.getAuthorities();
-        String roles=populateAuthorities(authorities);
-        String jwt= Jwts.builder()
-                .issuedAt(new Date())
-                .expiration(new Date(System.currentTimeMillis()+86400000))
-                .claim("email", auth.getName())
-                .claim("authorities",roles)
-                .claim("userId",userId)
-                .signWith(key)
-                .compact();
-        return jwt;
+    public JwtProvider(SecurityProperties properties, Clock clock) {
+        this.jwt = properties.security().jwt();
+        this.key = Keys.hmacShaKeyFor(jwt.secret().getBytes(StandardCharsets.UTF_8));
+        this.clock = clock;
     }
 
-    private String populateAuthorities(Collection<? extends GrantedAuthority> authorities) {
-        Set<String> auths =new HashSet<>();
-        for (GrantedAuthority authority : authorities) {
-            auths.add(authority.getAuthority());
-        }
-        return String.join(",", auths);
+    public String generateToken(User user) {
+        Instant now = clock.instant();
+        return Jwts.builder()
+                .id(UUID.randomUUID().toString())
+                .issuer(jwt.issuer())
+                .subject(String.valueOf(user.getId()))
+                .issuedAt(Date.from(now))
+                .expiration(Date.from(now.plus(jwt.expiration())))
+                .claim("email", user.getEmail())
+                .claim("roles", List.of(user.getRole().name()))
+                .signWith(key)
+                .compact();
     }
 }

@@ -82,8 +82,8 @@ public class FareServiceImpl implements FareService {
     }
 
     @Override
-    public List<Fare> getFares() {
-        return fareRepository.findAll();
+    public List<FareResponse> getFares() {
+        return fareRepository.findAll().stream().map(FareMapper::toResponse).toList();
     }
 /*
  Flight 101:

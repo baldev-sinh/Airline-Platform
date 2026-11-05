@@ -1,38 +1,44 @@
 package com.baldev.airline.user.controller;
 
-
+import com.baldev.airline.common.exception.ForbiddenException;
 import com.baldev.airline.common.payload.dto.UserDTO;
+import com.baldev.airline.common.web.CurrentUser;
 import com.baldev.airline.user.service.UserService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/users")
 public class UserController {
+
     private final UserService userService;
 
+    /** The caller's own profile, resolved from the verified token (never from a client-supplied id). */
     @GetMapping("/profile")
-    public ResponseEntity<UserDTO> getUserProfile(
-            @RequestHeader("X-User-Email") String email
-    ) {
-        UserDTO user=userService.getUserByEmail(email);
-        return ResponseEntity.ok(user);
+    public UserDTO getUserProfile(CurrentUser user) {
+        return userService.getUserById(user.id());
     }
 
     @GetMapping("/{userId}")
-    public ResponseEntity<UserDTO> getUserById(
-            @PathVariable Long userId) {
-        UserDTO user = userService.getUserById(userId);
-        return ResponseEntity.ok(user);
+    public UserDTO getUserById(@PathVariable Long userId, CurrentUser user) {
+        if (!user.isSystemAdmin() && !user.id().equals(userId)) {
+            throw new ForbiddenException("You can only view your own account");
+        }
+        return userService.getUserById(userId);
     }
 
-    @GetMapping()
-    public ResponseEntity<List<UserDTO>> getUsers(){
-        List<UserDTO> users = userService.getAllUsers();
-        return ResponseEntity.ok(users);
+    @GetMapping
+    public Page<UserDTO> getUsers(CurrentUser user, @PageableDefault(size = 20) Pageable pageable) {
+        if (!user.isSystemAdmin()) {
+            throw new ForbiddenException("Only system administrators can list users");
+        }
+        return userService.getAllUsers(pageable);
     }
 }

@@ -8,15 +8,14 @@ import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
 
+/** Public view of a user. Never carries credentials. */
 @Data
 @NoArgsConstructor
 @Builder
 @AllArgsConstructor
 public class UserDTO {
-
     private Long id;
     private String email;
-    private String password;
     private String fullName;
     private String phone;
     private UserRole role;

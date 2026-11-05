@@ -1,5 +1,7 @@
 package com.baldev.airline.airlinecore.controller;
 
+import com.baldev.airline.common.exception.ForbiddenException;
+import com.baldev.airline.common.web.CurrentUser;
 
 import com.baldev.airline.common.enums.AirlineStatus;
 import com.baldev.airline.common.payload.request.AirlineRequest;
@@ -49,7 +51,8 @@ public class AirlineController {
     }
 
     @GetMapping
-    public ResponseEntity<Page<AirlineResponse>> getAllAirlines(Pageable pageable) {
+    public ResponseEntity<Page<AirlineResponse>> getAllAirlines(Pageable pageable, CurrentUser user) {
+        requireAdmin(user);
         return ResponseEntity.ok(airlineService.getAllAirlines(pageable));
     }
 
@@ -78,18 +81,28 @@ public class AirlineController {
 
 
     @PostMapping("/{id}/approve")
-    public ResponseEntity<AirlineResponse> approveAirline(@PathVariable Long id) {
+    public ResponseEntity<AirlineResponse> approveAirline(@PathVariable Long id, CurrentUser user) {
+        requireAdmin(user);
         return ResponseEntity.ok(airlineService.changeStatusByAdmin(id, AirlineStatus.ACTIVE));
     }
 
     @PostMapping("/{id}/suspend")
-    public ResponseEntity<AirlineResponse> suspendAirline(@PathVariable Long id) {
+    public ResponseEntity<AirlineResponse> suspendAirline(@PathVariable Long id, CurrentUser user) {
+        requireAdmin(user);
         return ResponseEntity.ok(airlineService.changeStatusByAdmin(id, AirlineStatus.INACTIVE));
     }
 
     @PostMapping("/{id}/ban")
-    public ResponseEntity<AirlineResponse> banAirline(@PathVariable Long id) {
+    public ResponseEntity<AirlineResponse> banAirline(@PathVariable Long id, CurrentUser user) {
+        requireAdmin(user);
         return ResponseEntity.ok(airlineService.changeStatusByAdmin(id, AirlineStatus.BANNED));
     }
 
+
+    /** Defense in depth: the gateway already restricts these routes to admins. */
+    private static void requireAdmin(CurrentUser user) {
+        if (!user.isSystemAdmin()) {
+            throw new ForbiddenException("System administrator role required");
+        }
+    }
 }

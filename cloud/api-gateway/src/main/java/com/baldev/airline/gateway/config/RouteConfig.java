@@ -1,198 +1,88 @@
 package com.baldev.airline.gateway.config;
 
-import com.baldev.airline.common.enums.UserRole;
+import com.baldev.airline.gateway.security.AuthenticationFilter;
 import org.springframework.cloud.gateway.server.mvc.filter.LoadBalancerFilterFunctions;
 import org.springframework.cloud.gateway.server.mvc.handler.GatewayRouterFunctions;
 import org.springframework.cloud.gateway.server.mvc.handler.HandlerFunctions;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.core.annotation.Order;
-import org.springframework.http.HttpStatus;
-import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.function.RequestPredicates;
 import org.springframework.web.servlet.function.RouterFunction;
-import org.springframework.web.servlet.function.ServerRequest;
 import org.springframework.web.servlet.function.ServerResponse;
 
+/**
+ * Path-to-service routing. Authorization is NOT expressed here: every route runs the same
+ * {@link AuthenticationFilter}, which consults the central AccessPolicy. Only /auth and /api paths are routed;
+ * /internal and /actuator on backend services are therefore unreachable from outside.
+ */
 @Configuration
 public class RouteConfig {
 
+    private final AuthenticationFilter authenticationFilter;
 
-    private final JwtUtil jwtUtil;
-
-    public RouteConfig(JwtUtil jwtUtil) {
-        this.jwtUtil = jwtUtil;
-    }
-
-    @Bean
-    public RouterFunction<ServerResponse> authRoutes() {
-        return GatewayRouterFunctions.route("auth-routes")
-                .route(RequestPredicates.path("/auth/**"), HandlerFunctions.http())
-                .filter(LoadBalancerFilterFunctions.lb("user-service"))
-                .build();
-    }
-
-    @Bean
-    public RouterFunction<ServerResponse> adminLocationServiceRoute() {
-        return GatewayRouterFunctions.route("admin-location-routes")
-                .route(RequestPredicates.POST("/api/cities/**"), HandlerFunctions.http())
-                .route(RequestPredicates.POST("/api/airports/**"), HandlerFunctions.http())
-                .filter(LoadBalancerFilterFunctions.lb("location-service"))
-                .before(this::jwtAuthFilter)
-                .before(request -> requireRole(request, UserRole.ROLE_SYSTEM_ADMIN.toString()))
-                .build();
-    }
-
-    @Bean
-    @Order(1)
-    public RouterFunction<ServerResponse> adminAirlineCoreServiceRoutes() {
-        return GatewayRouterFunctions.route("admin-airline-core-routes")
-                .route(RequestPredicates.GET("/api/airlines"), HandlerFunctions.http())
-                .filter(LoadBalancerFilterFunctions.lb("airline-core-service"))
-                .before(this::jwtAuthFilter)
-                .before(request -> requireRole(request, UserRole.ROLE_SYSTEM_ADMIN.toString()))
-                .build();
+    public RouteConfig(AuthenticationFilter authenticationFilter) {
+        this.authenticationFilter = authenticationFilter;
     }
 
     @Bean
     public RouterFunction<ServerResponse> userServiceRoutes() {
-        return GatewayRouterFunctions.route("user-service-routes")
-                .route(RequestPredicates.path("/api/users/**"), HandlerFunctions.http())
-                .filter(LoadBalancerFilterFunctions.lb("user-service"))
-                .before(this::jwtAuthFilter)
-                .build();
+        return route("user-service", "/auth/**", "/api/users/**");
     }
 
     @Bean
-    public RouterFunction<ServerResponse> airlineCoreServiceRoutes() {
-        return GatewayRouterFunctions.route("airline-core-routes")
-                .route(RequestPredicates.path("/api/airlines/**"), HandlerFunctions.http())
-                .route(RequestPredicates.path("/api/aircrafts/**"), HandlerFunctions.http())
-                .filter(LoadBalancerFilterFunctions.lb("airline-core-service"))
-                .before(this::jwtAuthFilter)
-                .build();
+    public RouterFunction<ServerResponse> airlineCoreRoutes() {
+        return route("airline-core-service", "/api/airlines", "/api/airlines/**", "/api/aircrafts", "/api/aircrafts/**");
     }
 
     @Bean
-    public RouterFunction<ServerResponse> seatServiceRoutes() {
-        return GatewayRouterFunctions.route("seat-service-routes")
-                .route(RequestPredicates.path("/api/cabin-classes/**"), HandlerFunctions.http())
-                .route(RequestPredicates.path("/api/seat-maps/**"), HandlerFunctions.http())
-                .route(RequestPredicates.path("/api/seats/**"), HandlerFunctions.http())
-                .route(RequestPredicates.path("/api/seat-instances/**"), HandlerFunctions.http())
-                .route(RequestPredicates.path("/api/flight-instance-cabins/**"), HandlerFunctions.http())
-                .filter(LoadBalancerFilterFunctions.lb("seat-service"))
-                .before(this::jwtAuthFilter)
-                .build();
+    public RouterFunction<ServerResponse> locationRoutes() {
+        return route("location-service", "/api/cities", "/api/cities/**", "/api/airports", "/api/airports/**");
     }
 
     @Bean
-    public RouterFunction<ServerResponse> flightOpsServiceRoutes() {
-        return GatewayRouterFunctions.route("flight-ops-routes")
-                .route(RequestPredicates.path("/api/flights/**"), HandlerFunctions.http())
-                .route(RequestPredicates.path("/api/flight-instances/**"), HandlerFunctions.http())
-                .route(RequestPredicates.path("/api/flight-schedules/**"), HandlerFunctions.http())
-                .filter(LoadBalancerFilterFunctions.lb("flight-ops-service"))
-                .before(this::jwtAuthFilter)
-                .build();
+    public RouterFunction<ServerResponse> flightOpsRoutes() {
+        return route("flight-ops-service", "/api/flights", "/api/flights/**",
+                "/api/flight-instances", "/api/flight-instances/**",
+                "/api/flight-schedules", "/api/flight-schedules/**");
     }
 
     @Bean
-    public RouterFunction<ServerResponse> pricingServiceRoutes() {
-        return GatewayRouterFunctions.route("pricing-service-routes")
-                .route(RequestPredicates.path("/api/fares/**"), HandlerFunctions.http())
-                .route(RequestPredicates.path("/api/fare-rules/**"), HandlerFunctions.http())
-                .route(RequestPredicates.path("/api/baggage-policies/**"), HandlerFunctions.http())
-                .filter(LoadBalancerFilterFunctions.lb("pricing-service"))
-                .before(this::jwtAuthFilter)
-                .build();
+    public RouterFunction<ServerResponse> pricingRoutes() {
+        return route("pricing-service", "/api/fares", "/api/fares/**", "/api/fare-rules", "/api/fare-rules/**",
+                "/api/baggage-policies", "/api/baggage-policies/**");
     }
 
     @Bean
-    public RouterFunction<ServerResponse> AncillaryServiceRoutes() {
-        return GatewayRouterFunctions.route("ancillary-service-routes")
-                .route(RequestPredicates.path("/api/meals/**"), HandlerFunctions.http())
-                .route(RequestPredicates.path("/api/ancillaries/**"), HandlerFunctions.http())
-                .route(RequestPredicates.path("/api/insurance-coverages/**"), HandlerFunctions.http())
-                .route(RequestPredicates.path("/api/flight-meals/**"), HandlerFunctions.http())
-                .route(RequestPredicates.path("/api/flight-cabin-ancillaries/**"), HandlerFunctions.http())
-                .filter(LoadBalancerFilterFunctions.lb("ancillary-service"))
-                .before(this::jwtAuthFilter)
-                .build();
+    public RouterFunction<ServerResponse> seatRoutes() {
+        return route("seat-service", "/api/cabin-classes", "/api/cabin-classes/**", "/api/seat-maps", "/api/seat-maps/**",
+                "/api/seats", "/api/seats/**", "/api/flight-instance-cabins", "/api/flight-instance-cabins/**");
     }
 
     @Bean
-    @Order(2)
-    public RouterFunction<ServerResponse> locationServiceRoutes() {
-        return GatewayRouterFunctions.route("location-service-routes")
-                .route(RequestPredicates.path("/api/cities/**"), HandlerFunctions.http())
-                .route(RequestPredicates.path("/api/airports/**"), HandlerFunctions.http())
-                .filter(LoadBalancerFilterFunctions.lb("location-service"))
-                .before(this::jwtAuthFilter)
-                .build();
+    public RouterFunction<ServerResponse> ancillaryRoutes() {
+        return route("ancillary-service", "/api/meals", "/api/meals/**", "/api/ancillaries", "/api/ancillaries/**",
+                "/api/insurance-coverages", "/api/insurance-coverages/**", "/api/flight-meals", "/api/flight-meals/**",
+                "/api/flight-cabin-ancillaries", "/api/flight-cabin-ancillaries/**");
     }
 
     @Bean
-    public RouterFunction<ServerResponse> bookingServiceRoutes() {
-        return GatewayRouterFunctions.route("booking-service-routes")
-                .route(RequestPredicates.path("/api/bookings/**"), HandlerFunctions.http())
-                .filter(LoadBalancerFilterFunctions.lb("booking-service"))
-                .before(this::jwtAuthFilter)
-                .build();
+    public RouterFunction<ServerResponse> bookingRoutes() {
+        return route("booking-service", "/api/bookings", "/api/bookings/**");
     }
 
     @Bean
-    public RouterFunction<ServerResponse> paymentServiceRoutes() {
-        return GatewayRouterFunctions.route("payment-service-routes")
-                .route(RequestPredicates.path("/api/payments/**"), HandlerFunctions.http())
-                .filter(LoadBalancerFilterFunctions.lb("payment-service"))
-                .before(this::jwtAuthFilter)
-                .build();
+    public RouterFunction<ServerResponse> paymentRoutes() {
+        return route("payment-service", "/api/payments", "/api/payments/**");
     }
 
-    private ServerRequest jwtAuthFilter(ServerRequest request) {
-
-        String authHeader = request.headers().firstHeader(JwtConstant.JWT_HEADER);
-
-//        step 1. check auth header exist
-        if (authHeader == null || !authHeader.startsWith(JwtConstant.TOKEN_PREFIX)) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED,
-                    "missing or invalid authorization token");
+    private RouterFunction<ServerResponse> route(String serviceId, String... paths) {
+        var builder = GatewayRouterFunctions.route(serviceId + "-routes");
+        for (String path : paths) {
+            builder = builder.route(RequestPredicates.path(path), HandlerFunctions.http());
         }
-
-//        step 2. remove prefix from token
-        String token = authHeader.substring(JwtConstant.TOKEN_PREFIX.length());
-
-
-        System.out.println("token --------- " + token);
-
-//        step 3. validate
-        if (!jwtUtil.isTokenValid(token)) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED,
-                    "invalid or expired JWT token");
-        }
-
-//        step 4. grab user ifo from jwt token
-        String email = jwtUtil.extractEmail(token);
-        String authorities = jwtUtil.extractAuthorities(token);
-        Long userId = jwtUtil.extractUserId(token);
-
-
-        return ServerRequest.from(request)
-                .header("X-User-Id", String.valueOf(userId))
-                .header("X-User-Email", email)
-                .header("X-User-Roles", authorities)
+        return builder
+                .before(authenticationFilter)
+                .filter(LoadBalancerFilterFunctions.lb(serviceId))
                 .build();
     }
-
-    private ServerRequest requireRole(ServerRequest request, String role) {
-        String roles = request.headers().firstHeader("X-User-Roles");
-        if (roles == null || !roles.contains(role)) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
-                    "access denied, required role '" + role + "'");
-        }
-        return request;
-    }
-
-
 }

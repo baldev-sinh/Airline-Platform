@@ -18,7 +18,6 @@ public class AirlineMapper {
                 .alias(request.getAlias())
                 .logoUrl(request.getLogoUrl())
                 .website(request.getWebsite())
-                .status(request.getStatus())
                 .alliance(request.getAlliance())
                 .headquartersCityId(request.getHeadquartersCityId())
                 .ownerId(ownerId)
@@ -68,7 +67,6 @@ public class AirlineMapper {
         airline.setAlias(request.getAlias());
         airline.setLogoUrl(request.getLogoUrl());
         airline.setWebsite(request.getWebsite());
-        airline.setStatus(request.getStatus());
         airline.setAlliance(request.getAlliance());
         airline.setHeadquartersCityId(request.getHeadquartersCityId());
 

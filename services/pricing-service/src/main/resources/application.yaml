@@ -43,6 +43,15 @@ spring:
   flyway:
     enabled: true
     locations: classpath:db/migration
+  cloud:
+    openfeign:
+      client:
+        config:
+          default:
+            # Fail fast: a slow dependency must not exhaust this service's request threads.
+            connect-timeout: ${FEIGN_CONNECT_TIMEOUT_MS:2000}
+            read-timeout: ${FEIGN_READ_TIMEOUT_MS:5000}
+            logger-level: basic
 
 eureka:
   client:

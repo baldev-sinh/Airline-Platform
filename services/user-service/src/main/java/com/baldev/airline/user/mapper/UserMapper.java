@@ -1,15 +1,17 @@
 package com.baldev.airline.user.mapper;
 
-import com.baldev.airline.user.model.User;
 import com.baldev.airline.common.payload.dto.UserDTO;
+import com.baldev.airline.user.model.User;
 
-import java.util.List;
-import java.util.stream.Collectors;
+public final class UserMapper {
 
-public class UserMapper {
+    private UserMapper() {
+    }
 
     public static UserDTO toDTO(User user) {
-        if(user == null) {return null;}
+        if (user == null) {
+            return null;
+        }
         return UserDTO.builder()
                 .id(user.getId())
                 .fullName(user.getFullName())
@@ -18,11 +20,5 @@ public class UserMapper {
                 .lastLogin(user.getLastLogin())
                 .phone(user.getPhone())
                 .build();
-    }
-
-    public static List<UserDTO> toDTOList(List<User> users) {
-        return users.stream()
-                .map(UserMapper::toDTO)
-                .collect(Collectors.toList());
     }
 }

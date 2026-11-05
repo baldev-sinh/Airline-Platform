@@ -16,7 +16,7 @@ public interface FareService {
     );
     FareResponse updateFare(Long id, FareRequest request);
     void deleteFare(Long id);
-    List<Fare> getFares();
+    List<FareResponse> getFares();
 
     Map<Long, FareResponse> getLowestFarePerFlight(
             List<Long> flightIds, Long cabinClassId

@@ -1,11 +1,12 @@
 package com.baldev.airline.user.service;
 
 import com.baldev.airline.common.payload.dto.UserDTO;
-
-import java.util.List;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 public interface UserService {
-    UserDTO getUserByEmail(String email);
+
     UserDTO getUserById(Long id);
-    List<UserDTO> getAllUsers();
+
+    Page<UserDTO> getAllUsers(Pageable pageable);
 }
