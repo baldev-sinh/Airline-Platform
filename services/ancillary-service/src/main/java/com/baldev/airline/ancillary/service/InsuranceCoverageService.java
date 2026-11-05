@@ -7,13 +7,13 @@ import java.util.List;
 
 public interface InsuranceCoverageService {
 
-    InsuranceCoverageResponse createCoverage(InsuranceCoverageRequest request) throws Exception;
+    InsuranceCoverageResponse createCoverage(InsuranceCoverageRequest request);
 
-    InsuranceCoverageResponse updateCoverage(Long id, InsuranceCoverageRequest request) throws Exception;
+    InsuranceCoverageResponse updateCoverage(Long id, InsuranceCoverageRequest request);
 
-    void deleteCoverage(Long id) throws Exception;
+    void deleteCoverage(Long id);
 
-    InsuranceCoverageResponse getCoverage(Long id) throws Exception;
+    InsuranceCoverageResponse getCoverage(Long id);
 
     List<InsuranceCoverageResponse> getCoverageByAncillaryId(Long ancillaryId);
 

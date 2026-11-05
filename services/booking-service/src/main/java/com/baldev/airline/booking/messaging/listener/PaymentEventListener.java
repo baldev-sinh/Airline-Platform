@@ -1,72 +1,30 @@
 package com.baldev.airline.booking.messaging.listener;
 
-
-import com.baldev.airline.booking.client.FlightClient;
-import com.baldev.airline.booking.client.PricingClient;
-import com.baldev.airline.booking.client.UserClient;
-import com.baldev.airline.common.enums.BookingStatus;
+import com.baldev.airline.booking.service.BookingService;
 import com.baldev.airline.common.event.PaymentCompletedEvent;
 import com.baldev.airline.common.event.PaymentFailedEvent;
-import com.baldev.airline.booking.messaging.publisher.BookingEventProducer;
-import com.baldev.airline.booking.model.Booking;
-import com.baldev.airline.common.payload.dto.UserDTO;
-import com.baldev.airline.common.payload.response.FareResponse;
-import com.baldev.airline.common.payload.response.FlightInstanceResponse;
-import com.baldev.airline.booking.repository.BookingRepository;
+import com.baldev.airline.common.kafka.KafkaTopics;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.stereotype.Component;
 
-@Service
+@Slf4j
+@Component
 @RequiredArgsConstructor
 public class PaymentEventListener {
 
-    private final BookingRepository bookingRepository;
-    private final FlightClient flightClient;
-    private final PricingClient pricingClient;
-    private final UserClient userClient;
-    private final BookingEventProducer bookingEventProducer;
+    private final BookingService bookingService;
 
-    @KafkaListener(topics = "payment.completed", groupId = "booking-service-group")
-    @Transactional
-    public void handlePaymentCompleted(PaymentCompletedEvent event) throws Exception {
-
-        System.out.println("Received PaymentCompletedEvent "
-                + event.getBookingId() + "-"
-                + event.getPaymentId());
-
-        Booking booking = bookingRepository.findById(event.getBookingId())
-                .orElse(null);
-
-        if (booking == null) {
-            return;
-        }
-
-        booking.setStatus(BookingStatus.CONFIRMED);
-        bookingRepository.save(booking);
-
-        FlightInstanceResponse flightInstanceResponse = flightClient
-                .getFlightInstanceById(booking.getFlightInstanceId());
-        FareResponse fareResponse = pricingClient.getFareById(booking.getFareId());
-        UserDTO userDTO = userClient.getUserById(booking.getUserId());
-
-
-        bookingEventProducer.sendBookingConfirmed(booking, event, flightInstanceResponse,
-                fareResponse, userDTO);
-
+    @KafkaListener(topics = KafkaTopics.PAYMENT_COMPLETED)
+    public void onPaymentCompleted(PaymentCompletedEvent event) {
+        log.info("Received PaymentCompleted bookingId={} paymentId={}", event.getBookingId(), event.getPaymentId());
+        bookingService.onPaymentCompleted(event);
     }
 
-    @KafkaListener(topics = "payment.failed", groupId = "booking-service-group")
-    public void handlePaymentFailed(PaymentFailedEvent event) throws Exception {
-        Booking booking = bookingRepository.findById(event.getBookingId())
-                .orElse(null);
-
-        if (booking == null) {
-            return;
-        }
-
-        booking.setStatus(BookingStatus.CANCELLED);
-        bookingRepository.save(booking);
+    @KafkaListener(topics = KafkaTopics.PAYMENT_FAILED)
+    public void onPaymentFailed(PaymentFailedEvent event) {
+        log.info("Received PaymentFailed bookingId={} paymentId={}", event.getBookingId(), event.getPaymentId());
+        bookingService.onPaymentFailed(event);
     }
 }

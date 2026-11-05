@@ -1,5 +1,6 @@
 package com.baldev.airline.common.payload.request;
 
+import java.math.BigDecimal;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -26,10 +27,10 @@ public class FareRulesRequest {
     private Boolean isRefundable;
 
     @PositiveOrZero(message = "Change fee must be positive or zero")
-    private Double changeFee;
+    private BigDecimal changeFee;
 
     @PositiveOrZero(message = "Cancellation fee must be positive or zero")
-    private Double cancellationFee;
+    private BigDecimal cancellationFee;
 
     @PositiveOrZero(message = "Refund deadline days must be positive or zero")
     private Integer refundDeadlineDays;

@@ -7,7 +7,8 @@ import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
-import java.time.LocalDateTime;
+import java.math.BigDecimal;
+import java.time.Instant;
 
 @Getter
 @Setter
@@ -15,10 +16,18 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @Builder
 @Entity
+@Table(
+        indexes = @Index(name = "idx_payment_booking", columnList = "bookingId"),
+        uniqueConstraints = {
+                @UniqueConstraint(name = "uk_payment_transaction_id", columnNames = "transactionId"),
+                // One gateway payment can settle at most one of our payments (blocks replaying a payment id).
+                @UniqueConstraint(name = "uk_payment_provider_payment_id", columnNames = "providerPaymentId"),
+                @UniqueConstraint(name = "uk_payment_provider_order_id", columnNames = "providerOrderId")
+        })
 public class Payment {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.AUTO)
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @Column(nullable = false)
@@ -27,24 +36,55 @@ public class Payment {
     @Column(nullable = false)
     private Long bookingId;
 
-    private Double amount;
+    @Column(nullable = false, precision = 12, scale = 2)
+    private BigDecimal amount;
+
+    @Column(nullable = false, length = 3)
+    private String currency;
 
     @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
     private PaymentGateway provider;
 
+    /** Gateway-side checkout object (Razorpay payment link id). */
+    @Column(length = 64)
+    private String providerOrderId;
+
+    /** Hosted checkout URL for the open link; lets a retried checkout reuse it instead of creating another. */
+    @Column(length = 255)
+    private String checkoutUrl;
+
+    /** Gateway-side payment id, set once captured. */
+    @Column(length = 64)
     private String providerPaymentId;
+
+    @Column(nullable = false, length = 64)
     private String transactionId;
 
     @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
     private PaymentStatus status;
 
+    @Column(length = 500)
     private String failureReason;
-    private LocalDateTime paidAt;
+
+    private Instant paidAt;
+
+    @Column(length = 64)
     private String refundId;
 
+    @Version
+    private Long version;
+
     @CreationTimestamp
-    private LocalDateTime createdAt;
+    @Column(nullable = false, updatable = false)
+    private Instant createdAt;
 
     @UpdateTimestamp
-    private LocalDateTime updatedAt;
+    private Instant updatedAt;
+
+    public boolean isTerminal() {
+        return status == PaymentStatus.SUCCESS || status == PaymentStatus.FAILED
+                || status == PaymentStatus.CANCELLED || status == PaymentStatus.REFUNDED;
+    }
 }

@@ -1,5 +1,6 @@
 package com.baldev.airline.common.payload.response;
 
+import java.math.BigDecimal;
 import com.baldev.airline.common.enums.SeatType;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -25,9 +26,9 @@ public class SeatResponse {
     private Boolean isEmergencyExit;
     private Boolean isActive;
 
-    private Double basePrice;
-    private Double premiumSurcharge;
-    private Double totalPrice;
+    private BigDecimal basePrice;
+    private BigDecimal premiumSurcharge;
+    private BigDecimal totalPrice;
 
     private Boolean hasExtraLegroom;
 

@@ -1,5 +1,6 @@
 package com.baldev.airline.common.payload.response;
 
+import java.math.BigDecimal;
 
 import com.baldev.airline.common.enums.CoverageType;
 import lombok.AllArgsConstructor;
@@ -18,7 +19,7 @@ public class InsuranceCoverageResponse {
     private CoverageType coverageType;
     private String name;
     private String description;
-    private Double coverageAmount;
+    private BigDecimal coverageAmount;
     private Boolean isFlat;
     private String claimCondition;
     private String emergencyContact;

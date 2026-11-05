@@ -1,5 +1,6 @@
 package com.baldev.airline.common.payload.dto;
 
+import java.math.BigDecimal;
 import com.baldev.airline.common.enums.PaymentGateway;
 import com.baldev.airline.common.enums.PaymentStatus;
 import lombok.AllArgsConstructor;
@@ -24,7 +25,7 @@ public class PaymentDTO {
     private Long bookingId;
     private PaymentStatus status;
     private PaymentGateway gateway;
-    private Long amount;
+    private BigDecimal amount;
     private String transactionId;
     private String gatewayPaymentId;
     private String gatewayOrderId;

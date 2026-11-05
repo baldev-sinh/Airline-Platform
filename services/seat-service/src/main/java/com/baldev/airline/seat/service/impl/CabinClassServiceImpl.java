@@ -1,5 +1,7 @@
 package com.baldev.airline.seat.service.impl;
 
+import com.baldev.airline.common.exception.ConflictException;
+import com.baldev.airline.common.exception.ResourceNotFoundException;
 
 import com.baldev.airline.common.enums.CabinClassType;
 import com.baldev.airline.seat.mapper.CabinClassMapper;
@@ -21,13 +23,13 @@ public class CabinClassServiceImpl implements CabinClassService {
     private final CabinClassRepository cabinClassRepository;
 
     @Override
-    public CabinClassResponse createCabinClass(CabinClassRequest request) throws Exception {
+    public CabinClassResponse createCabinClass(CabinClassRequest request) {
 
         if (cabinClassRepository.existsByCodeAndAircraftId(
                 request.getCode(),
                 request.getAircraftId())
         ) {
-            throw new Exception("cabin class with code already exist");
+            throw new ConflictException("cabin class with code already exist");
         }
         CabinClass cabinClass = CabinClassMapper.toEntity(request);
 
@@ -37,9 +39,9 @@ public class CabinClassServiceImpl implements CabinClassService {
     }
 
     @Override
-    public CabinClassResponse getCabinClassById(Long id) throws Exception {
+    public CabinClassResponse getCabinClassById(Long id) {
         CabinClass cabinClass = cabinClassRepository.findById(id).orElseThrow(
-                () -> new Exception("cabin class not found with id")
+                () -> new ResourceNotFoundException("cabin class not found with id")
         );
         return CabinClassMapper.toResponse(cabinClass, cabinClass.getSeatMap());
     }
@@ -60,9 +62,9 @@ public class CabinClassServiceImpl implements CabinClassService {
     }
 
     @Override
-    public CabinClassResponse updateCabinClass(Long id, CabinClassRequest cabinClassRequest) throws Exception {
+    public CabinClassResponse updateCabinClass(Long id, CabinClassRequest cabinClassRequest) {
         CabinClass cabinClass = cabinClassRepository.findById(id).orElseThrow(
-                () -> new Exception("cabin class not found with id")
+                () -> new ResourceNotFoundException("cabin class not found with id")
         );
 //        existing cabin code=> PEC
 //        request => BC
@@ -75,7 +77,7 @@ public class CabinClassServiceImpl implements CabinClassService {
                 cabinClass.getAircraftId(),
                 cabinClass.getId()
         )) {
-            throw new Exception("cabin class with code already exist");
+            throw new ConflictException("cabin class with code already exist");
         }
 
 
@@ -85,9 +87,9 @@ public class CabinClassServiceImpl implements CabinClassService {
     }
 
     @Override
-    public void deleteCabinClass(Long id) throws Exception {
+    public void deleteCabinClass(Long id) {
         CabinClass cabinClass = cabinClassRepository.findById(id).orElseThrow(
-                () -> new Exception("cabin class not found with id")
+                () -> new ResourceNotFoundException("cabin class not found with id")
         );
         cabinClassRepository.delete(cabinClass);
     }

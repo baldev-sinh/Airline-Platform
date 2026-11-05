@@ -4,21 +4,23 @@ import com.baldev.airline.booking.model.Passenger;
 import com.baldev.airline.common.payload.request.PassengerRequest;
 import com.baldev.airline.common.payload.response.PassengerResponse;
 
-public class PassengerMapper {
+public final class PassengerMapper {
+
+    private PassengerMapper() {
+    }
 
     public static Passenger toEntity(PassengerRequest request) {
         return Passenger.builder()
-                .firstName(request.getFirstName())
-                .lastName(request.getLastName())
+                .firstName(request.getFirstName().trim())
+                .lastName(request.getLastName().trim())
                 .email(request.getEmail())
                 .phone(request.getPhone())
                 .dateOfBirth(request.getDateOfBirth())
                 .gender(request.getGender())
-
                 .nationality(request.getNationality())
+                .seatInstanceId(request.getSeatInstanceId())
                 .build();
     }
-
 
     public static PassengerResponse toResponse(Passenger passenger) {
         return PassengerResponse.builder()
@@ -29,11 +31,9 @@ public class PassengerMapper {
                 .phone(passenger.getPhone())
                 .dateOfBirth(passenger.getDateOfBirth())
                 .gender(passenger.getGender())
-
                 .nationality(passenger.getNationality())
-
+                .seatInstanceId(passenger.getSeatInstanceId())
                 .primaryUserId(passenger.getPrimaryUserId())
-
                 .isActive(passenger.getIsActive())
                 .age(passenger.getAge())
                 .isAdult(passenger.isAdult())

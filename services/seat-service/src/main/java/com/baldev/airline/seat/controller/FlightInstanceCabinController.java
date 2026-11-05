@@ -21,7 +21,7 @@ public class FlightInstanceCabinController {
 
     @PostMapping
     public ResponseEntity<FlightInstanceCabinResponse> createFlightInstanceCabin(
-            @Valid @RequestBody FlightInstanceCabinRequest request) throws Exception {
+            @Valid @RequestBody FlightInstanceCabinRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(flightInstanceCabinService.createFlightInstanceCabin(request));
     }

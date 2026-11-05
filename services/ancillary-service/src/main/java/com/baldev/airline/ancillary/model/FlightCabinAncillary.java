@@ -1,5 +1,6 @@
 package com.baldev.airline.ancillary.model;
 
+import java.math.BigDecimal;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -28,7 +29,7 @@ public class FlightCabinAncillary {
 
     private Integer maxQuantity;
 
-    private Double price;
+    private BigDecimal price;
 
     private Boolean includedInFare = false;
 }

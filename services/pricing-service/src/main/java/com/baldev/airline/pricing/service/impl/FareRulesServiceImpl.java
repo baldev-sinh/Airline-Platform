@@ -1,5 +1,7 @@
 package com.baldev.airline.pricing.service.impl;
 
+import com.baldev.airline.common.exception.ConflictException;
+import com.baldev.airline.common.exception.ResourceNotFoundException;
 
 import com.baldev.airline.pricing.mapper.FareRuleMapper;
 import com.baldev.airline.pricing.model.Fare;
@@ -9,7 +11,6 @@ import com.baldev.airline.common.payload.response.FareRulesResponse;
 import com.baldev.airline.pricing.repository.FareRepository;
 import com.baldev.airline.pricing.repository.FareRuleRepository;
 import com.baldev.airline.pricing.service.FareRulesService;
-import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -24,12 +25,12 @@ public class FareRulesServiceImpl implements FareRulesService {
     private final FareRuleRepository fareRuleRepository;
 
     @Override
-    public FareRulesResponse createFareRules(FareRulesRequest request) throws Exception {
+    public FareRulesResponse createFareRules(FareRulesRequest request) {
         Fare fare=fareRepository.findById(request.getFareId())
-                .orElseThrow(()-> new Exception("Fare not found"));
+                .orElseThrow(()-> new ResourceNotFoundException("Fare not found"));
 
         if(fareRuleRepository.existsByFareId(fare.getId())){
-            throw new Exception("Fare already exists");
+            throw new ConflictException("Fare already exists");
         }
 
         FareRules fareRules= FareRuleMapper.toEntity(request,fare);
@@ -39,9 +40,9 @@ public class FareRulesServiceImpl implements FareRulesService {
     }
 
     @Override
-    public FareRulesResponse getFareRulesById(Long id) throws Exception {
+    public FareRulesResponse getFareRulesById(Long id) {
         FareRules fareRules= fareRuleRepository.findById(id).orElseThrow(
-                ()-> new Exception("fare rule not found")
+                ()-> new ResourceNotFoundException("fare rule not found")
         );
         return FareRuleMapper.toResponse(fareRules);
     }
@@ -61,10 +62,10 @@ public class FareRulesServiceImpl implements FareRulesService {
     }
 
     @Override
-    public FareRulesResponse updateFareRules(Long id, FareRulesRequest request) throws Exception {
+    public FareRulesResponse updateFareRules(Long id, FareRulesRequest request) {
 
         FareRules fareRules= fareRuleRepository.findById(id).orElseThrow(
-                ()-> new Exception("fare rule not found")
+                ()-> new ResourceNotFoundException("fare rule not found")
         );
         FareRuleMapper.updateEntity(request,fareRules);
         FareRules savedFareRules= fareRuleRepository.save(fareRules);
@@ -74,7 +75,7 @@ public class FareRulesServiceImpl implements FareRulesService {
     @Override
     public void deleteFareRules(Long id) {
         FareRules fareRules = fareRuleRepository.findById(id)
-                .orElseThrow(() -> new EntityNotFoundException(
+                .orElseThrow(() -> new ResourceNotFoundException(
                         "Fare rules not found with id: " + id));
         fareRuleRepository.delete(fareRules);
     }

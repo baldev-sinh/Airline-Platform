@@ -1,5 +1,6 @@
 package com.baldev.airline.common.payload.request;
 
+import java.math.BigDecimal;
 import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -26,7 +27,7 @@ public class FlightCabinAncillaryRequest {
 
     private Integer maxQuantity;
 
-    private Double price;
+    private BigDecimal price;
 
     @NotNull(message = "Included in fare status is required")
     private Boolean includedInFare;

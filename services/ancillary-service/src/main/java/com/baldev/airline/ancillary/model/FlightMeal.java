@@ -1,5 +1,6 @@
 package com.baldev.airline.ancillary.model;
 
+import java.math.BigDecimal;
 
 import jakarta.persistence.*;
 import lombok.*;
@@ -24,7 +25,7 @@ public class FlightMeal {
 
     private Boolean available = true;
 
-    private Double price;
+    private BigDecimal price;
 
     private Integer displayOrder = 0;
 

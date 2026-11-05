@@ -1,5 +1,6 @@
 package com.baldev.airline.common.payload.response;
 
+import java.math.BigDecimal;
 
 import com.baldev.airline.common.enums.PaymentGateway;
 import lombok.AllArgsConstructor;
@@ -20,7 +21,7 @@ public class PaymentInitiateResponse {
     // Razorpay specific fields
     private String razorpayOrderId;
 
-    private Double amount;
+    private BigDecimal amount;
 
     private String description;
 

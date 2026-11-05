@@ -1,5 +1,6 @@
 package com.baldev.airline.common.payload.response;
 
+import java.math.BigDecimal;
 
 import com.baldev.airline.common.enums.FlightStatus;
 import lombok.AllArgsConstructor;
@@ -25,7 +26,7 @@ public class FlightResponse {
     private LocalDateTime departureTime;
     private LocalDateTime arrivalTime;
     private FlightStatus status;
-    private Double lowestPrice;
+    private BigDecimal lowestPrice;
     private Integer totalAvailableSeats;
     private Instant createdAt;
     private Instant updatedAt;

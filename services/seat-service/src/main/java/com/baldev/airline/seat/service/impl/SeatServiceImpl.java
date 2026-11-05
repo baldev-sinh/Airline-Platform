@@ -1,5 +1,7 @@
 package com.baldev.airline.seat.service.impl;
 
+import com.baldev.airline.common.exception.ConflictException;
+import com.baldev.airline.common.exception.ResourceNotFoundException;
 
 import com.baldev.airline.common.enums.SeatType;
 import com.baldev.airline.seat.mapper.SeatMapper;
@@ -24,13 +26,13 @@ public class SeatServiceImpl implements SeatService {
     private final SeatMapRepository seatMapRepository;
 
     @Override
-    public void generateSeats(Long seatMapId) throws Exception {
+    public void generateSeats(Long seatMapId) {
         boolean exists = seatRepository.existsBySeatMapId(seatMapId);
         if (exists) {
-            throw new Exception("seats already created for seat map");
+            throw new ConflictException("seats already created for seat map");
         }
         SeatMap seatMap = seatMapRepository.findById(seatMapId).orElseThrow(
-                () -> new Exception("seat map not found")
+                () -> new ResourceNotFoundException("seat map not found")
         );
 
         int leftSeatsPerRow = seatMap.getLeftSeatsPerRow();

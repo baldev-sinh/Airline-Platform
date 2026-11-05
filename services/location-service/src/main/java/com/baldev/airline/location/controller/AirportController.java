@@ -22,14 +22,14 @@ public class AirportController {
     @PostMapping
     public ResponseEntity<AirportResponse> createAirport(
             @Valid @RequestBody AirportRequest airportRequest
-    ) throws Exception {
+    ) {
         return ResponseEntity.status(HttpStatus.CREATED).body(
                 airportService.createAirport(airportRequest)
         );
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<AirportResponse> getAirportById(@PathVariable Long id) throws Exception {
+    public ResponseEntity<AirportResponse> getAirportById(@PathVariable Long id) {
         return ResponseEntity.ok(airportService.getAirportById(id));
     }
 
@@ -46,12 +46,12 @@ public class AirportController {
     @PutMapping("/{id}")
     public ResponseEntity<AirportResponse> updateAirport(
             @PathVariable Long id,
-            @Valid @RequestBody AirportRequest request) throws Exception {
+            @Valid @RequestBody AirportRequest request) {
         return ResponseEntity.ok(airportService.updateAirport(id, request));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<ApiResponse> deleteAirport(@PathVariable Long id) throws Exception {
+    public ResponseEntity<ApiResponse> deleteAirport(@PathVariable Long id) {
         airportService.deleteAirport(id);
         return ResponseEntity.ok(new ApiResponse("Airport deleted successfully"));
     }

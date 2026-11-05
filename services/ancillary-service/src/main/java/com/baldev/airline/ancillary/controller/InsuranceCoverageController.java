@@ -21,7 +21,7 @@ public class InsuranceCoverageController {
 
     @PostMapping
     public ResponseEntity<InsuranceCoverageResponse> createCoverage(
-            @Valid @RequestBody InsuranceCoverageRequest insuranceCoverageRequest) throws Exception {
+            @Valid @RequestBody InsuranceCoverageRequest insuranceCoverageRequest) {
         InsuranceCoverageResponse response = insuranceCoverageService.createCoverage(
                 insuranceCoverageRequest);
         return new ResponseEntity<>(response, HttpStatus.CREATED);
@@ -30,20 +30,19 @@ public class InsuranceCoverageController {
     @PutMapping("/{id}")
     public ResponseEntity<InsuranceCoverageResponse> updateCoverage(
             @PathVariable Long id,
-            @RequestBody InsuranceCoverageRequest request) throws Exception {
+            @RequestBody InsuranceCoverageRequest request) {
         return ResponseEntity.ok(insuranceCoverageService.updateCoverage(id, request));
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<ApiResponse> deleteCoverage(
-            @PathVariable Long id) throws Exception {
+            @PathVariable Long id) {
         insuranceCoverageService.deleteCoverage(id);
         return ResponseEntity.ok(new ApiResponse("Coverage deleted successfully"));
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<InsuranceCoverageResponse> getCoverageById(@PathVariable Long id)
-            throws Exception {
+    public ResponseEntity<InsuranceCoverageResponse> getCoverageById(@PathVariable Long id) {
         return ResponseEntity.ok(insuranceCoverageService.getCoverage(id));
     }
 

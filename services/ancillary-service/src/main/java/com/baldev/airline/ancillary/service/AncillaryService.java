@@ -9,11 +9,11 @@ public interface AncillaryService {
 
     AncillaryResponse createAncillary(Long userId, AncillaryRequest request);
 
-    AncillaryResponse getById(Long id) throws Exception;
+    AncillaryResponse getById(Long id);
 
     List<AncillaryResponse> getByAirlineId(Long userId);
 
-    AncillaryResponse updateAncillary(Long id, AncillaryRequest request) throws Exception;
+    AncillaryResponse updateAncillary(Long id, AncillaryRequest request);
 
-    void deleteAncillary(Long id) throws Exception;
+    void deleteAncillary(Long id);
 }

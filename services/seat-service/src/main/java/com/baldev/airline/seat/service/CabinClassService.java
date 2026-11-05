@@ -9,17 +9,17 @@ import java.util.List;
 
 public interface CabinClassService {
 
-    CabinClassResponse createCabinClass(CabinClassRequest cabinClassRequest) throws Exception;
+    CabinClassResponse createCabinClass(CabinClassRequest cabinClassRequest);
 
-    CabinClassResponse getCabinClassById(Long id) throws Exception;
+    CabinClassResponse getCabinClassById(Long id);
 
     List<CabinClassResponse> getCabinClassesByAircraftId(Long aircraftId);
 
     CabinClassResponse getByAircraftIdAndName(Long aircraftId, CabinClassType name);
 
-    CabinClassResponse updateCabinClass(Long id, CabinClassRequest cabinClassRequest) throws Exception;
+    CabinClassResponse updateCabinClass(Long id, CabinClassRequest cabinClassRequest);
 
-    void deleteCabinClass(Long id) throws Exception;
+    void deleteCabinClass(Long id);
 
 
 }

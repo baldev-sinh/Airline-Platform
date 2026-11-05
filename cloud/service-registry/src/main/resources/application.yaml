@@ -1,11 +1,31 @@
 server:
-  port: 8761
+  port: ${SERVER_PORT:8761}
+  shutdown: graceful
 
 spring:
   application:
     name: service-registry
 
 eureka:
+  instance:
+    hostname: ${EUREKA_HOSTNAME:localhost}
   client:
-    fetch-registry: false
-    register-with-eureka: false
+    # Standalone registry. For HA, run 2+ replicas and point defaultZone at the peers.
+    register-with-eureka: ${EUREKA_REGISTER_WITH_PEERS:false}
+    fetch-registry: ${EUREKA_REGISTER_WITH_PEERS:false}
+    service-url:
+      defaultZone: ${EUREKA_PEER_URLS:http://localhost:8761/eureka/}
+  server:
+    enable-self-preservation: ${EUREKA_SELF_PRESERVATION:true}
+    eviction-interval-timer-in-ms: 10000
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: never

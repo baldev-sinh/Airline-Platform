@@ -1,5 +1,6 @@
 package com.baldev.airline.common.payload.request;
 
+import java.math.BigDecimal;
 
 import com.baldev.airline.common.enums.CabinClassType;
 import jakarta.validation.constraints.Min;
@@ -30,8 +31,8 @@ public class FlightSearchRequest {
 
 //    filter parameters
     private List<Long> airlines;
-    private Double minPrice;
-    private Double maxPrice;
+    private BigDecimal minPrice;
+    private BigDecimal maxPrice;
     private String departureTimeRange;
     private String arrivalTimeRange;
     private Integer maxDuration;

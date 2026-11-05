@@ -1,5 +1,6 @@
 package com.baldev.airline.common.payload.request;
 
+import java.math.BigDecimal;
 
 import com.baldev.airline.common.enums.CoverageType;
 import jakarta.validation.constraints.NotBlank;
@@ -32,7 +33,7 @@ public class InsuranceCoverageRequest {
 
     @NotNull(message = "Coverage amount is required")
     @PositiveOrZero(message = "Coverage amount must be zero or positive")
-    private Double coverageAmount;
+    private BigDecimal coverageAmount;
 
     private Boolean isFlat;
 

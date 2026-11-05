@@ -6,13 +6,13 @@ import com.baldev.airline.common.payload.response.SeatMapResponse;
 
 public interface SeatMapService {
 
-    SeatMapResponse createSeatMap(Long userId, SeatMapRequest request) throws Exception;
+    SeatMapResponse createSeatMap(Long userId, SeatMapRequest request);
 
-    SeatMapResponse getSeatMapById(Long id) throws Exception;
+    SeatMapResponse getSeatMapById(Long id);
 
     SeatMapResponse getSeatMapByCabinClass(Long cabinId);
 
-    SeatMapResponse updateSeatMap(Long id, SeatMapRequest request) throws Exception;
+    SeatMapResponse updateSeatMap(Long id, SeatMapRequest request);
 
-    void deleteSeatMap(Long id) throws Exception;
+    void deleteSeatMap(Long id);
 }

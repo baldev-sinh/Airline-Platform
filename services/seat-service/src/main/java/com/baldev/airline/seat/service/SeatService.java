@@ -7,7 +7,7 @@ import com.baldev.airline.common.payload.response.SeatResponse;
 import java.util.List;
 
 public interface SeatService {
-    void generateSeats(Long seatMapId) throws Exception;
+    void generateSeats(Long seatMapId);
 
     List<SeatResponse> getAll();
 

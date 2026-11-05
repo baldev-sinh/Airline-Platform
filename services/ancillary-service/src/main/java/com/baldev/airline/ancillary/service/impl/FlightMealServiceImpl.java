@@ -1,5 +1,13 @@
 package com.baldev.airline.ancillary.service.impl;
 
+import java.util.function.Function;
+import java.util.Map;
+import com.baldev.airline.common.exception.BusinessRuleException;
+import com.baldev.airline.common.util.Money;
+import com.baldev.airline.common.payload.request.PriceQuoteRequest;
+import java.math.BigDecimal;
+import com.baldev.airline.common.exception.ConflictException;
+import com.baldev.airline.common.exception.ResourceNotFoundException;
 import com.baldev.airline.ancillary.mapper.FlightMealMapper;
 import com.baldev.airline.ancillary.model.FlightMeal;
 import com.baldev.airline.ancillary.model.Meal;
@@ -21,13 +29,13 @@ public class FlightMealServiceImpl implements FlightMealService {
     private final FlightMealRepository flightMealRepository;
 
     @Override
-    public FlightMealResponse createFlightMeal(FlightMealRequest request) throws Exception {
+    public FlightMealResponse createFlightMeal(FlightMealRequest request) {
         Meal meal = mealRepository.findById(request.getMealId())
                 .orElseThrow(
-                        () -> new Exception("Meal not found")
+                        () -> new ResourceNotFoundException("Meal not found")
                 );
         if (flightMealRepository.existsByFlightIdAndMealId(request.getFlightId(), meal.getId())) {
-            throw new Exception("Meal already exists For Flight");
+            throw new ConflictException("Meal already exists For Flight");
         }
         FlightMeal flightMeal = FlightMeal.builder()
                 .flightId(request.getFlightId())
@@ -42,9 +50,9 @@ public class FlightMealServiceImpl implements FlightMealService {
     }
 
     @Override
-    public FlightMealResponse getFlightMealById(Long id) throws Exception {
+    public FlightMealResponse getFlightMealById(Long id) {
         FlightMeal flightMeal = flightMealRepository.findById(id).orElseThrow(
-                () -> new Exception("flight meal not found")
+                () -> new ResourceNotFoundException("flight meal not found")
         );
         return FlightMealMapper.toResponse(flightMeal);
     }
@@ -65,16 +73,16 @@ public class FlightMealServiceImpl implements FlightMealService {
     }
 
     @Override
-    public FlightMealResponse updateFlightMeal(Long id, FlightMealRequest request) throws Exception {
+    public FlightMealResponse updateFlightMeal(Long id, FlightMealRequest request) {
         FlightMeal flightMeal = flightMealRepository.findById(id).orElseThrow(
-                () -> new Exception("flight meal not found")
+                () -> new ResourceNotFoundException("flight meal not found")
         );
 
         flightMeal.setFlightId(request.getFlightId());
 
         if (request.getMealId() != null) {
             Meal meal = mealRepository.findById(request.getMealId())
-                    .orElseThrow(() -> new Exception("Meal not found"));
+                    .orElseThrow(() -> new ResourceNotFoundException("Meal not found"));
             flightMeal.setMeal(meal);
         }
         flightMeal.setAvailable(request.getAvailable());
@@ -85,17 +93,17 @@ public class FlightMealServiceImpl implements FlightMealService {
     }
 
     @Override
-    public void deleteFlightMeal(Long id) throws Exception {
+    public void deleteFlightMeal(Long id) {
         FlightMeal flightMeal = flightMealRepository.findById(id).orElseThrow(
-                () -> new Exception("flight meal not found")
+                () -> new ResourceNotFoundException("flight meal not found")
         );
         flightMealRepository.delete(flightMeal);
     }
 
     @Override
-    public FlightMealResponse updateFlightMealAvailability(Long id, Boolean availability) throws Exception {
+    public FlightMealResponse updateFlightMealAvailability(Long id, Boolean availability) {
         FlightMeal flightMeal = flightMealRepository.findById(id).orElseThrow(
-                () -> new Exception("flight meal not found")
+                () -> new ResourceNotFoundException("flight meal not found")
         );
         flightMeal.setAvailable(availability);
         FlightMeal updated = flightMealRepository.save(flightMeal);
@@ -103,12 +111,25 @@ public class FlightMealServiceImpl implements FlightMealService {
     }
 
     @Override
-    public Double calculateMealPrice(List<Long> mealIds) {
-        List<FlightMeal> meals = flightMealRepository.findAllById(mealIds);
-        double price = 0.0;
-        for (FlightMeal meal : meals) {
-            price += meal.getPrice();
+    public BigDecimal calculateMealPrice(PriceQuoteRequest request) {
+        List<Long> ids = request.getItemIds();
+        if (ids == null || ids.isEmpty()) {
+            return Money.normalize(BigDecimal.ZERO);
         }
-        return price;
+        Map<Long, FlightMeal> byId = flightMealRepository.findAllById(ids).stream()
+                .collect(Collectors.toMap(FlightMeal::getId, Function.identity()));
+
+        BigDecimal total = BigDecimal.ZERO;
+        for (Long id : ids) {
+            FlightMeal meal = byId.get(id);
+            if (meal == null || !request.getFlightId().equals(meal.getFlightId())) {
+                throw new ResourceNotFoundException("Meal " + id + " is not offered on this flight");
+            }
+            if (!Boolean.TRUE.equals(meal.getAvailable())) {
+                throw new BusinessRuleException("MEAL_UNAVAILABLE", "Meal " + id + " is not available");
+            }
+            total = total.add(Money.orZero(meal.getPrice()));
+        }
+        return Money.normalize(total);
     }
 }

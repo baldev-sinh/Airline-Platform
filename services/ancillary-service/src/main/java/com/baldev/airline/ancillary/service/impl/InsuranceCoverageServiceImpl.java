@@ -1,5 +1,6 @@
 package com.baldev.airline.ancillary.service.impl;
 
+import com.baldev.airline.common.exception.ResourceNotFoundException;
 import com.baldev.airline.ancillary.mapper.InsuranceCoverageMapper;
 import com.baldev.airline.ancillary.model.Ancillary;
 import com.baldev.airline.ancillary.model.InsuranceCoverage;
@@ -22,10 +23,10 @@ public class InsuranceCoverageServiceImpl implements InsuranceCoverageService {
     private final InsuranceCoverageRepository insuranceCoverageRepository;
 
     @Override
-    public InsuranceCoverageResponse createCoverage(InsuranceCoverageRequest request) throws Exception {
+    public InsuranceCoverageResponse createCoverage(InsuranceCoverageRequest request) {
         Ancillary ancillary = ancillaryRepository.findById(request.getAncillaryId())
                 .orElseThrow(
-                        () -> new Exception("ancillary not found with provided id")
+                        () -> new ResourceNotFoundException("ancillary not found with provided id")
                 );
 
         InsuranceCoverage coverage = InsuranceCoverageMapper.toEntity(request, ancillary);
@@ -37,18 +38,18 @@ public class InsuranceCoverageServiceImpl implements InsuranceCoverageService {
     }
 
     @Override
-    public InsuranceCoverageResponse updateCoverage(Long id, InsuranceCoverageRequest request) throws Exception {
+    public InsuranceCoverageResponse updateCoverage(Long id, InsuranceCoverageRequest request) {
         InsuranceCoverage insuranceCoverage = insuranceCoverageRepository.findById(
                 id
         ).orElseThrow(
-                () -> new Exception("insurance coverage not found with id")
+                () -> new ResourceNotFoundException("insurance coverage not found with id")
         );
 
         Ancillary ancillary = null;
         if (request.getAncillaryId() != null) {
             ancillary = ancillaryRepository.findById(request.getAncillaryId())
                     .orElseThrow(
-                            () -> new Exception("ancillary not found with provided id")
+                            () -> new ResourceNotFoundException("ancillary not found with provided id")
                     );
         }
         InsuranceCoverageMapper.updateEntityFromRequest(insuranceCoverage, request, ancillary);
@@ -57,21 +58,21 @@ public class InsuranceCoverageServiceImpl implements InsuranceCoverageService {
     }
 
     @Override
-    public void deleteCoverage(Long id) throws Exception {
+    public void deleteCoverage(Long id) {
         InsuranceCoverage insuranceCoverage = insuranceCoverageRepository.findById(
                 id
         ).orElseThrow(
-                () -> new Exception("insurance coverage not found with id")
+                () -> new ResourceNotFoundException("insurance coverage not found with id")
         );
         insuranceCoverageRepository.delete(insuranceCoverage);
     }
 
     @Override
-    public InsuranceCoverageResponse getCoverage(Long id) throws Exception {
+    public InsuranceCoverageResponse getCoverage(Long id) {
         InsuranceCoverage insuranceCoverage = insuranceCoverageRepository.findById(
                 id
         ).orElseThrow(
-                () -> new Exception("insurance coverage not found with id")
+                () -> new ResourceNotFoundException("insurance coverage not found with id")
         );
         return InsuranceCoverageMapper.toResponse(insuranceCoverage);
     }

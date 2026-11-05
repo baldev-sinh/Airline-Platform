@@ -1,5 +1,6 @@
 package com.baldev.airline.common.payload.response;
 
+import java.math.BigDecimal;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -17,7 +18,7 @@ public class FlightCabinAncillaryResponse {
     private AncillaryResponse ancillary;
     private Boolean available;
     private Integer maxQuantity;
-    private Double price;
+    private BigDecimal price;
     private Boolean includedInFare;
 
 }

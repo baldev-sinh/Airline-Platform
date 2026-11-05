@@ -7,16 +7,16 @@ import java.util.List;
 
 public interface MealService {
 
-    MealResponse createMeal(Long userId, MealRequest request) throws Exception;
+    MealResponse createMeal(Long userId, MealRequest request);
 
-    MealResponse getMealById(Long id) throws Exception;
+    MealResponse getMealById(Long id);
 
-    MealResponse updateMeal(Long userId, Long id, MealRequest request) throws Exception;
+    MealResponse updateMeal(Long userId, Long id, MealRequest request);
 
     List<MealResponse> getByAirlineId(Long userId);
 
-    void deleteMeal(Long id) throws Exception;
+    void deleteMeal(Long id);
 
-    MealResponse updateAvailability(Long id, Boolean availability) throws Exception;
+    MealResponse updateAvailability(Long id, Boolean availability);
 
 }

@@ -25,7 +25,7 @@ public class CityController {
     @PostMapping
     public ResponseEntity<CityResponse> createCity(
             @Valid @RequestBody CityRequest cityRequest
-            ) throws Exception {
+            ) {
 
         CityResponse response = cityService.createCity(cityRequest);
         return ResponseEntity
@@ -35,7 +35,7 @@ public class CityController {
 
 
     @GetMapping("/{id}")
-    public ResponseEntity<CityResponse> getCityById(@PathVariable Long id) throws Exception {
+    public ResponseEntity<CityResponse> getCityById(@PathVariable Long id) {
 
         CityResponse response = cityService.getCityById(id);
         return ResponseEntity
@@ -49,7 +49,7 @@ public class CityController {
             @RequestParam(defaultValue = "20") int size,
             @RequestParam(defaultValue = "name") String sortBy,
             @RequestParam(defaultValue = "asc") String sortDirection
-    ) throws Exception {
+    ) {
 
         Sort sort = Sort.by(Sort.Direction.fromString(sortDirection), sortBy);
 
@@ -64,7 +64,7 @@ public class CityController {
     public ResponseEntity<CityResponse> updateCity(
             @PathVariable Long id,
             @Valid @RequestBody CityRequest request
-    ) throws Exception {
+    ) {
 
         return ResponseEntity
                 .ok(cityService.updateCity(id, request));
@@ -72,7 +72,7 @@ public class CityController {
 
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<ApiResponse> deleteCity(@PathVariable Long id) throws Exception {
+    public ResponseEntity<ApiResponse> deleteCity(@PathVariable Long id) {
 
         cityService.deleteCity(id);
         return ResponseEntity
@@ -86,7 +86,7 @@ public class CityController {
             @RequestParam String keyword,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size
-    ) throws Exception {
+    ) {
 
        Pageable pageable = PageRequest.of(page, size);
 
@@ -99,7 +99,7 @@ public class CityController {
             @PathVariable String countryCode,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size
-    ) throws Exception {
+    ) {
 
         Pageable pageable = PageRequest.of(page, size);
 
@@ -109,7 +109,7 @@ public class CityController {
 
 
     @GetMapping("/exists/{cityCode}")
-    public ResponseEntity<Boolean> checkCityExists(@PathVariable String cityCode) throws Exception {
+    public ResponseEntity<Boolean> checkCityExists(@PathVariable String cityCode) {
         return ResponseEntity
                 .ok(cityService.cityExists(cityCode.toUpperCase()));
     }

@@ -4,31 +4,37 @@ import com.baldev.airline.common.enums.TicketStatus;
 import jakarta.persistence.*;
 import lombok.*;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
+/** An electronic ticket: issued per passenger only once the booking is paid. */
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
 @Entity
+@Table(uniqueConstraints = @UniqueConstraint(name = "uk_ticket_number", columnNames = "ticketNumber"))
 public class Ticket {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.AUTO)
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false)
+    /** 13-digit e-ticket number: 3-digit airline accounting code + 10-digit serial. */
+    @Column(nullable = false, length = 13)
     private String ticketNumber;
 
     @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
     private TicketStatus status;
 
-    private LocalDateTime issuedAt;
+    private Instant issuedAt;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "booking_id", nullable = false)
     private Booking booking;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "passenger_id", nullable = false)
     private Passenger passenger;
 }

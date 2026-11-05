@@ -1,5 +1,7 @@
 package com.baldev.airline.seat.model;
 
+import com.baldev.airline.common.util.Money;
+import java.math.BigDecimal;
 
 import com.baldev.airline.common.enums.SeatType;
 import jakarta.persistence.*;
@@ -35,9 +37,9 @@ public class Seat {
 
     private SeatType seatType;
 
-    private Double basePrice;
+    private BigDecimal basePrice;
 
-    private Double premiumSuperCharge;
+    private BigDecimal premiumSuperCharge;
 
     private Boolean isAvailable=true;
 
@@ -84,12 +86,8 @@ public class Seat {
     @Version
     private Long version;
 
-    public Double getTotalPrice(){
-        Double total=basePrice!=null?basePrice:0;
-        if(premiumSuperCharge!=null){
-            total+=premiumSuperCharge;
-        }
-        return total;
+    public BigDecimal getTotalPrice() {
+        return Money.sum(basePrice, premiumSuperCharge);
     }
 
     public boolean isBookable(){

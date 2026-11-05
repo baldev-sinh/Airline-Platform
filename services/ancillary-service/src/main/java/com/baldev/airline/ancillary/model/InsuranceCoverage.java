@@ -1,5 +1,6 @@
 package com.baldev.airline.ancillary.model;
 
+import java.math.BigDecimal;
 
 import com.baldev.airline.common.enums.CoverageType;
 import jakarta.persistence.*;
@@ -30,7 +31,7 @@ public class InsuranceCoverage {
     private String description;
 
     @Column(nullable = false)
-    private Double coverageAmount;
+    private BigDecimal coverageAmount;
 
     private String emergencyContact;
 

@@ -1,5 +1,6 @@
 package com.baldev.airline.common.payload.response;
 
+import java.math.BigDecimal;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -17,8 +18,8 @@ public class FareRulesResponse {
     private Long fareId;
     private Long airlineId;
     private Boolean isRefundable;
-    private Double changeFee;
-    private Double cancellationFee;
+    private BigDecimal changeFee;
+    private BigDecimal cancellationFee;
     private Integer refundDeadlineDays;
     private Integer changeDeadlineHours;
     private Boolean isChangeable;

@@ -1,5 +1,7 @@
 package com.baldev.airline.pricing.mapper;
 
+import java.math.BigDecimal;
+import com.baldev.airline.common.util.Money;
 
 import com.baldev.airline.common.embeddable.*;
 import com.baldev.airline.pricing.model.Fare;
@@ -11,12 +13,9 @@ public class FareMapper {
     public static Fare toEntity(FareRequest request){
         if(request == null)return null;
 
-        Double calculatedPrice=request.getCurrentPrice();
-        if(calculatedPrice == null){
-            calculatedPrice=request.getBaseFare()+
-                    request.getTaxesAndFees()+
-                    request.getAirlineFees();
-        };
+        BigDecimal calculatedPrice = request.getCurrentPrice() != null
+                ? Money.normalize(request.getCurrentPrice())
+                : Money.sum(request.getBaseFare(), request.getTaxesAndFees(), request.getAirlineFees());
 
         SeatBenefits seatBenefits=SeatBenefits.builder()
                 .extraSeatSpace(bool(request.getExtraSeatSpace()))

@@ -1,13 +1,17 @@
 package com.baldev.airline.booking.controller;
 
+import com.baldev.airline.booking.service.BookingService;
 import com.baldev.airline.common.enums.BookingStatus;
 import com.baldev.airline.common.payload.request.BookingRequest;
-import com.baldev.airline.common.payload.response.ApiResponse;
 import com.baldev.airline.common.payload.response.BookingResponse;
 import com.baldev.airline.common.payload.response.PaymentInitiateResponse;
-import com.baldev.airline.booking.service.BookingService;
+import com.baldev.airline.common.web.CurrentUser;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -22,61 +26,39 @@ public class BookingController {
     private final BookingService bookingService;
 
     @PostMapping
-    public ResponseEntity<PaymentInitiateResponse> createBooking(
-            @RequestHeader("X-User-Id") Long userId,
-            @Valid @RequestBody BookingRequest bookingRequest) {
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(
-                        bookingService.createBooking(bookingRequest, userId)
-                );
+    public ResponseEntity<PaymentInitiateResponse> createBooking(CurrentUser user,
+                                                                 @Valid @RequestBody BookingRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(bookingService.createBooking(user, request));
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<BookingResponse> getBookingById(
-            @PathVariable Long id) throws Exception {
-        BookingResponse response = bookingService.getBookingById(id);
-        return ResponseEntity.ok(response);
+    public BookingResponse getBookingById(@PathVariable Long id, CurrentUser user) {
+        return bookingService.getBooking(user, id);
     }
 
     @GetMapping("/airline")
-    public ResponseEntity<List<BookingResponse>> getBookingsByAirline(
+    public Page<BookingResponse> getBookingsByAirline(
+            CurrentUser user,
             @RequestParam(required = false) String search,
             @RequestParam(required = false) BookingStatus status,
             @RequestParam(required = false) Long flightInstanceId,
-            @RequestParam(defaultValue = "DESC") String sortDirection,
-            @RequestHeader("X-User-Id") Long userId
-    ) {
-        List<BookingResponse> responses = bookingService.getAllBookingsByAirline(
-                userId,
-                search,
-                status,
-                flightInstanceId,
-                sortDirection
-        );
-        return ResponseEntity.ok(responses);
+            @PageableDefault(size = 20, sort = "bookingDate", direction = Sort.Direction.DESC) Pageable pageable) {
+        return bookingService.getBookingsByAirline(user, search, status, flightInstanceId, pageable);
     }
 
     @GetMapping("/user/history")
-    public ResponseEntity<List<BookingResponse>> getBookingsByUser(
-            @RequestHeader("X-User-Id") Long userId) {
-        List<BookingResponse> responses = bookingService.getBookingsByUser(userId);
-        return ResponseEntity.ok(responses);
+    public List<BookingResponse> getBookingsByUser(CurrentUser user) {
+        return bookingService.getBookingsByUser(user.id());
     }
 
     @PatchMapping("/{id}/cancel")
-    public ResponseEntity<BookingResponse> cancelBooking(
-            @PathVariable Long id,
-            @RequestHeader("X-User-Id") Long userId) throws Exception {
-        BookingResponse response = bookingService.cancelBooking(id);
-        return ResponseEntity.ok(response);
+    public BookingResponse cancelBooking(@PathVariable Long id, CurrentUser user) {
+        return bookingService.cancelBooking(user, id);
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<ApiResponse> deleteBooking(
-            @PathVariable Long id,
-            @RequestHeader("X-User-Id") Long userId) throws Exception {
-        bookingService.deleteBooking(id);
-        ApiResponse response = new ApiResponse("Booking deleted successfully");
-        return ResponseEntity.ok(response);
+    public ResponseEntity<Void> deleteBooking(@PathVariable Long id, CurrentUser user) {
+        bookingService.deleteBooking(user, id);
+        return ResponseEntity.noContent().build();
     }
 }

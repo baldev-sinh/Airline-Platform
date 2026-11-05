@@ -1,5 +1,6 @@
 package com.baldev.airline.common.payload.request;
 
+import java.math.BigDecimal;
 
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Min;
@@ -24,7 +25,7 @@ public class FlightMealRequest {
     private Boolean available;
 
     @DecimalMin(value = "0.0", message = "Price cannot be negative")
-    private Double price;
+    private BigDecimal price;
 
     @Min(value = 0, message = "Display order cannot be negative")
     private Integer displayOrder;

@@ -1,5 +1,6 @@
 package com.baldev.airline.common.event;
 
+import java.math.BigDecimal;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -58,7 +59,7 @@ public class BookingConfirmedEvent {
     private String flightDuration;
 
     // ── Payment ──────────────────────────────────────────────────────────────
-    private Double totalAmount;
+    private BigDecimal totalAmount;
     private String currency;
     private String transactionId;
     private String providerPaymentId;
@@ -67,11 +68,11 @@ public class BookingConfirmedEvent {
 
     // ── Fare Breakdown ────────────────────────────────────────────────────────
     private String fareName;
-    private Double baseFare;
-    private Double taxesAndFees;
-    private Double seatFees;
-    private Double ancillaryFees;
-    private Double mealFees;
+    private BigDecimal baseFare;
+    private BigDecimal taxesAndFees;
+    private BigDecimal seatFees;
+    private BigDecimal ancillaryFees;
+    private BigDecimal mealFees;
 
     // ── Baggage Allowance ─────────────────────────────────────────────────────
     private Integer checkinBaggagePieces;

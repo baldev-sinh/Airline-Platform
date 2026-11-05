@@ -1,5 +1,8 @@
 package com.baldev.airline.flightops.service.impl;
 
+import com.baldev.airline.common.exception.ResourceNotFoundException;
+import java.math.BigDecimal;
+import java.math.BigDecimal;
 
 import com.baldev.airline.flightops.client.AirlineClient;
 import com.baldev.airline.flightops.client.LocationClient;
@@ -56,36 +59,32 @@ public class FlightSearchServiceImpl implements FlightSearchService {
         Map<Long, FareResponse> fareMap=Collections.emptyMap();
         
         if(request.getCabinClass()!=null){
-            final boolean hasPriceFilter=request.getMinPrice()!=null
-                    && request.getMaxPrice()!=null;
+            Map<Long, Long> cabinClassIdByAircraft = new HashMap<>();
             Map<Long, FareResponse>mergedFareMap=new HashMap<>();
             
             List<FlightInstance> filtered=new ArrayList<>();
             
             for(FlightInstance fi:instances){
 
-                CabinClassResponse cabinClassResponse = seatClient.getCabinClassByAircraftIdAndName(
-                        request.getCabinClass(),
-                        fi.getFlight().getAircraftId()
-                );
-
-                Long cabinClassId=cabinClassResponse.getId();
+                Long cabinClassId = cabinClassIdByAircraft.computeIfAbsent(fi.getFlight().getAircraftId(), aircraftId -> {
+                    CabinClassResponse cabin = seatClient.getCabinClassByAircraftIdAndName(request.getCabinClass(), aircraftId);
+                    return cabin != null ? cabin.getId() : null;
+                });
 
                 if (cabinClassId==null) continue;
 
-                FareResponse fare=pricingClient.getLowestFareForFlightAndCabinClass(
-                        fi.getFlight().getId(),
-                        cabinClassId
-                );
+                FareResponse fare;
+                try {
+                    fare = pricingClient.getLowestFareForFlightAndCabinClass(fi.getFlight().getId(), cabinClassId);
+                } catch (ResourceNotFoundException noFare) {
+                    continue; // flight not yet priced in this cabin: not sellable, so not shown
+                }
 
                 if(fare==null) continue;
 
-                if(hasPriceFilter){
-                    Double price=fare.getTotalPrice();
-                    if(price==null) continue;
-                    if(price< request.getMinPrice())continue;
-                    if(price>request.getMaxPrice()) continue;
-                }
+                BigDecimal price = fare.getTotalPrice();
+                if (request.getMinPrice() != null && (price == null || price.compareTo(request.getMinPrice()) < 0)) continue;
+                if (request.getMaxPrice() != null && (price == null || price.compareTo(request.getMaxPrice()) > 0)) continue;
 
                 mergedFareMap.put(fi.getFlight().getId(),fare);
                 filtered.add(fi);
@@ -147,7 +146,7 @@ public class FlightSearchServiceImpl implements FlightSearchService {
         Sort sort=(sortBy==null || sortBy.isBlank())
                 ? Sort.by(direction, "departureDateTime")
                 : switch (sortBy.toLowerCase()){
-            case "arrival" -> Sort.by(direction, "arrivalDateTimme");
+            case "arrival" -> Sort.by(direction, "arrivalDateTime");
             case "duration" -> JpaSort.unsafe(direction,
                     "TIMESTAMPDIFF(MINUTE, departureDateTime, arrivalDateTime)");
             default -> Sort.by(direction, "departureDateTime");

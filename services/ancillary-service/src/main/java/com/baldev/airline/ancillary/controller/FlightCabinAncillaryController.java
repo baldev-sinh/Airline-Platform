@@ -21,14 +21,13 @@ public class FlightCabinAncillaryController {
 
     @PostMapping
     public ResponseEntity<FlightCabinAncillaryResponse> createFlightCabinAncillary(
-            @Valid @RequestBody FlightCabinAncillaryRequest request) throws Exception {
+            @Valid @RequestBody FlightCabinAncillaryRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(service.create(request));
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<FlightCabinAncillaryResponse> getById(@PathVariable Long id)
-            throws Exception {
+    public ResponseEntity<FlightCabinAncillaryResponse> getById(@PathVariable Long id) {
         return ResponseEntity.ok(service.getById(id));
     }
 
@@ -43,7 +42,7 @@ public class FlightCabinAncillaryController {
     public ResponseEntity<FlightCabinAncillaryResponse> getByFlightAndCabinClassAndType(
             @PathVariable Long flightId,
             @PathVariable Long cabinClassId,
-            @PathVariable AncillaryType type) throws Exception {
+            @PathVariable AncillaryType type) {
         return ResponseEntity.ok(
                 service.getByFlightIdAndCabinClassIdAndType(flightId, cabinClassId, type));
     }
@@ -52,7 +51,7 @@ public class FlightCabinAncillaryController {
     public ResponseEntity<?> getAllByFlightAndCabinClassAndType(
             @PathVariable Long flightId,
             @PathVariable Long cabinClassId,
-            @PathVariable AncillaryType type) throws Exception {
+            @PathVariable AncillaryType type) {
         return ResponseEntity.ok(
                 service.getAllByFlightIdAndCabinClassIdAndType(flightId, cabinClassId, type));
     }
@@ -60,21 +59,14 @@ public class FlightCabinAncillaryController {
     @PutMapping("/{id}")
     public ResponseEntity<FlightCabinAncillaryResponse> update(
             @PathVariable Long id,
-            @RequestBody FlightCabinAncillaryRequest request)
-            throws Exception {
+            @RequestBody FlightCabinAncillaryRequest request) {
         return ResponseEntity.ok(service.update(id, request));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable Long id) throws Exception {
+    public ResponseEntity<Void> delete(@PathVariable Long id) {
         service.delete(id);
         return ResponseEntity.noContent().build();
-    }
-
-    @PostMapping("/price/total")
-    public ResponseEntity<?> calculateAncillariesPrice(
-            @RequestBody List<Long> flightCabinAncillaryIds) {
-        return ResponseEntity.ok(service.calculateAncillaryPrice(flightCabinAncillaryIds));
     }
 
 }

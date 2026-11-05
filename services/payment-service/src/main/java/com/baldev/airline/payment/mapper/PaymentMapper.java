@@ -1,48 +1,40 @@
 package com.baldev.airline.payment.mapper;
 
-import com.baldev.airline.payment.model.Payment;
 import com.baldev.airline.common.payload.dto.PaymentDTO;
+import com.baldev.airline.payment.model.Payment;
 
-import java.time.ZoneId;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 
-public class PaymentMapper {
+public final class PaymentMapper {
 
+    private PaymentMapper() {
+    }
 
     public static PaymentDTO toDTO(Payment payment) {
-
         if (payment == null) {
             return null;
         }
-
         PaymentDTO dto = new PaymentDTO();
         dto.setId(payment.getId());
-        dto.setGateway(payment.getProvider());
-        dto.setAmount(payment.getAmount() != null ? payment.getAmount().longValue() : null);
-        dto.setTransactionId(payment.getTransactionId());
-
-        dto.setStatus(payment.getStatus());
         dto.setUserId(payment.getUserId());
         dto.setBookingId(payment.getBookingId());
-
-        if (payment.getPaidAt() != null) {
-            dto.setCompletedAt(payment.getPaidAt()
-                    .atZone(ZoneId.systemDefault())
-                    .toLocalDateTime());
-        }
-
-        if (payment.getCreatedAt() != null) {
-            dto.setCreatedAt(payment.getCreatedAt()
-                    .atZone(ZoneId.systemDefault())
-                    .toLocalDateTime());
-            dto.setInitiatedAt(payment.getCreatedAt()
-                    .atZone(ZoneId.systemDefault())
-                    .toLocalDateTime());
-        }
-
-        if (payment.getUpdatedAt() != null) {
-            dto.setUpdatedAt(payment.getUpdatedAt());
-        }
-
+        dto.setGateway(payment.getProvider());
+        dto.setAmount(payment.getAmount());
+        dto.setTransactionId(payment.getTransactionId());
+        dto.setGatewayOrderId(payment.getProviderOrderId());
+        dto.setGatewayPaymentId(payment.getProviderPaymentId());
+        dto.setStatus(payment.getStatus());
+        dto.setFailureReason(payment.getFailureReason());
+        dto.setInitiatedAt(toUtc(payment.getCreatedAt()));
+        dto.setCreatedAt(toUtc(payment.getCreatedAt()));
+        dto.setCompletedAt(toUtc(payment.getPaidAt()));
+        dto.setUpdatedAt(toUtc(payment.getUpdatedAt()));
         return dto;
+    }
+
+    private static LocalDateTime toUtc(Instant instant) {
+        return instant != null ? LocalDateTime.ofInstant(instant, ZoneOffset.UTC) : null;
     }
 }

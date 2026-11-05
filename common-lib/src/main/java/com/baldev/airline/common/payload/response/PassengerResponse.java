@@ -25,6 +25,7 @@ public class PassengerResponse {
     private Gender gender;
 
     private String nationality;
+    private Long seatInstanceId;
 
     private Long primaryUserId;
     private String primaryUserName;

@@ -1,9 +1,9 @@
 package com.baldev.airline.flightops.controller;
 
-
 import com.baldev.airline.common.enums.FlightStatus;
 import com.baldev.airline.common.payload.request.FlightRequest;
 import com.baldev.airline.common.payload.response.FlightResponse;
+import com.baldev.airline.common.web.CurrentUser;
 import com.baldev.airline.flightops.service.FlightService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -17,55 +17,40 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/api/flights")
 @RequiredArgsConstructor
 public class FlightController {
+
     private final FlightService flightService;
 
     @PostMapping
-    public ResponseEntity<FlightResponse> createFlight(
-           @Valid @RequestBody FlightRequest flightRequest,
-           @RequestHeader("X-User-Id") Long userId
-    ) throws Exception {
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(flightService.createFlight(userId,flightRequest));
+    public ResponseEntity<FlightResponse> createFlight(@Valid @RequestBody FlightRequest request, CurrentUser user) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(flightService.createFlight(user.id(), request));
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<FlightResponse> getFlightById(@PathVariable Long id) throws Exception {
-        return ResponseEntity.ok(flightService.getFlightById(id));
+    public FlightResponse getFlightById(@PathVariable Long id) {
+        return flightService.getFlightById(id);
     }
 
     @GetMapping("/airline")
-    public ResponseEntity<Page<FlightResponse>> getFlightsByAirline(
-            @RequestHeader("X-User-Id") Long userId,
-            @RequestParam(required = false) Long departureAirportId,
-            @RequestParam(required = false) Long arrivalAirportId,
-            Pageable pageable) {
-        return ResponseEntity.ok(flightService.getFlightsByAirline(
-                userId,
-                departureAirportId,
-                arrivalAirportId,
-                pageable
-        ));
+    public Page<FlightResponse> getFlightsByAirline(CurrentUser user,
+                                                    @RequestParam(required = false) Long departureAirportId,
+                                                    @RequestParam(required = false) Long arrivalAirportId,
+                                                    Pageable pageable) {
+        return flightService.getFlightsByAirline(user.id(), departureAirportId, arrivalAirportId, pageable);
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<FlightResponse> updateFlight(
-            @PathVariable Long id,
-            @RequestBody FlightRequest request) throws Exception {
-        return ResponseEntity.ok(flightService.updateFlight(id, request));
+    public FlightResponse updateFlight(@PathVariable Long id, @RequestBody FlightRequest request, CurrentUser user) {
+        return flightService.updateFlight(user.id(), id, request);
     }
 
     @PatchMapping("/{id}/status")
-    public ResponseEntity<FlightResponse> changeStatus(
-            @PathVariable Long id,
-            @RequestParam FlightStatus status) throws Exception {
-        return ResponseEntity.ok(flightService.changeStatus(id, status));
+    public FlightResponse changeStatus(@PathVariable Long id, @RequestParam FlightStatus status, CurrentUser user) {
+        return flightService.changeStatus(user.id(), id, status);
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteFlight(
-            @PathVariable Long id,
-            @RequestHeader("X-User-Id") Long userId) throws Exception {
-        flightService.deleteFlight(userId,id);
+    public ResponseEntity<Void> deleteFlight(@PathVariable Long id, CurrentUser user) {
+        flightService.deleteFlight(user.id(), id);
         return ResponseEntity.noContent().build();
     }
 }

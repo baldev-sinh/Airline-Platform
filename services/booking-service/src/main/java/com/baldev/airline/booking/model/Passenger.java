@@ -9,6 +9,7 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.Period;
 
 @Getter
 @Setter
@@ -19,39 +20,51 @@ import java.time.LocalDate;
 @EntityListeners(AuditingEntityListener.class)
 public class Passenger {
 
+    private static final int ADULT_AGE = 12;
+
     @Id
-    @GeneratedValue(strategy = GenerationType.AUTO)
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false)
+    @Column(nullable = false, length = 100)
     private String firstName;
 
-    @Column(nullable = false)
+    @Column(nullable = false, length = 100)
     private String lastName;
 
+    @Column(length = 255)
     private String email;
+
+    @Column(length = 20)
     private String phone;
 
     @Column(nullable = false)
     private LocalDate dateOfBirth;
 
-    @Column(nullable = false)
+    @Column(nullable = false, length = 20)
     @Enumerated(EnumType.STRING)
     private Gender gender;
 
+    @Column(length = 60)
     private String nationality;
+
+    /** The seat assigned to this passenger on the booked flight. */
+    private Long seatInstanceId;
 
     private Long primaryUserId;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "booking_id", nullable = false)
     private Booking booking;
 
+    @Builder.Default
     private Boolean isActive = true;
 
     @Version
     private Long version;
 
     @CreatedDate
+    @Column(updatable = false)
     private Instant createdAt;
 
     @LastModifiedDate
@@ -61,11 +74,13 @@ public class Passenger {
         return firstName + " " + lastName;
     }
 
+    /** Exact age in completed years (the previous year-difference was off by one before birthdays). */
     public int getAge() {
-        return LocalDate.now().getYear() - dateOfBirth.getYear();
+        return Period.between(dateOfBirth, LocalDate.now()).getYears();
     }
 
+    /** IATA passenger type: 12+ is an adult fare. */
     public boolean isAdult() {
-        return getAge() >= 18;
+        return getAge() >= ADULT_AGE;
     }
 }

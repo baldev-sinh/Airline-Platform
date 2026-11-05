@@ -27,8 +27,7 @@ public class AncillaryController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<AncillaryResponse> getById(@PathVariable Long id)
-            throws Exception {
+    public ResponseEntity<AncillaryResponse> getById(@PathVariable Long id) {
         return ResponseEntity.ok(ancillaryService.getById(id));
     }
 
@@ -42,12 +41,12 @@ public class AncillaryController {
     @PutMapping("/{id}")
     public ResponseEntity<AncillaryResponse> update(
             @PathVariable Long id,
-            @RequestBody AncillaryRequest request) throws Exception {
+            @RequestBody AncillaryRequest request) {
         return ResponseEntity.ok(ancillaryService.updateAncillary(id, request));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable Long id) throws Exception {
+    public ResponseEntity<Void> delete(@PathVariable Long id) {
         ancillaryService.deleteAncillary(id);
         return ResponseEntity.noContent().build();
     }

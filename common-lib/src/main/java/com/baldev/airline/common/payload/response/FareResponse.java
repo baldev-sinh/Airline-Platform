@@ -1,5 +1,6 @@
 package com.baldev.airline.common.payload.response;
 
+import java.math.BigDecimal;
 
 import com.baldev.airline.common.enums.CabinClassType;
 import lombok.AllArgsConstructor;
@@ -24,11 +25,11 @@ public class FareResponse {
     private CabinClassType cabinClass;
 
     // Pricing
-    private Double baseFare;
-    private Double taxesAndFees;
-    private Double airlineFees;
-    private Double currentPrice;
-    private Double totalPrice;
+    private BigDecimal baseFare;
+    private BigDecimal taxesAndFees;
+    private BigDecimal airlineFees;
+    private BigDecimal currentPrice;
+    private BigDecimal totalPrice;
     private String fareLabel;
 
     // Seat benefits

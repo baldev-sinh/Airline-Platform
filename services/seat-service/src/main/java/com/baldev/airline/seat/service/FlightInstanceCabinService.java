@@ -8,7 +8,7 @@ import org.springframework.data.domain.Pageable;
 
 public interface FlightInstanceCabinService {
 
-    FlightInstanceCabinResponse createFlightInstanceCabin(FlightInstanceCabinRequest request) throws Exception;
+    FlightInstanceCabinResponse createFlightInstanceCabin(FlightInstanceCabinRequest request);
 
     FlightInstanceCabinResponse getFlightInstanceCabinById(Long id);
 

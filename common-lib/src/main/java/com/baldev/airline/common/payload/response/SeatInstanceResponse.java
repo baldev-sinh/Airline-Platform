@@ -1,5 +1,6 @@
 package com.baldev.airline.common.payload.response;
 
+import java.math.BigDecimal;
 
 import com.baldev.airline.common.enums.CabinClassType;
 import com.baldev.airline.common.enums.SeatAvailabilityStatus;
@@ -25,7 +26,7 @@ public class SeatInstanceResponse {
 
     private SeatResponse seat;
 
-    private Double price;
+    private BigDecimal price;
 
     private SeatAvailabilityStatus status;
 
@@ -37,7 +38,7 @@ public class SeatInstanceResponse {
     private CabinClassType flightCabinClassType;
 
 
-    private Double fare;
+    private BigDecimal fare;
 
     private Long version;
     private Instant createdAt;

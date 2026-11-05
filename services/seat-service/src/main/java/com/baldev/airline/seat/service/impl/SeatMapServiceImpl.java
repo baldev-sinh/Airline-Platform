@@ -1,5 +1,7 @@
 package com.baldev.airline.seat.service.impl;
 
+import com.baldev.airline.common.exception.ConflictException;
+import com.baldev.airline.common.exception.ResourceNotFoundException;
 
 import com.baldev.airline.seat.client.AirlineClient;
 import com.baldev.airline.seat.mapper.SeatMapMapper;
@@ -25,18 +27,18 @@ public class SeatMapServiceImpl implements SeatMapService {
     private final AirlineClient airlineClient;
 
     @Override
-    public SeatMapResponse createSeatMap(Long userId, SeatMapRequest request) throws Exception {
+    public SeatMapResponse createSeatMap(Long userId, SeatMapRequest request) {
 
         AirlineResponse airlineResponse = airlineClient.getAirlineByOwner(userId);
         CabinClass cabinClass = cabinClassRepository.findById(request.getCabinClassId())
                 .orElseThrow(
-                        () -> new Exception("cabin class not found with given id")
+                        () -> new ResourceNotFoundException("cabin class not found with given id")
                 );
 
         if (seatMapRepository.existsByAirlineIdAndCabinClassIdAndName(
                 airlineResponse.getId(), request.getCabinClassId(), request.getName()
         )) {
-            throw new Exception("cabin class already exists with given name");
+            throw new ConflictException("cabin class already exists with given name");
         }
 
         SeatMap seatMap = SeatMapMapper.toEntity(request, cabinClass);
@@ -50,9 +52,9 @@ public class SeatMapServiceImpl implements SeatMapService {
     }
 
     @Override
-    public SeatMapResponse getSeatMapById(Long id) throws Exception {
+    public SeatMapResponse getSeatMapById(Long id) {
         SeatMap seatMap = seatMapRepository.findById(id).orElseThrow(
-                () -> new Exception("seat map not found with id")
+                () -> new ResourceNotFoundException("seat map not found with id")
         );
         return SeatMapMapper.toResponse(seatMap);
     }
@@ -65,9 +67,9 @@ public class SeatMapServiceImpl implements SeatMapService {
     }
 
     @Override
-    public SeatMapResponse updateSeatMap(Long id, SeatMapRequest request) throws Exception {
+    public SeatMapResponse updateSeatMap(Long id, SeatMapRequest request) {
         SeatMap seatMap = seatMapRepository.findById(id).orElseThrow(
-                () -> new Exception("seat map not found with id")
+                () -> new ResourceNotFoundException("seat map not found with id")
         );
         SeatMapMapper.updateEntity(request, seatMap);
         SeatMap updated = seatMapRepository.save(seatMap);
@@ -75,9 +77,9 @@ public class SeatMapServiceImpl implements SeatMapService {
     }
 
     @Override
-    public void deleteSeatMap(Long id) throws Exception {
+    public void deleteSeatMap(Long id) {
         SeatMap seatMap = seatMapRepository.findById(id).orElseThrow(
-                () -> new Exception("seat map not found with id")
+                () -> new ResourceNotFoundException("seat map not found with id")
         );
         seatMapRepository.delete(seatMap);
     }

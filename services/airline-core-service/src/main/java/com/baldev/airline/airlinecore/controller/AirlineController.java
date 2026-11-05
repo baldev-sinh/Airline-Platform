@@ -37,15 +37,14 @@ public class AirlineController {
 
     @GetMapping("/admin")
     public ResponseEntity<AirlineResponse> getAirlineByOwner(
-            @RequestHeader("X-User-Id") Long userId) throws Exception {
-        System.out.println("xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"+userId);
+            @RequestHeader("X-User-Id") Long userId) {
         return ResponseEntity.ok(airlineService.getAirlineByOwner(userId));
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<AirlineResponse> getAirlineById(
 
-            @PathVariable Long id) throws Exception {
+            @PathVariable Long id) {
         return ResponseEntity.ok(airlineService.getAirlineById(id));
     }
 
@@ -62,14 +61,14 @@ public class AirlineController {
     @PutMapping
     public ResponseEntity<AirlineResponse> updateAirline(
             @Valid @RequestBody AirlineRequest request,
-            @RequestHeader("X-User-Id") Long userId) throws Exception {
+            @RequestHeader("X-User-Id") Long userId) {
         return ResponseEntity.ok(airlineService.updateAirline(request, userId));
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<ApiResponse> deleteAirline(
             @PathVariable Long id,
-            @RequestHeader("X-User-Id") Long userId) throws Exception {
+            @RequestHeader("X-User-Id") Long userId) {
         airlineService.deleteAirline(id, userId);
         ApiResponse res=new ApiResponse("airline deleted successfully");
         return ResponseEntity.ok(
@@ -79,17 +78,17 @@ public class AirlineController {
 
 
     @PostMapping("/{id}/approve")
-    public ResponseEntity<AirlineResponse> approveAirline(@PathVariable Long id) throws Exception {
+    public ResponseEntity<AirlineResponse> approveAirline(@PathVariable Long id) {
         return ResponseEntity.ok(airlineService.changeStatusByAdmin(id, AirlineStatus.ACTIVE));
     }
 
     @PostMapping("/{id}/suspend")
-    public ResponseEntity<AirlineResponse> suspendAirline(@PathVariable Long id) throws Exception {
+    public ResponseEntity<AirlineResponse> suspendAirline(@PathVariable Long id) {
         return ResponseEntity.ok(airlineService.changeStatusByAdmin(id, AirlineStatus.INACTIVE));
     }
 
     @PostMapping("/{id}/ban")
-    public ResponseEntity<AirlineResponse> banAirline(@PathVariable Long id) throws Exception {
+    public ResponseEntity<AirlineResponse> banAirline(@PathVariable Long id) {
         return ResponseEntity.ok(airlineService.changeStatusByAdmin(id, AirlineStatus.BANNED));
     }
 

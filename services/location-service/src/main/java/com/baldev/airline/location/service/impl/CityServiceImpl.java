@@ -1,5 +1,7 @@
 package com.baldev.airline.location.service.impl;
 
+import com.baldev.airline.common.exception.ConflictException;
+import com.baldev.airline.common.exception.ResourceNotFoundException;
 import com.baldev.airline.location.mapper.CityMapper;
 import com.baldev.airline.location.model.City;
 import com.baldev.airline.common.payload.request.CityRequest;
@@ -19,10 +21,10 @@ public class CityServiceImpl implements CityService {
     private final CityRepository cityRepository;
 
     @Override
-    public CityResponse createCity(CityRequest request) throws Exception {
+    public CityResponse createCity(CityRequest request) {
 
         if(cityRepository.existsByCityCode(request.getCityCode())){
-            throw new Exception("city with given code already exist");
+            throw new ConflictException("city with given code already exist");
         }
 
         City city = CityMapper.toEntity(request);
@@ -32,23 +34,23 @@ public class CityServiceImpl implements CityService {
     }
 
     @Override
-    public CityResponse getCityById(Long id) throws Exception {
+    public CityResponse getCityById(Long id) {
         City city = cityRepository.findById(id)
                 .orElseThrow(
-                        () -> new Exception("city not exists with given id: " + id)
+                        () -> new ResourceNotFoundException("city not exists with given id: " + id)
                 );
         return CityMapper.toResponse(city);
     }
 
     @Override
-    public CityResponse updateCity(Long id, CityRequest request) throws Exception {
+    public CityResponse updateCity(Long id, CityRequest request) {
         City city = cityRepository.findById(id)
                 .orElseThrow(
-                        () -> new Exception("city not exists with given id: " + id)
+                        () -> new ResourceNotFoundException("city not exists with given id: " + id)
                 );
 
         if(cityRepository.existsByCityCode(request.getCityCode())){
-            throw new Exception("city with given code already exist:" + request.getCityCode());
+            throw new ConflictException("city with given code already exist:" + request.getCityCode());
         }
 
         City updatedCity = cityRepository.save(CityMapper.updateEntity(city, request));
@@ -57,10 +59,10 @@ public class CityServiceImpl implements CityService {
     }
 
     @Override
-    public void deleteCity(Long id) throws Exception {
+    public void deleteCity(Long id) {
         City city = cityRepository.findById(id)
                 .orElseThrow(
-                        () -> new Exception("city not exists with given id: " + id)
+                        () -> new ResourceNotFoundException("city not exists with given id: " + id)
                 );
 
         cityRepository.delete(city);

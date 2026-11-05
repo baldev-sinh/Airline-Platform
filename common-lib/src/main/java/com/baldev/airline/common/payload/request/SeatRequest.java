@@ -1,5 +1,6 @@
 package com.baldev.airline.common.payload.request;
 
+import java.math.BigDecimal;
 
 import com.baldev.airline.common.enums.SeatType;
 import jakarta.validation.constraints.NotBlank;
@@ -36,8 +37,8 @@ public class SeatRequest {
     private Boolean isEmergencyExit;
     private Boolean isActive;
 
-    private Double basePrice;
-    private Double premiumSurcharge;
+    private BigDecimal basePrice;
+    private BigDecimal premiumSurcharge;
 
     private Boolean hasExtraLegroom;
 

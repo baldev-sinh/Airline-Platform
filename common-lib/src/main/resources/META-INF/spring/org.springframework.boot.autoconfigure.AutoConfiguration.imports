@@ -1,0 +1,3 @@
+com.baldev.airline.common.web.WebAutoConfiguration
+com.baldev.airline.common.feign.FeignAutoConfiguration
+com.baldev.airline.common.kafka.KafkaErrorHandlingAutoConfiguration

@@ -9,11 +9,11 @@ import java.util.List;
 
 public interface BaggagePolicyService {
 
-    BaggagePolicyResponse createBaggagePolicy(BaggagePolicyRequest request) throws Exception;
-    BaggagePolicyResponse getBaggagePolicyById(Long id) throws Exception;
+    BaggagePolicyResponse createBaggagePolicy(BaggagePolicyRequest request);
+    BaggagePolicyResponse getBaggagePolicyById(Long id);
     BaggagePolicyResponse getBaggagePolicyByFareId(Long fareId);
     List<BaggagePolicyResponse> getBaggagePoliciesByAirlineId(Long airlineId);
-    BaggagePolicyResponse updateBaggagePolicy(Long id, BaggagePolicyRequest request) throws Exception;
+    BaggagePolicyResponse updateBaggagePolicy(Long id, BaggagePolicyRequest request);
     void deleteBaggagePolicy(Long id);
 
 }

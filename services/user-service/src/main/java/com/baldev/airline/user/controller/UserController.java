@@ -18,14 +18,14 @@ public class UserController {
     @GetMapping("/profile")
     public ResponseEntity<UserDTO> getUserProfile(
             @RequestHeader("X-User-Email") String email
-    ) throws Exception {
+    ) {
         UserDTO user=userService.getUserByEmail(email);
         return ResponseEntity.ok(user);
     }
 
     @GetMapping("/{userId}")
     public ResponseEntity<UserDTO> getUserById(
-            @PathVariable Long userId) throws Exception {
+            @PathVariable Long userId) {
         UserDTO user = userService.getUserById(userId);
         return ResponseEntity.ok(user);
     }

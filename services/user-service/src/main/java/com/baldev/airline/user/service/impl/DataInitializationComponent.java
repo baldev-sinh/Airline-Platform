@@ -16,7 +16,7 @@ public class DataInitializationComponent implements CommandLineRunner {
     private final PasswordEncoder passwordEncoder;
 
     @Override
-    public void run(String... args) throws Exception {
+    public void run(String... args) {
         initializeAdminUser();
     }
 

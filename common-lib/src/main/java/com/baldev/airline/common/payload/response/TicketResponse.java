@@ -1,5 +1,6 @@
 package com.baldev.airline.common.payload.response;
 
+import java.math.BigDecimal;
 
 import com.baldev.airline.common.enums.TicketStatus;
 import lombok.AllArgsConstructor;
@@ -32,6 +33,6 @@ public class TicketResponse {
 
     // Payment details
     private Long paymentId;
-    private Double paymentAmount;
+    private BigDecimal paymentAmount;
 
 }

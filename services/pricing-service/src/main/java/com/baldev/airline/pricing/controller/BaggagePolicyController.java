@@ -20,14 +20,14 @@ public class BaggagePolicyController {
 
     @PostMapping
     public ResponseEntity<BaggagePolicyResponse> createBaggagePolicy(
-            @Valid  @RequestBody BaggagePolicyRequest request) throws Exception {
+            @Valid  @RequestBody BaggagePolicyRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(baggagePolicyService.createBaggagePolicy(request));
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<BaggagePolicyResponse> getBaggagePolicyById(
-            @PathVariable Long id) throws Exception {
+            @PathVariable Long id) {
         return ResponseEntity.ok(baggagePolicyService.getBaggagePolicyById(id));
     }
 
@@ -46,7 +46,7 @@ public class BaggagePolicyController {
     @PutMapping("/{id}")
     public ResponseEntity<BaggagePolicyResponse> updateBaggagePolicy(
             @PathVariable Long id,
-            @Valid @RequestBody BaggagePolicyRequest request) throws Exception {
+            @Valid @RequestBody BaggagePolicyRequest request) {
         return ResponseEntity.ok(baggagePolicyService.updateBaggagePolicy(id, request));
     }
 

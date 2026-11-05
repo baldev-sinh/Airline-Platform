@@ -1,5 +1,6 @@
 package com.baldev.airline.airlinecore.service.impl;
 
+import com.baldev.airline.common.exception.ResourceNotFoundException;
 import com.baldev.airline.common.enums.AirlineStatus;
 import com.baldev.airline.airlinecore.mapper.AirlineMapper;
 import com.baldev.airline.airlinecore.model.Airline;
@@ -32,19 +33,19 @@ public class AirlineServiceImpl implements AirlineService {
     }
 
     @Override
-    public AirlineResponse getAirlineByOwner(Long ownerId) throws Exception {
+    public AirlineResponse getAirlineByOwner(Long ownerId) {
         Airline airline=airlineRepository.findByOwnerId(ownerId)
                 .orElseThrow(
-                        ()->new Exception("airline not found with ownerId "+ownerId)
+                        ()->new ResourceNotFoundException("airline not found with ownerId "+ownerId)
                 );
         return AirlineMapper.toResponse(airline);
     }
 
     @Override
-    public AirlineResponse getAirlineById(Long id) throws Exception {
+    public AirlineResponse getAirlineById(Long id) {
         Airline airline=airlineRepository.findById(id)
                 .orElseThrow(
-                        ()->new Exception("airline not found with ownerId "+id)
+                        ()->new ResourceNotFoundException("airline not found with ownerId "+id)
                 );
         return AirlineMapper.toResponse(airline);
     }
@@ -57,10 +58,10 @@ public class AirlineServiceImpl implements AirlineService {
     }
 
     @Override
-    public AirlineResponse updateAirline(AirlineRequest request, Long ownerId) throws Exception {
+    public AirlineResponse updateAirline(AirlineRequest request, Long ownerId) {
         Airline airline=airlineRepository.findByOwnerId(ownerId)
                 .orElseThrow(
-                        ()->new Exception("airline not found with ownerId "+ownerId)
+                        ()->new ResourceNotFoundException("airline not found with ownerId "+ownerId)
                 );
         AirlineMapper.updateEntity(airline,request);
         Airline savedAirline= airlineRepository.save(airline);
@@ -68,19 +69,19 @@ public class AirlineServiceImpl implements AirlineService {
     }
 
     @Override
-    public void deleteAirline(Long id, Long ownerId) throws Exception {
+    public void deleteAirline(Long id, Long ownerId) {
         Airline airline=airlineRepository.findByOwnerId(ownerId)
                 .orElseThrow(
-                        ()->new Exception("airline not found with ownerId "+ownerId)
+                        ()->new ResourceNotFoundException("airline not found with ownerId "+ownerId)
                 );
         airlineRepository.delete(airline);
     }
 
     @Override
-    public AirlineResponse changeStatusByAdmin(Long airlineId, AirlineStatus status) throws Exception {
+    public AirlineResponse changeStatusByAdmin(Long airlineId, AirlineStatus status) {
         Airline airline=airlineRepository.findById(airlineId)
                 .orElseThrow(
-                        ()->new Exception("airline not found with ownerId "+airlineId)
+                        ()->new ResourceNotFoundException("airline not found with ownerId "+airlineId)
                 );
         airline.setStatus(status);
         Airline updatedAirline = airlineRepository.save(airline);

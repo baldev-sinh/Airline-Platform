@@ -1,5 +1,6 @@
 package com.baldev.airline.common.payload.request;
 
+import java.math.BigDecimal;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.PositiveOrZero;
@@ -25,18 +26,18 @@ public class FlightInstanceCabinRequest {
 
     @NotNull
     @Positive
-    private Double baseFare;
+    private BigDecimal baseFare;
 
 
     @NotNull
     @PositiveOrZero
-    private Double taxesAndFees;
+    private BigDecimal taxesAndFees;
 
     @NotNull
     @PositiveOrZero
-    private Double airlineFees;
+    private BigDecimal airlineFees;
 
-    private Double currentPrice;
+    private BigDecimal currentPrice;
     private Boolean isActive;
 
 }

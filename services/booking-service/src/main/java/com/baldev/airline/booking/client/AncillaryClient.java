@@ -1,19 +1,17 @@
 package com.baldev.airline.booking.client;
 
+import com.baldev.airline.common.payload.request.PriceQuoteRequest;
+import com.baldev.airline.common.payload.response.PriceQuoteResponse;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 
-import java.util.List;
-
-@FeignClient(name = "ancillary-service")
+@FeignClient(name = "ancillary-service", path = "/internal/price-quotes")
 public interface AncillaryClient {
 
-    @PostMapping("/api/flight-cabin-ancillaries/price/total")
-    double calculateAncillariesPrice(
-            @RequestBody List<Long> flightCabinAncillaryIds);
+    @PostMapping("/ancillaries")
+    PriceQuoteResponse quoteAncillaries(@RequestBody PriceQuoteRequest request);
 
-    @PostMapping("/api/flight-meals/price/total")
-    Double calculateMealPrice(
-            @RequestBody List<Long> requests);
+    @PostMapping("/meals")
+    PriceQuoteResponse quoteMeals(@RequestBody PriceQuoteRequest request);
 }

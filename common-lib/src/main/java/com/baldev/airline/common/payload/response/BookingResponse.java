@@ -1,5 +1,6 @@
 package com.baldev.airline.common.payload.response;
 
+import java.math.BigDecimal;
 
 import com.baldev.airline.common.embeddable.ContactInfo;
 import com.baldev.airline.common.enums.BookingStatus;
@@ -52,12 +53,12 @@ public class BookingResponse {
 
     private Long fareId;
     private String fareName;
-    private Double fareBaseFare;
-    private Double fareTaxesAndFees;
-    private Double fareAirlineFees;
+    private BigDecimal fareBaseFare;
+    private BigDecimal fareTaxesAndFees;
+    private BigDecimal fareAirlineFees;
 
     private Integer totalPassengers;
-    private Double totalAmount;
+    private BigDecimal totalAmount;
 
 
     // Flight duration and other derived information
@@ -65,5 +66,13 @@ public class BookingResponse {
     private Boolean isUpcoming;
     private Boolean isPast;
 
+    private String currency;
+    private BigDecimal fareAmount;
+    private BigDecimal seatAmount;
+    private BigDecimal ancillaryAmount;
+    private BigDecimal mealAmount;
+    private List<Long> seatInstanceIds;
+    private Long paymentId;
+    private String cancellationReason;
     private ContactInfo contactInfo;
 }

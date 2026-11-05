@@ -1,5 +1,6 @@
 package com.baldev.airline.flightops.client;
 
+import java.math.BigDecimal;
 
 import com.baldev.airline.common.enums.CabinClassType;
 import com.baldev.airline.common.payload.response.CabinClassResponse;
@@ -13,10 +14,6 @@ import java.util.List;
 
 @FeignClient(name = "seat-service")
 public interface SeatClient {
-
-    @PostMapping("/api/seat-instances/price/price")
-    Double calculateSeatPrice(@RequestBody List<Long> seatInstanceIds);
-
     @GetMapping("/api/cabin-classes/aircraft/{id}/name/{cabinClass}")
     CabinClassResponse getCabinClassByAircraftIdAndName(
             @PathVariable CabinClassType cabinClass,

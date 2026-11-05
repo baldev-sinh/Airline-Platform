@@ -1,5 +1,7 @@
 package com.baldev.airline.pricing.service.impl;
 
+import com.baldev.airline.common.exception.ConflictException;
+import com.baldev.airline.common.exception.ResourceNotFoundException;
 
 import com.baldev.airline.pricing.mapper.FareMapper;
 import com.baldev.airline.pricing.model.Fare;
@@ -22,13 +24,13 @@ public class FareServiceImpl implements FareService {
     private final FareRepository fareRepository;
 
     @Override
-    public FareResponse createFare(FareRequest request) throws Exception {
+    public FareResponse createFare(FareRequest request) {
         if(fareRepository.existsByFlightIdAndCabinClassIdAndName(
                 request.getFlightId(),
                 request.getCabinClassId(),
                 request.getName()
         )){
-            throw new Exception("fare already exist with provided name");
+            throw new ConflictException("fare already exist with provided name");
         }
         Fare fare = FareMapper.toEntity(request);
         Fare saved=fareRepository.save(fare);
@@ -36,9 +38,9 @@ public class FareServiceImpl implements FareService {
     }
 
     @Override
-    public FareResponse getFareById(Long id) throws Exception {
+    public FareResponse getFareById(Long id) {
         Fare fare = fareRepository.findById(id).orElseThrow(
-                ()-> new Exception("Fare not found with given Id")
+                ()-> new ResourceNotFoundException("Fare not found with given Id")
         );
         return FareMapper.toResponse(fare);
     }
@@ -53,9 +55,9 @@ public class FareServiceImpl implements FareService {
     }
 
     @Override
-    public FareResponse updateFare(Long id, FareRequest request) throws Exception {
+    public FareResponse updateFare(Long id, FareRequest request) {
         Fare fare = fareRepository.findById(id).orElseThrow(
-                ()-> new Exception("Fare not found with given Id")
+                ()-> new ResourceNotFoundException("Fare not found with given Id")
         );
 
         if(fareRepository.existsByFlightIdAndCabinClassIdAndNameAndIdNot(
@@ -63,16 +65,18 @@ public class FareServiceImpl implements FareService {
                 request.getCabinClassId(),
                 request.getName(),
                 fare.getId()
-        ));
+        )) {
+            throw new ConflictException("fare already exist with provided name");
+        }
         FareMapper.updateEntity(request,fare);
         Fare updated=fareRepository.save(fare);
         return FareMapper.toResponse(updated);
     }
 
     @Override
-    public void deleteFare(Long id) throws Exception {
+    public void deleteFare(Long id) {
         Fare fare = fareRepository.findById(id).orElseThrow(
-                ()-> new Exception("Fare not found with given Id")
+                ()-> new ResourceNotFoundException("Fare not found with given Id")
         );
         fareRepository.delete(fare);
     }
@@ -121,7 +125,7 @@ Flight 102 → ₹6500 ]
                         Fare::getFlightId,
                         fare -> fare,
                         (existing, candidate)->
-                                candidate.getTotalPrice()<existing.getTotalPrice()
+                                candidate.getTotalPrice().compareTo(existing.getTotalPrice()) < 0
                         ?candidate:existing
                 )).entrySet().stream()
                 .collect(Collectors.toMap(
@@ -138,8 +142,9 @@ Flight 102 → ₹6500 ]
                 flightId,cabinClassId
         );
         Fare lowestFare=fares.stream()
-                .min(Comparator.comparingDouble(Fare::getTotalPrice))
-                .orElseThrow(null);
+                .min(Comparator.comparing(Fare::getTotalPrice))
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "No fare found for flight " + flightId + " and cabin class " + cabinClassId));
 
         return FareMapper.toResponse(lowestFare);
     }

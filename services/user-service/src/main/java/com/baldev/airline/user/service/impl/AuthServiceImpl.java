@@ -1,5 +1,8 @@
 package com.baldev.airline.user.service.impl;
 
+import com.baldev.airline.common.exception.UnauthorizedException;
+import com.baldev.airline.common.exception.BusinessRuleException;
+import com.baldev.airline.common.exception.ConflictException;
 import com.baldev.airline.user.config.JwtProvider;
 import com.baldev.airline.common.enums.UserRole;
 import com.baldev.airline.user.mapper.UserMapper;
@@ -36,13 +39,13 @@ public class AuthServiceImpl implements AuthService {
     */
 
     @Override
-    public AuthResponse signup(UserDTO req) throws Exception {
+    public AuthResponse signup(UserDTO req) {
         User existingUser=userRepository.findByEmail(req.getEmail());
         if(existingUser!=null){
-            throw new Exception("email already registered!");
+            throw new ConflictException("email already registered!");
         }
         if(req.getRole()== UserRole.ROLE_SYSTEM_ADMIN){
-            throw new Exception("You cannot sign up system admins!");
+            throw new BusinessRuleException("You cannot sign up system admins!");
         }
 
         User newUser=User.builder()
@@ -83,7 +86,7 @@ public class AuthServiceImpl implements AuthService {
     */
 
     @Override
-    public AuthResponse login(String email, String password) throws Exception {
+    public AuthResponse login(String email, String password) {
         Authentication authentication=authenticate(email, password);
 
         User user=userRepository.findByEmail(email);
@@ -100,14 +103,14 @@ public class AuthServiceImpl implements AuthService {
         return authResponse;
     }
 
-    private Authentication authenticate(String email, String password) throws Exception {
+    private Authentication authenticate(String email, String password) {
 
         UserDetails userDetails=customUserDetailsService.loadUserByUsername(email);
 
         if(!passwordEncoder.matches(
                 password, userDetails.getPassword()
         )){
-            throw new Exception("invalid password!");
+            throw new UnauthorizedException("Invalid email or password");
         }
         return new UsernamePasswordAuthenticationToken(
                 userDetails,

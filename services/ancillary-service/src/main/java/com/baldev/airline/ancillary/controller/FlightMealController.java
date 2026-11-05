@@ -20,7 +20,7 @@ public class FlightMealController {
 
     @PostMapping
     public ResponseEntity<FlightMealResponse> createFlightMeal(
-            @Valid @RequestBody FlightMealRequest flightMealRequest) throws Exception {
+            @Valid @RequestBody FlightMealRequest flightMealRequest) {
         FlightMealResponse response = flightMealService.createFlightMeal(
                 flightMealRequest
         );
@@ -28,16 +28,8 @@ public class FlightMealController {
                 .body(response);
     }
 
-    @PostMapping("/price/total")
-    public ResponseEntity<Double> calculateMealPrice(
-            @RequestBody List<Long> requests) {
-        double responses = flightMealService.calculateMealPrice(requests);
-        return ResponseEntity.status(HttpStatus.OK).body(responses);
-    }
-
     @GetMapping("/{id}")
-    public ResponseEntity<FlightMealResponse> getFlightMealById(@PathVariable Long id)
-            throws Exception {
+    public ResponseEntity<FlightMealResponse> getFlightMealById(@PathVariable Long id) {
         return ResponseEntity.ok(flightMealService.getFlightMealById(id));
     }
 
@@ -56,13 +48,12 @@ public class FlightMealController {
     @PatchMapping("/{id}/availability")
     public ResponseEntity<FlightMealResponse> updateFlightMealAvailability(
             @PathVariable Long id,
-            @RequestParam Boolean available) throws Exception {
+            @RequestParam Boolean available) {
         return ResponseEntity.ok(flightMealService.updateFlightMealAvailability(id, available));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteFlightMeal(@PathVariable Long id)
-            throws Exception {
+    public ResponseEntity<Void> deleteFlightMeal(@PathVariable Long id) {
         flightMealService.deleteFlightMeal(id);
         return ResponseEntity.noContent().build();
     }

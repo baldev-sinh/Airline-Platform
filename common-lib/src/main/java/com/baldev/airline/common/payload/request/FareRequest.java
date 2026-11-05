@@ -1,5 +1,6 @@
 package com.baldev.airline.common.payload.request;
 
+import java.math.BigDecimal;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
@@ -29,11 +30,11 @@ public class FareRequest {
 
     @NotNull(message = "Base fare is required")
     @Positive
-    private Double baseFare;
+    private BigDecimal baseFare;
 
-    private Double taxesAndFees;
-    private Double airlineFees;
-    private Double currentPrice;
+    private BigDecimal taxesAndFees;
+    private BigDecimal airlineFees;
+    private BigDecimal currentPrice;
 
     @Size(max = 100)
     private String fareLabel;

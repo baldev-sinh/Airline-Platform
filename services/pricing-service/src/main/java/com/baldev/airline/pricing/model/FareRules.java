@@ -1,5 +1,6 @@
 package com.baldev.airline.pricing.model;
 
+import java.math.BigDecimal;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
@@ -30,9 +31,9 @@ public class FareRules {
 
     private Boolean isRefundable;
 
-    private Double changeFee;
+    private BigDecimal changeFee;
 
-    private Double cancellationFee;
+    private BigDecimal cancellationFee;
 
     private Integer refundDeadlineDays;
 

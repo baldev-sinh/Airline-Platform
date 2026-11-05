@@ -1,5 +1,8 @@
 package com.baldev.airline.seat.service.impl;
 
+import com.baldev.airline.seat.config.SeatProperties;
+import java.math.BigDecimal;
+import com.baldev.airline.common.exception.ResourceNotFoundException;
 
 import com.baldev.airline.common.enums.SeatAvailabilityStatus;
 import com.baldev.airline.common.enums.SeatType;
@@ -15,7 +18,6 @@ import com.baldev.airline.seat.repository.FlightInstanceCabinRepository;
 import com.baldev.airline.seat.repository.SeatInstanceRepository;
 import com.baldev.airline.seat.repository.SeatMapRepository;
 import com.baldev.airline.seat.service.FlightInstanceCabinService;
-import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -31,19 +33,20 @@ public class FlightInstanceCabinServiceImpl implements FlightInstanceCabinServic
     private final SeatMapRepository seatMapRepository;
     private final FlightInstanceCabinRepository flightInstanceCabinRepository;
     private final SeatInstanceRepository seatInstanceRepository;
+    private final SeatProperties properties;
 
     @Override
-    public FlightInstanceCabinResponse createFlightInstanceCabin(FlightInstanceCabinRequest request) throws Exception {
+    public FlightInstanceCabinResponse createFlightInstanceCabin(FlightInstanceCabinRequest request) {
         CabinClass cabinClass = cabinClassRepository.findById(request.getCabinClassId())
-                .orElseThrow(() -> new Exception("Cabin class not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Cabin class not found"));
 
         SeatMap seatMap = seatMapRepository.findByCabinClassId(cabinClass.getId());
 
         if (seatMap == null) {
-            throw new Exception("Seat Map not found");
+            throw new ResourceNotFoundException("Seat Map not found");
         }
         if (seatMap.getSeats() == null || seatMap.getSeats().isEmpty()) {
-            throw new Exception("no seat found in seat map");
+            throw new ResourceNotFoundException("no seat found in seat map");
         }
 
         int totalSeats = seatMap.getSeats().size();
@@ -62,10 +65,10 @@ public class FlightInstanceCabinServiceImpl implements FlightInstanceCabinServic
         List<SeatInstance> seatInstances = seatMap.getSeats().stream()
                 .map(
                         seat -> {
-                            Double premiumSuperCharge = getPremiumSuperCharge(
+                            BigDecimal premiumSuperCharge = getPremiumSuperCharge(
                                     seat.getSeatType(),
-                                    1000.0,
-                                    500.0
+                                    properties.windowSurcharge(),
+                                    properties.aisleSurcharge()
                             );
                             SeatInstance seatInstance = SeatInstance.builder()
                                     .flightId(request.getFlightId())
@@ -73,8 +76,6 @@ public class FlightInstanceCabinServiceImpl implements FlightInstanceCabinServic
                                     .flightInstanceId(request.getFlightInstanceId())
                                     .flightInstanceCabin(savedCabin)
                                     .seat(seat)
-                                    .isAvailable(true)
-                                    .isBooked(false)
                                     .premiumSupercharge(premiumSuperCharge)
                                     .build();
                             return seatInstance;
@@ -91,7 +92,7 @@ public class FlightInstanceCabinServiceImpl implements FlightInstanceCabinServic
     @Override
     public FlightInstanceCabinResponse getFlightInstanceCabinById(Long id) {
         FlightInstanceCabin fic = flightInstanceCabinRepository.findById(id)
-                .orElseThrow(() -> new EntityNotFoundException(
+                .orElseThrow(() -> new ResourceNotFoundException(
                         "Flight instance cabin not found with id: " + id));
         return FlightInstanceCabinMapper.toResponse(fic);
     }
@@ -114,12 +115,12 @@ public class FlightInstanceCabinServiceImpl implements FlightInstanceCabinServic
     @Override
     public FlightInstanceCabinResponse updateFlightInstanceCabin(Long id, FlightInstanceCabinRequest request) {
         FlightInstanceCabin fic = flightInstanceCabinRepository.findById(id)
-                .orElseThrow(() -> new EntityNotFoundException(
+                .orElseThrow(() -> new ResourceNotFoundException(
                         "Flight instance cabin not found with id: " + id));
 
         if (request.getCabinClassId() != null) {
             CabinClass cabinClass = cabinClassRepository.findById(request.getCabinClassId())
-                    .orElseThrow(() -> new EntityNotFoundException("cabin class not found"));
+                    .orElseThrow(() -> new ResourceNotFoundException("cabin class not found"));
             fic.setCabinClass(cabinClass);
         }
         FlightInstanceCabin updated = flightInstanceCabinRepository.save(fic);
@@ -130,21 +131,21 @@ public class FlightInstanceCabinServiceImpl implements FlightInstanceCabinServic
     public void deleteFlightInstanceCabin(Long id) {
 
         FlightInstanceCabin fic = flightInstanceCabinRepository.findById(id)
-                .orElseThrow(() -> new EntityNotFoundException(
+                .orElseThrow(() -> new ResourceNotFoundException(
                         "Flight instance cabin not found with id: " + id));
         flightInstanceCabinRepository.delete(fic);
 
     }
 
-    private Double getPremiumSuperCharge(SeatType seatType,
-                                         Double windowSuperCharge,
-                                         Double aisleSuperCharge) {
-        if (seatType == null) return 0.0;
+    private BigDecimal getPremiumSuperCharge(SeatType seatType,
+                                         BigDecimal windowSuperCharge,
+                                         BigDecimal aisleSuperCharge) {
+        if (seatType == null) return BigDecimal.ZERO;
 
         return switch (seatType) {
             case AISLE -> aisleSuperCharge;
             case WINDOW -> windowSuperCharge;
-            default -> 0.0;
+            default -> BigDecimal.ZERO;
         };
     }
 }

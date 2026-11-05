@@ -1,0 +1,16 @@
+# Local development profile (SPRING_PROFILES_ACTIVE=local).
+# Points at the databases started by docker-compose/docker-compose.yml. Never use this profile in production.
+spring:
+  datasource:
+    url: ${DB_URL:jdbc:mysql://localhost:3303/airline_core_db}
+    username: ${DB_USERNAME:airline}
+    password: ${DB_PASSWORD:airline}
+
+management:
+  tracing:
+    sampling:
+      probability: 1.0
+
+logging:
+  level:
+    com.baldev.airline: DEBUG

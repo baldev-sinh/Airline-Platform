@@ -1,5 +1,7 @@
 package com.baldev.airline.pricing.model;
 
+import com.baldev.airline.common.util.Money;
+import java.math.BigDecimal;
 import com.baldev.airline.common.embeddable.*;
 import com.baldev.airline.common.enums.CabinClassType;
 import jakarta.persistence.*;
@@ -39,13 +41,13 @@ public class Fare {
     private CabinClassType cabinClass;
 
     @Column(nullable = false)
-    private Double baseFare;
+    private BigDecimal baseFare;
 
-    private Double taxesAndFees;
-    private Double airlineFees;
+    private BigDecimal taxesAndFees;
+    private BigDecimal airlineFees;
 
     @Column(nullable = false)
-    private Double currentPrice;
+    private BigDecimal currentPrice;
 
 
     private String fareLabel;
@@ -83,8 +85,15 @@ public class Fare {
     @UpdateTimestamp
     private Instant updatedAt;
 
-    public Double getTotalPrice(){
-        return baseFare+taxesAndFees+airlineFees+currentPrice;
+    /**
+     * All-inclusive price per passenger. {@code currentPrice} is the live selling price (it can differ from the
+     * components when revenue management adjusts it); when absent, the total is the sum of its components.
+     */
+    public BigDecimal getTotalPrice() {
+        if (currentPrice != null) {
+            return Money.normalize(currentPrice);
+        }
+        return Money.sum(baseFare, taxesAndFees, airlineFees);
     }
 
 

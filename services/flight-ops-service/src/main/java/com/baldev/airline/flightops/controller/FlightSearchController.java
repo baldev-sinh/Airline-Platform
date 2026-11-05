@@ -1,5 +1,6 @@
 package com.baldev.airline.flightops.controller;
 
+import java.math.BigDecimal;
 
 import com.baldev.airline.common.enums.CabinClassType;
 import com.baldev.airline.common.payload.request.FlightSearchRequest;
@@ -32,8 +33,8 @@ public class FlightSearchController {
             @RequestParam Integer passengers,
             @RequestParam CabinClassType cabinClass,
             @RequestParam(required = false) List<Long> airlines,
-            @RequestParam(required = false) Double minPrice,
-            @RequestParam(required = false) Double maxPrice,
+            @RequestParam(required = false) BigDecimal minPrice,
+            @RequestParam(required = false) BigDecimal maxPrice,
             @RequestParam(required = false) String departureTimeRange,
             @RequestParam(required = false) String arrivalTimeRange,
             @RequestParam(required = false) Integer maxDuration,

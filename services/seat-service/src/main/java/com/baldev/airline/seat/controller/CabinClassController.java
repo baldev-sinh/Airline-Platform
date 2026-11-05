@@ -23,7 +23,7 @@ public class CabinClassController {
     @PostMapping
     public ResponseEntity<CabinClassResponse> createCabinClass(
             @Valid @RequestBody CabinClassRequest cabinClassRequest
-    ) throws Exception {
+    ) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(
                         cabinClassService.createCabinClass(cabinClassRequest)
@@ -31,7 +31,7 @@ public class CabinClassController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<CabinClassResponse> getCabinClassById(@PathVariable Long id) throws Exception {
+    public ResponseEntity<CabinClassResponse> getCabinClassById(@PathVariable Long id) {
         return ResponseEntity.ok(cabinClassService.getCabinClassById(id));
     }
 
@@ -54,12 +54,12 @@ public class CabinClassController {
     @PutMapping("/{id}")
     public ResponseEntity<CabinClassResponse> updateCabinClass(
             @PathVariable Long id,
-            @Valid @RequestBody CabinClassRequest request) throws Exception {
+            @Valid @RequestBody CabinClassRequest request) {
         return ResponseEntity.ok(cabinClassService.updateCabinClass(id, request));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteCabinClass(@PathVariable Long id) throws Exception {
+    public ResponseEntity<Void> deleteCabinClass(@PathVariable Long id) {
         cabinClassService.deleteCabinClass(id);
         return ResponseEntity.noContent().build();
     }

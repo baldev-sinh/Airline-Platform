@@ -1,5 +1,7 @@
 package com.baldev.airline.ancillary.service.impl;
 
+import com.baldev.airline.common.exception.ConflictException;
+import com.baldev.airline.common.exception.ResourceNotFoundException;
 import com.baldev.airline.ancillary.client.AirlineClient;
 import com.baldev.airline.ancillary.mapper.MealMapper;
 import com.baldev.airline.ancillary.model.Meal;
@@ -21,12 +23,12 @@ public class MealServiceImpl implements MealService {
     private final AirlineClient airlineClient;
 
     @Override
-    public MealResponse createMeal(Long userId, MealRequest request) throws Exception {
+    public MealResponse createMeal(Long userId, MealRequest request) {
 
         AirlineResponse airlineResponse = airlineClient.getAirlineByOwner(userId);
 
         if (mealRepository.existsByCodeAndAirlineId(request.getCode(), airlineResponse.getId())) {
-            throw new Exception("meal code already exist");
+            throw new ConflictException("meal code already exist");
         }
 
         Meal meal = Meal.builder()
@@ -47,25 +49,25 @@ public class MealServiceImpl implements MealService {
     }
 
     @Override
-    public MealResponse getMealById(Long id) throws Exception {
+    public MealResponse getMealById(Long id) {
         Meal meal = mealRepository.findById(id).orElseThrow(
-                () -> new Exception("meal not found with id")
+                () -> new ResourceNotFoundException("meal not found with id")
         );
 
         return MealMapper.toResponse(meal);
     }
 
     @Override
-    public MealResponse updateMeal(Long userId, Long id, MealRequest request) throws Exception {
+    public MealResponse updateMeal(Long userId, Long id, MealRequest request) {
         AirlineResponse airlineResponse = airlineClient.getAirlineByOwner(userId);
         Meal meal = mealRepository.findById(id).orElseThrow(
-                () -> new Exception("meal not found with id")
+                () -> new ResourceNotFoundException("meal not found with id")
         );
 
         if (request.getCode() != null &&
                 mealRepository.existsByAirlineIdAndCodeAndIdNot(
                         airlineResponse.getId(), request.getCode(), meal.getId())) {
-            throw new Exception("meal code already exist");
+            throw new ConflictException("meal code already exist");
         }
 
         meal.setCode(request.getCode());
@@ -92,17 +94,17 @@ public class MealServiceImpl implements MealService {
     }
 
     @Override
-    public void deleteMeal(Long id) throws Exception {
+    public void deleteMeal(Long id) {
         Meal meal = mealRepository.findById(id).orElseThrow(
-                () -> new Exception("meal not found with id")
+                () -> new ResourceNotFoundException("meal not found with id")
         );
         mealRepository.delete(meal);
     }
 
     @Override
-    public MealResponse updateAvailability(Long id, Boolean availability) throws Exception {
+    public MealResponse updateAvailability(Long id, Boolean availability) {
         Meal meal = mealRepository.findById(id).orElseThrow(
-                () -> new Exception("meal not found with id")
+                () -> new ResourceNotFoundException("meal not found with id")
         );
         meal.setAvailable(availability);
         Meal updated = mealRepository.save(meal);

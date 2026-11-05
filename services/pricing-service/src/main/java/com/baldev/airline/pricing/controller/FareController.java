@@ -22,7 +22,7 @@ public class FareController {
 
     @PostMapping
     public ResponseEntity<FareResponse> createFare(
-            @Valid @RequestBody FareRequest fareRequest) throws Exception {
+            @Valid @RequestBody FareRequest fareRequest) {
 
         return ResponseEntity.status(HttpStatus.CREATED).body(
                 fareService.createFare(fareRequest)
@@ -37,7 +37,7 @@ public class FareController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<FareResponse> getFareById(@PathVariable Long id) throws Exception {
+    public ResponseEntity<FareResponse> getFareById(@PathVariable Long id) {
         return ResponseEntity.ok(fareService.getFareById(id));
     }
 
@@ -69,19 +69,18 @@ public class FareController {
             @RequestBody List<Long> flightIds,
             @RequestParam Long cabinClassId) {
         Map<Long, FareResponse> res= fareService.getLowestFarePerFlight(flightIds, cabinClassId);
-        System.out.println("search fare response ------ "+res.toString());
         return ResponseEntity.ok(res);
     }
 
     @PutMapping("/{id}")
     public ResponseEntity<FareResponse> updateFare(
             @PathVariable Long id,
-            @Valid @RequestBody FareRequest request) throws Exception {
+            @Valid @RequestBody FareRequest request) {
         return ResponseEntity.ok(fareService.updateFare(id, request));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteFare(@PathVariable Long id) throws Exception {
+    public ResponseEntity<Void> deleteFare(@PathVariable Long id) {
         fareService.deleteFare(id);
         return ResponseEntity.noContent().build();
     }

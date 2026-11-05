@@ -20,7 +20,7 @@ public class MealController {
     @PostMapping
     public ResponseEntity<MealResponse> createMeal(
             @Valid @RequestBody MealRequest mealRequest,
-            @RequestHeader("X-User-Id") Long userId) throws Exception {
+            @RequestHeader("X-User-Id") Long userId) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(
                         mealService.createMeal(userId, mealRequest
@@ -35,15 +35,14 @@ public class MealController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<MealResponse> getMealById(@PathVariable Long id)
-            throws Exception {
+    public ResponseEntity<MealResponse> getMealById(@PathVariable Long id) {
         return ResponseEntity.ok(mealService.getMealById(id));
     }
 
     @PatchMapping("/{id}/availability")
     public ResponseEntity<MealResponse> updateMealAvailability(
             @PathVariable Long id,
-            @RequestParam Boolean available) throws Exception {
+            @RequestParam Boolean available) {
         return ResponseEntity.ok(mealService.updateAvailability(id, available));
     }
 
@@ -51,12 +50,12 @@ public class MealController {
     public ResponseEntity<MealResponse> updateMeal(
             @PathVariable Long id,
             @RequestBody MealRequest request,
-            @RequestHeader("X-User-Id") Long userId) throws Exception {
+            @RequestHeader("X-User-Id") Long userId) {
         return ResponseEntity.ok(mealService.updateMeal(userId, id, request));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteMeal(@PathVariable Long id) throws Exception {
+    public ResponseEntity<Void> deleteMeal(@PathVariable Long id) {
         mealService.deleteMeal(id);
         return ResponseEntity.noContent().build();
     }

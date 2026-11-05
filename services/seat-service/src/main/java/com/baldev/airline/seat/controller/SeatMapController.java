@@ -23,7 +23,7 @@ public class SeatMapController {
     public ResponseEntity<SeatMapResponse> createSeatMap(
             @Valid @RequestBody SeatMapRequest seatMapRequest,
             @RequestHeader("X-User-Id") Long userId
-    ) throws Exception {
+    ) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(
                         seatMapService.createSeatMap(userId, seatMapRequest)
@@ -31,7 +31,7 @@ public class SeatMapController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<SeatMapResponse> getSeatMapById(@PathVariable Long id) throws Exception {
+    public ResponseEntity<SeatMapResponse> getSeatMapById(@PathVariable Long id) {
         return ResponseEntity.ok(seatMapService.getSeatMapById(id));
     }
 
@@ -45,12 +45,12 @@ public class SeatMapController {
     @PutMapping("/{id}")
     public ResponseEntity<SeatMapResponse> updateSeatMap(
             @PathVariable Long id,
-            @RequestBody SeatMapRequest request) throws Exception {
+            @RequestBody SeatMapRequest request) {
         return ResponseEntity.ok(seatMapService.updateSeatMap(id, request));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<ApiResponse> deleteSeatMap(@PathVariable Long id) throws Exception {
+    public ResponseEntity<ApiResponse> deleteSeatMap(@PathVariable Long id) {
         seatMapService.deleteSeatMap(id);
         ApiResponse response = new ApiResponse("Seat Map Deleted");
         return ResponseEntity.ok(response);

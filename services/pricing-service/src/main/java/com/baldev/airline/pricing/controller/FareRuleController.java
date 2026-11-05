@@ -23,7 +23,7 @@ public class FareRuleController {
     @PostMapping
     public ResponseEntity<FareRulesResponse> createFareRule(
             @Valid @RequestBody FareRulesRequest request
-    ) throws Exception {
+    ) {
         return ResponseEntity.status(HttpStatus.CREATED)
 
                 .body(fareRulesService.createFareRules(request));
@@ -32,7 +32,7 @@ public class FareRuleController {
     @GetMapping("/{id}")
     public ResponseEntity<FareRulesResponse> getFareRulesById(
             @PathVariable Long id
-    ) throws Exception {
+    ) {
         return ResponseEntity.ok(fareRulesService.getFareRulesById(id));
     }
 
@@ -51,7 +51,7 @@ public class FareRuleController {
     @PutMapping("/{id}")
     public ResponseEntity<FareRulesResponse> updateFareRules(
             @PathVariable Long id,
-            @Valid @RequestBody FareRulesRequest request) throws Exception {
+            @Valid @RequestBody FareRulesRequest request) {
         return ResponseEntity.ok(fareRulesService.updateFareRules(id, request));
     }
 

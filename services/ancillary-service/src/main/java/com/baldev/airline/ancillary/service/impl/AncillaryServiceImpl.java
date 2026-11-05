@@ -1,5 +1,6 @@
 package com.baldev.airline.ancillary.service.impl;
 
+import com.baldev.airline.common.exception.ResourceNotFoundException;
 import com.baldev.airline.ancillary.client.AirlineClient;
 import com.baldev.airline.ancillary.mapper.AncillaryMapper;
 import com.baldev.airline.ancillary.mapper.InsuranceCoverageMapper;
@@ -48,10 +49,10 @@ public class AncillaryServiceImpl implements AncillaryService {
     }
 
     @Override
-    public AncillaryResponse getById(Long id) throws Exception {
+    public AncillaryResponse getById(Long id) {
         Ancillary ancillary = ancillaryRepository.findById(id)
                 .orElseThrow(
-                        () -> new Exception("Ancillary not found")
+                        () -> new ResourceNotFoundException("Ancillary not found")
                 );
 
 //        fetch insurance coverages by ancillary
@@ -83,10 +84,10 @@ public class AncillaryServiceImpl implements AncillaryService {
     }
 
     @Override
-    public AncillaryResponse updateAncillary(Long id, AncillaryRequest request) throws Exception {
+    public AncillaryResponse updateAncillary(Long id, AncillaryRequest request) {
         Ancillary ancillary = ancillaryRepository.findById(id)
                 .orElseThrow(
-                        () -> new Exception("Ancillary not found")
+                        () -> new ResourceNotFoundException("Ancillary not found")
                 );
 
         ancillary.setType(request.getType());
@@ -110,10 +111,10 @@ public class AncillaryServiceImpl implements AncillaryService {
     }
 
     @Override
-    public void deleteAncillary(Long id) throws Exception {
+    public void deleteAncillary(Long id) {
         Ancillary ancillary = ancillaryRepository.findById(id)
                 .orElseThrow(
-                        () -> new Exception("Ancillary not found")
+                        () -> new ResourceNotFoundException("Ancillary not found")
                 );
 
         ancillaryRepository.delete(ancillary);

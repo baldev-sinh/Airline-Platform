@@ -1,0 +1,25 @@
+# Local development profile (SPRING_PROFILES_ACTIVE=local).
+# Points at the databases started by docker-compose/docker-compose.yml. Never use this profile in production.
+spring:
+  datasource:
+    url: ${DB_URL:jdbc:mysql://localhost:3310/airline_payment_db}
+    username: ${DB_USERNAME:airline}
+    password: ${DB_PASSWORD:airline}
+
+airline:
+  payment:
+    razorpay:
+      # Use your own Razorpay TEST-mode keys via environment variables; nothing is committed.
+      key-id: ${RAZORPAY_KEY_ID:rzp_test_placeholder}
+      key-secret: ${RAZORPAY_KEY_SECRET:placeholder}
+      webhook-secret: ${RAZORPAY_WEBHOOK_SECRET:placeholder}
+      callback-base-url: ${PAYMENT_CALLBACK_BASE_URL:http://localhost:5173}
+
+management:
+  tracing:
+    sampling:
+      probability: 1.0
+
+logging:
+  level:
+    com.baldev.airline: DEBUG

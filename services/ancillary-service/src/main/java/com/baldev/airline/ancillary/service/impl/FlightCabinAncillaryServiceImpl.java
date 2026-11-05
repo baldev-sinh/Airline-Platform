@@ -1,5 +1,12 @@
 package com.baldev.airline.ancillary.service.impl;
 
+import java.util.function.Function;
+import java.util.Map;
+import com.baldev.airline.common.exception.BusinessRuleException;
+import com.baldev.airline.common.util.Money;
+import com.baldev.airline.common.payload.request.PriceQuoteRequest;
+import java.math.BigDecimal;
+import com.baldev.airline.common.exception.ResourceNotFoundException;
 import com.baldev.airline.common.enums.AncillaryType;
 import com.baldev.airline.ancillary.mapper.FlightCabinAncillaryMapper;
 import com.baldev.airline.ancillary.mapper.InsuranceCoverageMapper;
@@ -28,9 +35,9 @@ public class FlightCabinAncillaryServiceImpl implements FlightCabinAncillaryServ
     private final InsuranceCoverageRepository insuranceCoverageRepository;
 
     @Override
-    public FlightCabinAncillaryResponse create(FlightCabinAncillaryRequest request) throws Exception {
+    public FlightCabinAncillaryResponse create(FlightCabinAncillaryRequest request) {
         Ancillary ancillary = ancillaryRepository.findById(request.getAncillaryId())
-                .orElseThrow(() -> new Exception("ancillary not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("ancillary not found"));
 
         FlightCabinAncillary fCabinAncillary = FlightCabinAncillary.builder()
                 .flightId(request.getFlightId())
@@ -48,9 +55,9 @@ public class FlightCabinAncillaryServiceImpl implements FlightCabinAncillaryServ
     }
 
     @Override
-    public FlightCabinAncillaryResponse getById(Long id) throws Exception {
+    public FlightCabinAncillaryResponse getById(Long id) {
         FlightCabinAncillary flightCabinAncillary = flightCabinAncillaryRepository.findById(id)
-                .orElseThrow(() -> new Exception("flight cabin ancillary not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("flight cabin ancillary not found"));
         return convertToResponse(flightCabinAncillary);
     }
 
@@ -89,10 +96,10 @@ public class FlightCabinAncillaryServiceImpl implements FlightCabinAncillaryServ
     }
 
     @Override
-    public FlightCabinAncillaryResponse update(Long id, FlightCabinAncillaryRequest request) throws Exception {
+    public FlightCabinAncillaryResponse update(Long id, FlightCabinAncillaryRequest request) {
         FlightCabinAncillary flightCabinAncillary = flightCabinAncillaryRepository.findById(
                 id
-        ).orElseThrow(() -> new Exception("Flight cabin ancillary not found"));
+        ).orElseThrow(() -> new ResourceNotFoundException("Flight cabin ancillary not found"));
 
         flightCabinAncillary.setAvailable(request.getAvailable());
         flightCabinAncillary.setMaxQuantity(request.getMaxQuantity());
@@ -104,21 +111,44 @@ public class FlightCabinAncillaryServiceImpl implements FlightCabinAncillaryServ
     }
 
     @Override
-    public void delete(Long id) throws Exception {
+    public void delete(Long id) {
         FlightCabinAncillary flightCabinAncillary = flightCabinAncillaryRepository.findById(
                 id
-        ).orElseThrow(() -> new Exception("Flight cabin ancillary not found"));
+        ).orElseThrow(() -> new ResourceNotFoundException("Flight cabin ancillary not found"));
         flightCabinAncillaryRepository.delete(flightCabinAncillary);
     }
 
     @Override
-    public Double calculateAncillaryPrice(List<Long> ancillaryIds) {
-        List<FlightCabinAncillary> ancillaries = flightCabinAncillaryRepository.findAllById(ancillaryIds);
-        double totalPrice = 0;
-        for (FlightCabinAncillary ancillary : ancillaries) {
-            totalPrice += ancillary.getPrice();
+    public BigDecimal calculateAncillaryPrice(PriceQuoteRequest request) {
+        List<Long> ids = request.getItemIds();
+        if (ids == null || ids.isEmpty()) {
+            return Money.normalize(BigDecimal.ZERO);
         }
-        return totalPrice;
+        Map<Long, FlightCabinAncillary> byId = flightCabinAncillaryRepository.findAllById(ids).stream()
+                .collect(Collectors.toMap(FlightCabinAncillary::getId, Function.identity()));
+
+        Map<Long, Long> quantities = ids.stream()
+                .collect(Collectors.groupingBy(Function.identity(), Collectors.counting()));
+
+        BigDecimal total = BigDecimal.ZERO;
+        for (Map.Entry<Long, Long> entry : quantities.entrySet()) {
+            FlightCabinAncillary item = byId.get(entry.getKey());
+            if (item == null || !request.getFlightId().equals(item.getFlightId())
+                    || (request.getCabinClassId() != null && !request.getCabinClassId().equals(item.getCabinClassId()))) {
+                throw new ResourceNotFoundException("Ancillary " + entry.getKey() + " is not offered on this flight");
+            }
+            if (!Boolean.TRUE.equals(item.getAvailable())) {
+                throw new BusinessRuleException("ANCILLARY_UNAVAILABLE", "Ancillary " + item.getId() + " is not available");
+            }
+            if (item.getMaxQuantity() != null && entry.getValue() > item.getMaxQuantity()) {
+                throw new BusinessRuleException("ANCILLARY_QUANTITY_EXCEEDED",
+                        "At most " + item.getMaxQuantity() + " of ancillary " + item.getId() + " allowed");
+            }
+            if (!Boolean.TRUE.equals(item.getIncludedInFare())) {
+                total = total.add(Money.orZero(item.getPrice()).multiply(BigDecimal.valueOf(entry.getValue())));
+            }
+        }
+        return Money.normalize(total);
     }
 
     private FlightCabinAncillaryResponse convertToResponse(FlightCabinAncillary ancillary) {
