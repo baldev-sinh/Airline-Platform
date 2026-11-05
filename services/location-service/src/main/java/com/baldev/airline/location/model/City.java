@@ -1,0 +1,36 @@
+package com.baldev.airline.location.model;
+
+import jakarta.persistence.*;
+import jakarta.validation.constraints.Size;
+import lombok.*;
+
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+@Entity
+public class City {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.AUTO)
+    private Long id;
+
+    @Column(nullable = false)
+    private String name;
+
+    @Column(nullable = false)
+    private String cityCode;
+
+    @Column(nullable = false)
+    private String countryCode;
+
+    @Column(nullable = false)
+    private String countryName;
+
+    @Size(max = 10)
+    private String regionCode;
+
+    @Column(name = "time_zone_id", length = 50)
+    private String timeZoneId;
+}
