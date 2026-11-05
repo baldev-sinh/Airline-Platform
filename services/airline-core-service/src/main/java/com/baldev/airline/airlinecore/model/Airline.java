@@ -1,5 +1,7 @@
 package com.baldev.airline.airlinecore.model;
 
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 import com.baldev.airline.common.embeddable.Support;
 import com.baldev.airline.common.enums.AirlineStatus;
 import jakarta.persistence.*;
@@ -41,6 +43,7 @@ public class Airline {
     private String website;
 
     @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.VARCHAR)
     @Builder.Default
     private AirlineStatus status = AirlineStatus.PENDING_APPROVAL;
 

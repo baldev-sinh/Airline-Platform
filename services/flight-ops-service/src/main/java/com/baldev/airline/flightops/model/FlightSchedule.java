@@ -1,5 +1,7 @@
 package com.baldev.airline.flightops.model;
 
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -43,6 +45,7 @@ public class FlightSchedule {
 
     @ElementCollection
     @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.VARCHAR)
     private List<DayOfWeek> operatingDays;
 
 

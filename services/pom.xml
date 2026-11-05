@@ -71,6 +71,11 @@
             <groupId>org.springframework.cloud</groupId>
             <artifactId>spring-cloud-starter-netflix-eureka-client</artifactId>
         </dependency>
+        <dependency>
+            <!-- Production-grade cache for Spring Cloud LoadBalancer instance lists -->
+            <groupId>com.github.ben-manes.caffeine</groupId>
+            <artifactId>caffeine</artifactId>
+        </dependency>
 
         <!-- Observability: health probes, Prometheus metrics, distributed tracing -->
         <dependency>

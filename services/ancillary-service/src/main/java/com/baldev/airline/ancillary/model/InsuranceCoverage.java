@@ -1,5 +1,7 @@
 package com.baldev.airline.ancillary.model;
 
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 import java.math.BigDecimal;
 
 import com.baldev.airline.common.enums.CoverageType;
@@ -21,7 +23,9 @@ public class InsuranceCoverage {
     @ManyToOne
     private Ancillary ancillary;
 
-    @Column(nullable = false)
+    @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.VARCHAR)
+    @Column(nullable = false, length = 30)
     private CoverageType coverageType;
 
     @Column(nullable = false, length = 200)

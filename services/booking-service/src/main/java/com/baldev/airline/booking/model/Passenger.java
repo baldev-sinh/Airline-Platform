@@ -1,5 +1,7 @@
 package com.baldev.airline.booking.model;
 
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 import com.baldev.airline.common.enums.Gender;
 import jakarta.persistence.*;
 import lombok.*;
@@ -43,6 +45,7 @@ public class Passenger {
 
     @Column(nullable = false, length = 20)
     @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.VARCHAR)
     private Gender gender;
 
     @Column(length = 60)

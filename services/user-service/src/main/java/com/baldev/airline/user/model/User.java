@@ -1,5 +1,7 @@
 package com.baldev.airline.user.model;
 
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 import com.baldev.airline.common.enums.UserRole;
 import jakarta.persistence.*;
 import lombok.*;
@@ -38,6 +40,7 @@ public class User {
 
     /** Stored by name: ordinal storage silently corrupts roles if the enum is ever reordered. */
     @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.VARCHAR)
     @Column(nullable = false, length = 30)
     private UserRole role;
 

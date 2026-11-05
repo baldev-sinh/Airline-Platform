@@ -1,5 +1,7 @@
 package com.baldev.airline.airlinecore.model;
 
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 import com.baldev.airline.common.enums.AircraftStatus;
 import jakarta.persistence.*;
 import lombok.*;
@@ -60,6 +62,7 @@ public class Aircraft {
     private LocalDate nextMaintenanceDate;
 
     @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.VARCHAR)
     @Column(name = "status", nullable = false, length = 20)
     private AircraftStatus status = AircraftStatus.ACTIVE;
 

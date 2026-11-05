@@ -1,5 +1,7 @@
 package com.baldev.airline.booking.model;
 
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 import com.baldev.airline.common.enums.TicketStatus;
 import jakarta.persistence.*;
 import lombok.*;
@@ -25,6 +27,7 @@ public class Ticket {
     private String ticketNumber;
 
     @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.VARCHAR)
     @Column(nullable = false, length = 20)
     private TicketStatus status;
 

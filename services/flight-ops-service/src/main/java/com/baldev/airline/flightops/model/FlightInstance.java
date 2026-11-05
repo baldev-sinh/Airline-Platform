@@ -1,5 +1,7 @@
 package com.baldev.airline.flightops.model;
 
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import com.baldev.airline.common.enums.FlightStatus;
 import jakarta.persistence.*;
@@ -48,6 +50,7 @@ public class FlightInstance {
 
     @Column(nullable = false)
     @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.VARCHAR)
     private FlightStatus status;
 
     private Integer minAdvanceBookingDays;

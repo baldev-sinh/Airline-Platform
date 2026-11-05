@@ -1,5 +1,7 @@
 package com.baldev.airline.pricing.model;
 
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 import com.baldev.airline.common.util.Money;
 import java.math.BigDecimal;
 import com.baldev.airline.common.embeddable.*;
@@ -22,7 +24,7 @@ import java.time.Instant;
 public class Fare {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.AUTO)
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @Column(nullable = false)
@@ -38,6 +40,7 @@ public class Fare {
     private Long cabinClassId;
 
     @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.VARCHAR)
     private CabinClassType cabinClass;
 
     @Column(nullable = false)

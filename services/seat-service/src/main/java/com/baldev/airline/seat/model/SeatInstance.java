@@ -1,5 +1,7 @@
 package com.baldev.airline.seat.model;
 
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 import com.baldev.airline.common.enums.SeatAvailabilityStatus;
 import jakarta.persistence.*;
 import lombok.*;
@@ -42,6 +44,7 @@ public class SeatInstance {
     private Seat seat;
 
     @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.VARCHAR)
     @Column(nullable = false, length = 20)
     @Builder.Default
     private SeatAvailabilityStatus status = SeatAvailabilityStatus.AVAILABLE;

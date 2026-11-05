@@ -1,5 +1,7 @@
 package com.baldev.airline.ancillary.model;
 
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 import com.baldev.airline.common.domain.AncillaryMetadata;
 import com.baldev.airline.common.enums.AncillaryType;
 import com.baldev.airline.ancillary.service.AncillaryMetadataConverter;
@@ -15,10 +17,11 @@ import lombok.*;
 public class Ancillary {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.AUTO)
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.VARCHAR)
     private AncillaryType type;
 
     private String subType;

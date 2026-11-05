@@ -1,5 +1,7 @@
 package com.baldev.airline.payment.model;
 
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 import com.baldev.airline.common.enums.PaymentGateway;
 import com.baldev.airline.common.enums.PaymentStatus;
 import jakarta.persistence.*;
@@ -43,6 +45,7 @@ public class Payment {
     private String currency;
 
     @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.VARCHAR)
     @Column(nullable = false, length = 20)
     private PaymentGateway provider;
 
@@ -62,6 +65,7 @@ public class Payment {
     private String transactionId;
 
     @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.VARCHAR)
     @Column(nullable = false, length = 20)
     private PaymentStatus status;
 

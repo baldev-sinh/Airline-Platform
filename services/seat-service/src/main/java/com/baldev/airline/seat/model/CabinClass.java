@@ -1,5 +1,7 @@
 package com.baldev.airline.seat.model;
 
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import com.baldev.airline.common.enums.CabinClassType;
 import jakarta.persistence.*;
@@ -20,10 +22,11 @@ import java.time.Instant;
 public class CabinClass {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.AUTO)
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.VARCHAR)
     @Column(nullable = false)
     private CabinClassType name;
 

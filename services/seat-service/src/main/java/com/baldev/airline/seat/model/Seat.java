@@ -1,5 +1,7 @@
 package com.baldev.airline.seat.model;
 
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 import com.baldev.airline.common.util.Money;
 import java.math.BigDecimal;
 
@@ -24,7 +26,7 @@ import java.time.LocalDateTime;
 public class Seat {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.AUTO)
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @Column(nullable = false)
@@ -35,6 +37,9 @@ public class Seat {
 
     private Character columnLetter;
 
+    @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.VARCHAR)
+    @Column(length = 20)
     private SeatType seatType;
 
     private BigDecimal basePrice;

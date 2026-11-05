@@ -18,7 +18,7 @@ import java.time.Instant;
 @EntityListeners(AuditingEntityListener.class)
 public class BaggagePolicy {
     @Id
-    @GeneratedValue(strategy = GenerationType.AUTO)
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @OneToOne

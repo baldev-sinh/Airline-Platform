@@ -1,5 +1,7 @@
 package com.baldev.airline.booking.model;
 
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 import com.baldev.airline.common.embeddable.ContactInfo;
 import com.baldev.airline.common.enums.BookingStatus;
 import com.baldev.airline.common.enums.CabinClassType;
@@ -57,6 +59,7 @@ public class Booking {
     private Long airlineId;
 
     @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.VARCHAR)
     @Column(nullable = false, length = 20)
     @Builder.Default
     private CabinClassType cabinClass = CabinClassType.ECONOMY;
@@ -128,6 +131,7 @@ public class Booking {
     private Long paymentId;
 
     @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.VARCHAR)
     @Column(nullable = false, length = 20)
     private BookingStatus status;
 
