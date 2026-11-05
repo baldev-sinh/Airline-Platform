@@ -1,0 +1,8 @@
+target/
+.idea/
+*.iml
+.vscode/
+*.log
+.env
+!.env.example
+HELP.md

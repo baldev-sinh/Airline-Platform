@@ -1,0 +1,28 @@
+server:
+  port: 5004
+
+spring:
+  application:
+    name: location-service
+
+  datasource:
+    url: jdbc:mysql://localhost:3306/airline_location_db
+    username: root
+    password: India@123
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+
+
+eureka:
+  client:
+    register-with-eureka: true
+    fetch-registry: true
+  instance:
+    prefer-ip-address: true
+

@@ -1,0 +1,30 @@
+server:
+  port: 5011
+
+spring:
+  application:
+    name: flight-ops-service
+
+  datasource:
+    url: jdbc:mysql://localhost:3306/airline_flight_db
+    username: root
+    password: India@123
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+
+
+  kafka:
+    bootstrap-servers: localhost:9092
+
+eureka:
+  client:
+    register-with-eureka: true
+    fetch-registry: true
+  instance:
+    prefer-ip-address: true
