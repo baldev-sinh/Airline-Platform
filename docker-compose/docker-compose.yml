@@ -1,506 +1,281 @@
+# Full platform for local integration testing and demos.
+#
+#   cp docker-compose/.env.example docker-compose/.env   # then fill in the secrets
+#   mvn -B -DskipTests package jib:dockerBuild            # build images into the local Docker daemon
+#   docker compose -f docker-compose/docker-compose.yml --env-file docker-compose/.env up -d
+#
+# Production does not run on Compose: use managed MySQL/Kafka and an orchestrator (e.g. Kubernetes), injecting
+# the same environment variables from a secret store. Only the gateway (and, for debugging, the registry UI and
+# database ports bound to 127.0.0.1) are published.
+
+name: airline
+
+x-mysql: &mysql
+  image: mysql:8.4
+  restart: unless-stopped
+  mem_limit: 512m
+  networks: [ backend ]
+  command: [ "--character-set-server=utf8mb4", "--collation-server=utf8mb4_0900_ai_ci", "--default-time-zone=+00:00" ]
+  healthcheck:
+    test: [ "CMD-SHELL", "mysqladmin ping -h localhost -uroot -p$$MYSQL_ROOT_PASSWORD --silent" ]
+    interval: 10s
+    timeout: 5s
+    retries: 12
+    start_period: 20s
+
+x-mysql-env: &mysql-env
+  MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?set MYSQL_ROOT_PASSWORD in .env}
+  MYSQL_USER: airline
+  MYSQL_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in .env}
+
+x-service: &service
+  restart: unless-stopped
+  mem_limit: 768m
+  networks: [ backend ]
+  healthcheck:
+    test: [ "CMD-SHELL", "curl -fsS http://localhost:$${SERVER_PORT}/actuator/health/readiness || exit 1" ]
+    interval: 15s
+    timeout: 5s
+    retries: 10
+    start_period: 60s
+
+x-service-env: &service-env
+  JAVA_TOOL_OPTIONS: "-XX:MaxRAMPercentage=75 -XX:+UseG1GC"
+  EUREKA_URL: http://service-registry:8761/eureka/
+  KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+  DB_USERNAME: airline
+  DB_PASSWORD: ${DB_PASSWORD}
+  LOGGING_STRUCTURED_FORMAT_CONSOLE: ecs
+  TRACING_SAMPLING_PROBABILITY: ${TRACING_SAMPLING_PROBABILITY:-0.1}
+
 services:
 
-  #  databases
-
+  # ---------------------------------------------------------------- data stores (one database per service)
   userdb:
-    image: mysql:8.0
-    container_name: userdb
-    mem_limit: 512m
-    mem_reservation: 256m
-    cpus: 0.5
-    ports:
-      - "3302:3306"
-    environment:
-      MYSQL_ROOT_PASSWORD: root
-      MYSQL_DATABASE: airline_user
-    healthcheck:
-      test: [ "CMD", "mysqladmin", "ping", "-h", "localhost" ]
-      interval: 10s
-      timeout: 10s
-      retries: 10
-      start_period: 10s
-
+    <<: *mysql
+    environment: { <<: *mysql-env, MYSQL_DATABASE: airline_user_db }
+    ports: [ "127.0.0.1:3302:3306" ]
+    volumes: [ userdb-data:/var/lib/mysql ]
   airlinecoredb:
-    image: mysql:8.0
-    container_name: airlinecoredb
-    mem_limit: 512m
-    mem_reservation: 256m
-    cpus: 0.5
-    ports:
-      - "3303:3306"  # LOCALHOST ONLY
-    environment:
-      MYSQL_ROOT_PASSWORD: root
-      MYSQL_DATABASE: airline_core_db
-    healthcheck:
-      test: [ "CMD", "mysqladmin", "ping", "-h", "localhost" ]
-      interval: 10s
-      timeout: 10s
-      retries: 10
-      start_period: 10s
-
+    <<: *mysql
+    environment: { <<: *mysql-env, MYSQL_DATABASE: airline_core_db }
+    ports: [ "127.0.0.1:3303:3306" ]
+    volumes: [ airlinecoredb-data:/var/lib/mysql ]
   flightopsdb:
-    image: mysql:8.0
-    container_name: flightopsdb
-    mem_limit: 512m
-    mem_reservation: 256m
-    cpus: 0.5
-    ports:
-      - "3304:3306"  # LOCALHOST ONLY
-    environment:
-      MYSQL_ROOT_PASSWORD: root
-      MYSQL_DATABASE: airline_flight_db
-    healthcheck:
-      test: [ "CMD", "mysqladmin", "ping", "-h", "localhost" ]
-      interval: 10s
-      timeout: 10s
-      retries: 10
-      start_period: 10s
-
-
+    <<: *mysql
+    environment: { <<: *mysql-env, MYSQL_DATABASE: airline_flight_db }
+    ports: [ "127.0.0.1:3304:3306" ]
+    volumes: [ flightopsdb-data:/var/lib/mysql ]
   locationdb:
-    image: mysql:8.0
-    container_name: locationdb
-    mem_limit: 512m
-    mem_reservation: 256m
-    cpus: 0.5
-    ports:
-      - "3305:3306"  # LOCALHOST ONLY
-    environment:
-      MYSQL_ROOT_PASSWORD: root
-      MYSQL_DATABASE: airline_location_db
-    healthcheck:
-      test: [ "CMD", "mysqladmin", "ping", "-h", "localhost" ]
-      interval: 10s
-      timeout: 10s
-      retries: 10
-      start_period: 10s
-
-
-  seatdb:
-    image: mysql:8.0
-    container_name: seatdb
-    mem_limit: 512m
-    mem_reservation: 256m
-    cpus: 0.5
-    ports:
-      - "3311:3306"  # LOCALHOST ONLY
-    environment:
-      MYSQL_ROOT_PASSWORD: root
-      MYSQL_DATABASE: airline_seat_db
-    healthcheck:
-      test: [ "CMD", "mysqladmin", "ping", "-h", "localhost" ]
-      interval: 10s
-      timeout: 10s
-      retries: 10
-      start_period: 10s
-
+    <<: *mysql
+    environment: { <<: *mysql-env, MYSQL_DATABASE: airline_location_db }
+    ports: [ "127.0.0.1:3305:3306" ]
+    volumes: [ locationdb-data:/var/lib/mysql ]
   pricingdb:
-    image: mysql:8.0
-    container_name: pricingdb
-    mem_limit: 512m
-    mem_reservation: 256m
-    cpus: 0.5
-    ports:
-      - "3307:3306"  # LOCALHOST ONLY
-    environment:
-      MYSQL_ROOT_PASSWORD: root
-      MYSQL_DATABASE: airline_pricing_db
-    healthcheck:
-      test: [ "CMD", "mysqladmin", "ping", "-h", "localhost" ]
-      interval: 10s
-      timeout: 10s
-      retries: 10
-      start_period: 10s
-
-
+    <<: *mysql
+    environment: { <<: *mysql-env, MYSQL_DATABASE: airline_pricing_db }
+    ports: [ "127.0.0.1:3307:3306" ]
+    volumes: [ pricingdb-data:/var/lib/mysql ]
   ancillarydb:
-    image: mysql:8.0
-    container_name: ancillarydb
-    mem_limit: 512m
-    mem_reservation: 256m
-    cpus: 0.5
-    ports:
-      - "3308:3306"  # LOCALHOST ONLY
-    environment:
-      MYSQL_ROOT_PASSWORD: root
-      MYSQL_DATABASE: airline_ancillary_db
-    healthcheck:
-      test: [ "CMD", "mysqladmin", "ping", "-h", "localhost" ]
-      interval: 10s
-      timeout: 10s
-      retries: 10
-      start_period: 10s
-
+    <<: *mysql
+    environment: { <<: *mysql-env, MYSQL_DATABASE: airline_ancillary_db }
+    ports: [ "127.0.0.1:3308:3306" ]
+    volumes: [ ancillarydb-data:/var/lib/mysql ]
   bookingdb:
-    image: mysql:8.0
-    container_name: bookingdb
-    mem_limit: 512m
-    mem_reservation: 256m
-    cpus: 0.5
-    ports:
-      - "3309:3306"  # LOCALHOST ONLY
-    environment:
-      MYSQL_ROOT_PASSWORD: root
-      MYSQL_DATABASE: airline_booking_db
-    healthcheck:
-      test: [ "CMD", "mysqladmin", "ping", "-h", "localhost" ]
-      interval: 10s
-      timeout: 10s
-      retries: 10
-      start_period: 10s
-
+    <<: *mysql
+    environment: { <<: *mysql-env, MYSQL_DATABASE: airline_booking_db }
+    ports: [ "127.0.0.1:3309:3306" ]
+    volumes: [ bookingdb-data:/var/lib/mysql ]
   paymentdb:
-    image: mysql:8.0
-    container_name: paymentdb
-    mem_limit: 512m
-    mem_reservation: 256m
-    cpus: 0.5
-    ports:
-      - "3310:3306"  # LOCALHOST ONLY
-    environment:
-      MYSQL_ROOT_PASSWORD: root
-      MYSQL_DATABASE: airline_payment_db
-    healthcheck:
-      test: [ "CMD", "mysqladmin", "ping", "-h", "localhost" ]
-      interval: 10s
-      timeout: 10s
-      retries: 10
-      start_period: 10s
-
-
-
-
-  #      infra
-
-  #  config-server:
-  #    image: "baldevsinh/airline-config-server:1.0.0"
-  #    container_name: airline-config-server
-  #    mem_limit: 512m
-  #    mem_reservation: 256m
-  #    cpus: 0.5
-  #
-  #    environment:
-  #      SPRING_CLOUD_CONFIG_SERVER_GIT_URI: "https://github.com/baldevsinh/airline-config"
-  #      EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: "http://service-registry:8761/eureka/"
-  #
-  #    healthcheck:
-  #      test: [ "CMD", "curl", "-f", "http://localhost:8888/actuator/health" ]
-  #      interval: 10s
-  #      timeout: 5s
-  #      retries: 10
-  #      start_period: 15s
-
-  service-registry:
-    image: "baldevsinh/airline-service-registry:1.0.0"
-    container_name: airline-eureka-server
-    mem_limit: 512m
-    mem_reservation: 256m
-    cpus: 0.5
-    ports:
-      - "8761:8761"
-    #    depends_on:
-    #      config-server:
-    #        condition: service_healthy
-    environment:
-      SPRING_CONFIG_IMPORT: "optional:configserver:http://config-server:8888/"
-      JAVA_TOOL_OPTIONS: "-Xms128m -Xmx384m -XX:+UseG1GC"
-    healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost:8761/actuator/health" ]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-      start_period: 15s
-
-  api-gateway:
-    image: "baldevsinh/airline-api-gateway:1.0.0"
-    container_name: airline-gateway
-    mem_limit: 512m
-    mem_reservation: 256m
-    cpus: 0.5
-    ports:
-      - "5000:5000"
-    depends_on:
-      #      config-server:
-      #        condition: service_healthy
-      service-registry:
-        condition: service_healthy
-    #      redis:
-    #        condition: service_healthy
-    environment:
-      SPRING_APPLICATION_NAME: "api-gateway"
-      #      SPRING_CONFIG_IMPORT: "optional:configserver:http://config-server:8888/"
-      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: "http://service-registry:8761/eureka/"
-      #      SPRING_DATA_REDIS_HOST: redis
-      #      SPRING_DATA_REDIS_PORT: 6379
-      JAVA_TOOL_OPTIONS: "-Xms128m -Xmx384m -XX:+UseG1GC"
-
-
-
-  #      kafka
+    <<: *mysql
+    environment: { <<: *mysql-env, MYSQL_DATABASE: airline_payment_db }
+    ports: [ "127.0.0.1:3310:3306" ]
+    volumes: [ paymentdb-data:/var/lib/mysql ]
+  seatdb:
+    <<: *mysql
+    environment: { <<: *mysql-env, MYSQL_DATABASE: airline_seat_db }
+    ports: [ "127.0.0.1:3311:3306" ]
+    volumes: [ seatdb-data:/var/lib/mysql ]
 
   kafka:
     image: apache/kafka:4.2.0
-    container_name: kafka
+    restart: unless-stopped
     mem_limit: 1g
-    mem_reservation: 512m
-    cpus: 1.0
-    ports:
-      - "9092:9092"
+    networks: [ backend ]
+    ports: [ "127.0.0.1:29092:29092" ]
     environment:
       KAFKA_NODE_ID: 1
-      KAFKA_PROCESS_ROLES: broker, controller
+      KAFKA_PROCESS_ROLES: broker,controller
       KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
-      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092  # Internal service name
+      # INTERNAL is what containers use; EXTERNAL lets services running on the host (local profile) connect.
+      KAFKA_LISTENERS: INTERNAL://0.0.0.0:9092,EXTERNAL://0.0.0.0:29092,CONTROLLER://0.0.0.0:9093
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:9092,EXTERNAL://localhost:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
-      KAFKA_LOG_DIRS: /tmp/kraft-combined-logs
+      KAFKA_LOG_DIRS: /var/lib/kafka/data
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
-      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
-      KAFKA_HEAP_OPTS: "-Xms256m -Xmx1g"
+      # Topics are declared by the services (KafkaErrorHandlingAutoConfiguration); typos must not create topics.
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
+      KAFKA_HEAP_OPTS: "-Xms256m -Xmx768m"
+    volumes: [ kafka-data:/var/lib/kafka/data ]
+    healthcheck:
+      test: [ "CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092 > /dev/null 2>&1" ]
+      interval: 10s
+      timeout: 10s
+      retries: 12
+      start_period: 30s
 
-
-
-
-
-  #  services
-
-  user-service:
-    image: "baldevsinh/airline-user:1.0.0"
-    container_name: airline-user-service
+  # ---------------------------------------------------------------- platform
+  service-registry:
+    <<: *service
+    image: ${IMAGE_REGISTRY:-baldevsinh}/airline-service-registry:${IMAGE_TAG:-0.0.1-SNAPSHOT}
     mem_limit: 512m
-    mem_reservation: 256m
-    cpus: 0.5
-    depends_on:
-      #      config-server:
-      #        condition: service_healthy
-      service-registry:
-        condition: service_healthy
-      userdb:
-        condition: service_healthy
+    ports: [ "127.0.0.1:8761:8761" ]
     environment:
-      SPRING_APPLICATION_NAME: "user-service"
-      #      SPRING_CONFIG_IMPORT: "optional:configserver:http://config-server:8888/"
-      SPRING_DATASOURCE_URL: "jdbc:mysql://userdb:3306/airline_user?useSSL=false&allowPublicKeyRetrieval=true"
-      SPRING_DATASOURCE_USERNAME: root
-      SPRING_DATASOURCE_PASSWORD: root
-      SPRING_DATASOURCE_DRIVER_CLASS_NAME: com.mysql.cj.jdbc.Driver
-      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: "http://service-registry:8761/eureka/"
-      JAVA_TOOL_OPTIONS: "-Xms128m -Xmx384m -XX:+UseG1GC"
+      SERVER_PORT: 8761
+      JAVA_TOOL_OPTIONS: "-XX:MaxRAMPercentage=75 -XX:+UseG1GC"
+      EUREKA_HOSTNAME: service-registry
+
+  api-gateway:
+    <<: *service
+    image: ${IMAGE_REGISTRY:-baldevsinh}/airline-api-gateway:${IMAGE_TAG:-0.0.1-SNAPSHOT}
+    networks: [ backend, edge ]
+    ports: [ "5000:5000" ]
+    depends_on:
+      service-registry: { condition: service_healthy }
+    environment:
+      <<: *service-env
+      SERVER_PORT: 5000
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in .env}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:5173}
+
+  # ---------------------------------------------------------------- business services (internal only)
+  user-service:
+    <<: *service
+    image: ${IMAGE_REGISTRY:-baldevsinh}/airline-user-service:${IMAGE_TAG:-0.0.1-SNAPSHOT}
+    depends_on:
+      service-registry: { condition: service_healthy }
+      userdb: { condition: service_healthy }
+    environment:
+      <<: *service-env
+      SERVER_PORT: 5001
+      DB_URL: jdbc:mysql://userdb:3306/airline_user_db
+      JWT_SECRET: ${JWT_SECRET}
+      BOOTSTRAP_ADMIN_EMAIL: ${BOOTSTRAP_ADMIN_EMAIL:-}
+      BOOTSTRAP_ADMIN_PASSWORD: ${BOOTSTRAP_ADMIN_PASSWORD:-}
 
   airline-core-service:
-    image: "baldevsinh/baldev-airline:1.0.0"
-    container_name: airline-core-service
-    mem_limit: 512m
-    mem_reservation: 256m
-    cpus: 0.5
-    # NO PORTS EXPOSED - Internal only
+    <<: *service
+    image: ${IMAGE_REGISTRY:-baldevsinh}/airline-airline-core-service:${IMAGE_TAG:-0.0.1-SNAPSHOT}
     depends_on:
-      #      config-server:
-      #        condition: service_healthy
-      service-registry:
-        condition: service_healthy
-      airlinecoredb:
-        condition: service_healthy
-    #      redis:
-    #        condition: service_healthy
+      service-registry: { condition: service_healthy }
+      airlinecoredb: { condition: service_healthy }
     environment:
-      SPRING_APPLICATION_NAME: "airline-core-service"
-      #      SPRING_CONFIG_IMPORT: "optional:configserver:http://config-server:8888/"
-      SPRING_DATASOURCE_URL: "jdbc:mysql://airlinecoredb:3306/airline_core_db?useSSL=false&allowPublicKeyRetrieval=true"
-      SPRING_DATASOURCE_USERNAME: root
-      SPRING_DATASOURCE_PASSWORD: root
-      SPRING_DATASOURCE_DRIVER_CLASS_NAME: com.mysql.cj.jdbc.Driver
-      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: "http://service-registry:8761/eureka/"
-      #      SPRING_DATA_REDIS_HOST: redis
-      #      SPRING_DATA_REDIS_PORT: 6379
-      JAVA_TOOL_OPTIONS: "-Xms128m -Xmx384m -XX:+UseG1GC"
-
-  flight-ops-service:
-    image: "baldevsinh/airline-flight:1.0.0"
-    container_name: airline-flight-ops-service
-    mem_limit: 512m
-    mem_reservation: 256m
-    cpus: 0.5
-    # NO PORTS EXPOSED - Internal only
-    depends_on:
-      #      config-server:
-      #        condition: service_healthy
-      service-registry:
-        condition: service_healthy
-      flightopsdb:
-        condition: service_healthy
-    #      redis:
-    #        condition: service_healthy
-    environment:
-      SPRING_APPLICATION_NAME: "flight-ops-service"
-      #      SPRING_CONFIG_IMPORT: "optional:configserver:http://config-server:8888/"
-      SPRING_DATASOURCE_URL: "jdbc:mysql://flightopsdb:3306/airline_flight_db?useSSL=false&allowPublicKeyRetrieval=true"
-      SPRING_DATASOURCE_USERNAME: root
-      SPRING_DATASOURCE_PASSWORD: root
-      SPRING_DATASOURCE_DRIVER_CLASS_NAME: com.mysql.cj.jdbc.Driver
-      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: "http://service-registry:8761/eureka/"
-      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
-      #      SPRING_DATA_REDIS_HOST: redis
-      #      SPRING_DATA_REDIS_PORT: 6379
-      JAVA_TOOL_OPTIONS: "-Xms128m -Xmx384m -XX:+UseG1GC"
+      <<: *service-env
+      SERVER_PORT: 5002
+      DB_URL: jdbc:mysql://airlinecoredb:3306/airline_core_db
 
   location-service:
-    image: "baldevsinh/airline-location:1.0.0"
-    container_name: airline-location-service
-    mem_limit: 512m
-    mem_reservation: 256m
-    cpus: 0.5
-    # NO PORTS EXPOSED - Internal only
+    <<: *service
+    image: ${IMAGE_REGISTRY:-baldevsinh}/airline-location-service:${IMAGE_TAG:-0.0.1-SNAPSHOT}
     depends_on:
-      #      config-server:
-      #        condition: service_healthy
-      service-registry:
-        condition: service_healthy
-      locationdb:
-        condition: service_healthy
-    #      redis:
-    #        condition: service_healthy
+      service-registry: { condition: service_healthy }
+      locationdb: { condition: service_healthy }
     environment:
-      SPRING_APPLICATION_NAME: "location-service"
-      #      SPRING_CONFIG_IMPORT: "optional:configserver:http://config-server:8888/"
-      SPRING_DATASOURCE_URL: "jdbc:mysql://locationdb:3306/airline_location_db?useSSL=false&allowPublicKeyRetrieval=true"
-      SPRING_DATASOURCE_USERNAME: root
-      SPRING_DATASOURCE_PASSWORD: root
-      SPRING_DATASOURCE_DRIVER_CLASS_NAME: com.mysql.cj.jdbc.Driver
-      EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: "http://service-registry:8761/eureka/"
-      #      SPRING_DATA_REDIS_HOST: redis
-      #      SPRING_DATA_REDIS_PORT: 6379
-      JAVA_TOOL_OPTIONS: "-Xms128m -Xmx384m -XX:+UseG1GC"
-
-  seat-service:
-    image: "baldevsinh/airline-seat:1.0.0"
-    container_name: airline-seat-service
-    mem_limit: 512m
-    mem_reservation: 256m
-    cpus: 0.5
-    # NO PORTS EXPOSED - Internal only
-    depends_on:
-      #      config-server:
-      #        condition: service_healthy
-      service-registry:
-        condition: service_healthy
-      seatdb:
-        condition: service_healthy
-      kafka:
-        condition: service_started
-    environment:
-      SPRING_APPLICATION_NAME: "seat-service"
-      #      SPRING_CONFIG_IMPORT: "optional:configserver:http://config-server:8888/"
-      SPRING_DATASOURCE_URL: "jdbc:mysql://seatdb:3306/airline_seat_db?useSSL=false&allowPublicKeyRetrieval=true"
-      SPRING_DATASOURCE_USERNAME: root
-      SPRING_DATASOURCE_PASSWORD: root
-      SPRING_DATASOURCE_DRIVER_CLASS_NAME: com.mysql.cj.jdbc.Driver
-      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: "http://service-registry:8761/eureka/"
-      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
-      JAVA_TOOL_OPTIONS: "-Xms128m -Xmx384m -XX:+UseG1GC"
+      <<: *service-env
+      SERVER_PORT: 5004
+      DB_URL: jdbc:mysql://locationdb:3306/airline_location_db
 
   pricing-service:
-    image: "baldevsinh/airline-pricing:1.0.0"
-    container_name: airline-pricing-service
-    mem_limit: 512m
-    mem_reservation: 256m
-    cpus: 0.5
-    # NO PORTS EXPOSED - Internal only
+    <<: *service
+    image: ${IMAGE_REGISTRY:-baldevsinh}/airline-pricing-service:${IMAGE_TAG:-0.0.1-SNAPSHOT}
     depends_on:
-      #      config-server:
-      #        condition: service_healthy
-      service-registry:
-        condition: service_healthy
-      pricingdb:
-        condition: service_healthy
-    #      redis:
-    #        condition: service_healthy
+      service-registry: { condition: service_healthy }
+      pricingdb: { condition: service_healthy }
     environment:
-      SPRING_APPLICATION_NAME: "pricing-service"
-      #      SPRING_CONFIG_IMPORT: "optional:configserver:http://config-server:8888/"
-      SPRING_DATASOURCE_URL: "jdbc:mysql://pricingdb:3306/airline_pricing_db?useSSL=false&allowPublicKeyRetrieval=true"
-      SPRING_DATASOURCE_USERNAME: root
-      SPRING_DATASOURCE_PASSWORD: root
-      SPRING_DATASOURCE_DRIVER_CLASS_NAME: com.mysql.cj.jdbc.Driver
-      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: "http://service-registry:8761/eureka/"
-      #      SPRING_DATA_REDIS_HOST: redis
-      #      SPRING_DATA_REDIS_PORT: 6379
-      JAVA_TOOL_OPTIONS: "-Xms128m -Xmx384m -XX:+UseG1GC"
+      <<: *service-env
+      SERVER_PORT: 5005
+      DB_URL: jdbc:mysql://pricingdb:3306/airline_pricing_db
+
+  seat-service:
+    <<: *service
+    image: ${IMAGE_REGISTRY:-baldevsinh}/airline-seat-service:${IMAGE_TAG:-0.0.1-SNAPSHOT}
+    depends_on:
+      service-registry: { condition: service_healthy }
+      seatdb: { condition: service_healthy }
+      kafka: { condition: service_healthy }
+    environment:
+      <<: *service-env
+      SERVER_PORT: 5006
+      DB_URL: jdbc:mysql://seatdb:3306/airline_seat_db
 
   ancillary-service:
-    image: "baldevsinh/airline-ancillary:1.0.0"
-    container_name: airline-ancillary-service
-    mem_limit: 512m
-    mem_reservation: 256m
-    cpus: 0.5
-    # NO PORTS EXPOSED - Internal only
+    <<: *service
+    image: ${IMAGE_REGISTRY:-baldevsinh}/airline-ancillary-service:${IMAGE_TAG:-0.0.1-SNAPSHOT}
     depends_on:
-      #      config-server:
-      #        condition: service_healthy
-      service-registry:
-        condition: service_healthy
-      ancillarydb:
-        condition: service_healthy
+      service-registry: { condition: service_healthy }
+      ancillarydb: { condition: service_healthy }
     environment:
-      SPRING_APPLICATION_NAME: "ancillary-service"
-      #      SPRING_CONFIG_IMPORT: "optional:configserver:http://config-server:8888/"
-      SPRING_DATASOURCE_URL: "jdbc:mysql://ancillarydb:3306/airline_ancillary_db?useSSL=false&allowPublicKeyRetrieval=true"
-      SPRING_DATASOURCE_USERNAME: root
-      SPRING_DATASOURCE_PASSWORD: root
-      SPRING_DATASOURCE_DRIVER_CLASS_NAME: com.mysql.cj.jdbc.Driver
-      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: "http://service-registry:8761/eureka/"
-      JAVA_TOOL_OPTIONS: "-Xms128m -Xmx384m -XX:+UseG1GC"
+      <<: *service-env
+      SERVER_PORT: 5008
+      DB_URL: jdbc:mysql://ancillarydb:3306/airline_ancillary_db
 
   booking-service:
-    image: "baldevsinh/airline-booking:1.0.0"
-    container_name: airline-booking-service
-    mem_limit: 512m
-    mem_reservation: 256m
-    cpus: 0.5
-    # NO PORTS EXPOSED - Internal only
+    <<: *service
+    image: ${IMAGE_REGISTRY:-baldevsinh}/airline-booking-service:${IMAGE_TAG:-0.0.1-SNAPSHOT}
     depends_on:
-      #      config-server:
-      #        condition: service_healthy
-      service-registry:
-        condition: service_healthy
-      bookingdb:
-        condition: service_healthy
+      service-registry: { condition: service_healthy }
+      bookingdb: { condition: service_healthy }
+      kafka: { condition: service_healthy }
     environment:
-      SPRING_APPLICATION_NAME: "booking-service"
-      #      SPRING_CONFIG_IMPORT: "optional:configserver:http://config-server:8888/"
-      SPRING_DATASOURCE_URL: "jdbc:mysql://bookingdb:3306/airline_booking_db?useSSL=false&allowPublicKeyRetrieval=true"
-      SPRING_DATASOURCE_USERNAME: root
-      SPRING_DATASOURCE_PASSWORD: root
-      SPRING_DATASOURCE_DRIVER_CLASS_NAME: com.mysql.cj.jdbc.Driver
-      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: "http://service-registry:8761/eureka/"
-      JAVA_TOOL_OPTIONS: "-Xms128m -Xmx384m -XX:+UseG1GC"
-
+      <<: *service-env
+      SERVER_PORT: 5009
+      DB_URL: jdbc:mysql://bookingdb:3306/airline_booking_db
 
   payment-service:
-    image: "baldevsinh/airline-payment:1.0.0"
-    container_name: airline-payment-service
-    mem_limit: 512m
-    mem_reservation: 256m
-    cpus: 0.5
-    # NO PORTS EXPOSED - Internal only
+    <<: *service
+    image: ${IMAGE_REGISTRY:-baldevsinh}/airline-payment-service:${IMAGE_TAG:-0.0.1-SNAPSHOT}
     depends_on:
-      #      config-server:
-      #        condition: service_healthy
-      service-registry:
-        condition: service_healthy
-      paymentdb:
-        condition: service_healthy
+      service-registry: { condition: service_healthy }
+      paymentdb: { condition: service_healthy }
+      kafka: { condition: service_healthy }
     environment:
-      SPRING_APPLICATION_NAME: "payment-service"
-      #      SPRING_CONFIG_IMPORT: "optional:configserver:http://config-server:8888/"
-      SPRING_DATASOURCE_URL: "jdbc:mysql://paymentdb:3306/airline_payment_db?useSSL=false&allowPublicKeyRetrieval=true"
-      SPRING_DATASOURCE_USERNAME: root
-      SPRING_DATASOURCE_PASSWORD: root
-      SPRING_DATASOURCE_DRIVER_CLASS_NAME: com.mysql.cj.jdbc.Driver
-      EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: "http://service-registry:8761/eureka/"
-      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
-      JAVA_TOOL_OPTIONS: "-Xms128m -Xmx384m -XX:+UseG1GC"
+      <<: *service-env
+      SERVER_PORT: 5010
+      DB_URL: jdbc:mysql://paymentdb:3306/airline_payment_db
+      RAZORPAY_KEY_ID: ${RAZORPAY_KEY_ID:?set RAZORPAY_KEY_ID in .env}
+      RAZORPAY_KEY_SECRET: ${RAZORPAY_KEY_SECRET:?set RAZORPAY_KEY_SECRET in .env}
+      RAZORPAY_WEBHOOK_SECRET: ${RAZORPAY_WEBHOOK_SECRET:?set RAZORPAY_WEBHOOK_SECRET in .env}
+      PAYMENT_CALLBACK_BASE_URL: ${PAYMENT_CALLBACK_BASE_URL:-http://localhost:5173}
 
+  flight-ops-service:
+    <<: *service
+    image: ${IMAGE_REGISTRY:-baldevsinh}/airline-flight-ops-service:${IMAGE_TAG:-0.0.1-SNAPSHOT}
+    depends_on:
+      service-registry: { condition: service_healthy }
+      flightopsdb: { condition: service_healthy }
+      kafka: { condition: service_healthy }
+    environment:
+      <<: *service-env
+      SERVER_PORT: 5011
+      DB_URL: jdbc:mysql://flightopsdb:3306/airline_flight_db
 
+networks:
+  # Business services publish no ports: clients can only reach them through the gateway on the edge network.
+  backend: { }
+  edge: { }
+
+volumes:
+  userdb-data:
+  airlinecoredb-data:
+  flightopsdb-data:
+  locationdb-data:
+  pricingdb-data:
+  ancillarydb-data:
+  bookingdb-data:
+  paymentdb-data:
+  seatdb-data:
+  kafka-data:

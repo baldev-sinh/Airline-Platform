@@ -1,0 +1,7 @@
+# Normalize line endings in the repository; check out with the platform-appropriate ending only where required.
+* text=auto eol=lf
+*.cmd text eol=crlf
+*.bat text eol=crlf
+mvnw text eol=lf
+*.jar binary
+*.png binary
