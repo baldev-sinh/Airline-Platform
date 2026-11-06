@@ -81,9 +81,13 @@ public class Aircraft {
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
 
-    public Integer getTotalSeats(){
-        return economySeats+premiumEconomySeats+
-                businessSeats+firstClassSeats;
+    /** Sum of the configured cabins; a cabin the aircraft does not have is null and counts as zero. */
+    public Integer getTotalSeats() {
+        return seats(economySeats) + seats(premiumEconomySeats) + seats(businessSeats) + seats(firstClassSeats);
+    }
+
+    private static int seats(Integer count) {
+        return count != null ? count : 0;
     }
 
     public  boolean isOperational(){

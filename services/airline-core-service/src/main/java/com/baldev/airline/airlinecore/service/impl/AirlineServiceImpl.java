@@ -16,10 +16,13 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 
 @Service
 @RequiredArgsConstructor
+// Every public method runs in a transaction, so lazy relations can be mapped to responses (open-in-view is off).
+@Transactional
 public class AirlineServiceImpl implements AirlineService {
 
     private final AirlineRepository airlineRepository;

@@ -24,9 +24,12 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
+// Every public method runs in a transaction, so lazy relations can be mapped to responses (open-in-view is off).
+@Transactional
 public class FlightInstanceCabinServiceImpl implements FlightInstanceCabinService {
 
     private final CabinClassRepository cabinClassRepository;

@@ -30,6 +30,22 @@ class FeignErrorDecoderTest {
     }
 
     @Test
+    void downstreamErrorCodeIsKeptSoClientsCanBranchOnIt() {
+        Exception e = decoder.decode("SeatClient#hold",
+                response(409, "{\"detail\":\"Seat 12A is no longer available\",\"code\":\"SEAT_UNAVAILABLE\"}"));
+        assertThat(((ConflictException) e).getCode()).isEqualTo("SEAT_UNAVAILABLE");
+
+        Exception rule = decoder.decode("m", response(422, "{\"detail\":\"x\",\"code\":\"MEAL_UNAVAILABLE\"}"));
+        assertThat(((BusinessRuleException) rule).getCode()).isEqualTo("MEAL_UNAVAILABLE");
+    }
+
+    @Test
+    void malformedDownstreamCodesAreNotForwarded() {
+        Exception e = decoder.decode("m", response(409, "{\"detail\":\"x\",\"code\":\"<script>alert(1)</script>\"}"));
+        assertThat(((ConflictException) e).getCode()).isEqualTo("CONFLICT");
+    }
+
+    @Test
     void validationErrorsMapToBusinessRule() {
         assertThat(decoder.decode("m", response(422, "{}"))).isInstanceOf(BusinessRuleException.class);
         assertThat(decoder.decode("m", response(400, "not json"))).isInstanceOf(BusinessRuleException.class);

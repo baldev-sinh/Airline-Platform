@@ -42,6 +42,10 @@ eureka:
     lease-renewal-interval-in-seconds: 10
 
 management:
+  # Probes and metrics on a separate port that is never published, so the public port 5000 serves only
+  # routed API traffic (otherwise /actuator/prometheus would expose request paths and timings to anyone).
+  server:
+    port: ${MANAGEMENT_PORT:5100}
   endpoints:
     web:
       exposure:

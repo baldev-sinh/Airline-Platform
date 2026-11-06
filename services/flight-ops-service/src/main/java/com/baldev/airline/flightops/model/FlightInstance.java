@@ -35,7 +35,7 @@ public class FlightInstance {
     @Column(nullable = false)
     private Long arrivalAirportId;
 
-    @Column(nullable = false)
+    /** Null for an ad-hoc instance (extra section, charter) created without a schedule. */
     private Long scheduleId;
 
     private LocalDateTime departureDateTime;

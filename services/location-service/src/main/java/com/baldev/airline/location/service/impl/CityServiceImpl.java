@@ -11,10 +11,13 @@ import com.baldev.airline.location.service.CityService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.stereotype.Service;
 
 @Service
 @RequiredArgsConstructor
+// Every public method runs in a transaction, so lazy relations can be mapped to responses (open-in-view is off).
+@Transactional
 public class CityServiceImpl implements CityService {
 
 

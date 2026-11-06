@@ -11,8 +11,14 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 import java.util.List;
 
-/** Registers the shared error handling and {@link CurrentUser} resolution in every servlet service. */
-@AutoConfiguration
+/**
+ * Registers the shared error handling and {@link CurrentUser} resolution in every servlet service.
+ *
+ * <p>Runs before Boot's WebMvcAutoConfiguration: Boot only creates its own ProblemDetailsExceptionHandler
+ * (ordered ahead of ours) when no ResponseEntityExceptionHandler exists yet, which would otherwise hide our
+ * field-level validation errors and stable {@code code} property.
+ */
+@AutoConfiguration(beforeName = "org.springframework.boot.webmvc.autoconfigure.WebMvcAutoConfiguration")
 @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
 @ConditionalOnClass(WebMvcConfigurer.class)
 public class WebAutoConfiguration {

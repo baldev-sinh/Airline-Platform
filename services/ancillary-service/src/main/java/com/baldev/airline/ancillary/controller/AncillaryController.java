@@ -6,6 +6,7 @@ import com.baldev.airline.common.payload.response.AncillaryResponse;
 import com.baldev.airline.ancillary.service.AncillaryService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -23,7 +24,7 @@ public class AncillaryController {
     public ResponseEntity<AncillaryResponse> createAncillary(
             @Valid @RequestBody AncillaryRequest ancillaryRequest,
             @RequestHeader("X-User-Id") Long userId) {
-        return ResponseEntity.ok(ancillaryService.createAncillary(userId, ancillaryRequest));
+        return ResponseEntity.status(HttpStatus.CREATED).body(ancillaryService.createAncillary(userId, ancillaryRequest));
     }
 
     @GetMapping("/{id}")

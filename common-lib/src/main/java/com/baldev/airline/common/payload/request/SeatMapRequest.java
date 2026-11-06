@@ -29,5 +29,6 @@ public class SeatMapRequest {
     @Positive
     private Integer rightSeatsPerRow;
 
+    @NotNull(message = "Cabin class ID is required")
     private Long cabinClassId;
 }
