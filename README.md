@@ -108,7 +108,7 @@ Prerequisites: JDK 21, Docker.
 # 1. Infrastructure: databases, Kafka, registry
 cp docker-compose/.env.example docker-compose/.env    # fill in the secrets
 docker compose -f docker-compose/docker-compose.yml --env-file docker-compose/.env \
-  up -d userdb airlinecoredb flightopsdb locationdb pricingdb ancillarydb bookingdb paymentdb seatdb kafka kafka-ui
+  up -d userdb airlinecoredb flightopsdb locationdb pricingdb ancillarydb bookingdb paymentdb seatdb kafka kafka-ui prometheus grafana
 
 # 2. Build
 ./mvnw -B verify
@@ -180,6 +180,10 @@ has been applied anywhere.
 - Logs: include trace ids; JSON with `LOGGING_STRUCTURED_FORMAT_CONSOLE=ecs`
 - Failed Kafka records land on `<topic>-dlt` after retries; alert on DLT lag
 - Kafka UI (local only): http://localhost:8090 shows topics, messages with headers, consumer groups and lag
+- Prometheus (local only): http://localhost:9090 scrapes every service; check Status > Target health. Set
+  `PROMETHEUS_TARGETS=compose` in `.env` when the services run as containers instead of via `start-local.ps1`
+- Grafana (local only): http://localhost:3000, user `admin`, password `GRAFANA_ADMIN_PASSWORD` from `.env`. The
+  provisioned "Airline services" dashboard shows HTTP traffic, errors, latency, Hikari pool, Kafka lag and JVM
 
 ## Testing and CI
 

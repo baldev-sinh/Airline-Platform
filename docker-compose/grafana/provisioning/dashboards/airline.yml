@@ -1,0 +1,12 @@
+# Loads every dashboard JSON in docker-compose/grafana/dashboards into the "Airline" folder.
+# Edits made in the Grafana UI are allowed but are lost on restart: export the JSON and save it there instead.
+# After changing a JSON file, restart Grafana (docker compose ... restart grafana): on Docker Desktop for Windows,
+# file changes in a bind mount are not always noticed.
+apiVersion: 1
+providers:
+  - name: airline
+    folder: Airline
+    type: file
+    allowUiUpdates: true
+    options:
+      path: /var/lib/grafana/dashboards

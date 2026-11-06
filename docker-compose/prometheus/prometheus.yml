@@ -1,0 +1,21 @@
+# Prometheus for local runs. Scrapes /actuator/prometheus on every service every 15 s.
+#
+# Which addresses to scrape depends on how the services run, so they live in a separate targets file that
+# docker-compose.yml mounts at /etc/prometheus/targets/services.yml (PROMETHEUS_TARGETS in .env):
+#   host     (default) services started on this machine by scripts/start-local.ps1  -> targets-host.yml
+#   compose  services running as containers in this Compose project               -> targets-compose.yml
+# Each target carries a `service` label, which the Grafana dashboard filters and groups by.
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: airline-services
+    metrics_path: /actuator/prometheus
+    file_sd_configs:
+      - files: [ /etc/prometheus/targets/*.yml ]
+        refresh_interval: 30s
+
+  - job_name: prometheus
+    static_configs:
+      - targets: [ localhost:9090 ]

@@ -1,0 +1,24 @@
+# Services running as containers in this Compose project, reached by service name on the backend network.
+# The gateway serves actuator on its private management port 5100, not on 5000.
+- targets: [ service-registry:8761 ]
+  labels: { service: service-registry }
+- targets: [ api-gateway:5100 ]
+  labels: { service: api-gateway }
+- targets: [ user-service:5001 ]
+  labels: { service: user-service }
+- targets: [ airline-core-service:5002 ]
+  labels: { service: airline-core-service }
+- targets: [ location-service:5004 ]
+  labels: { service: location-service }
+- targets: [ pricing-service:5005 ]
+  labels: { service: pricing-service }
+- targets: [ seat-service:5006 ]
+  labels: { service: seat-service }
+- targets: [ ancillary-service:5008 ]
+  labels: { service: ancillary-service }
+- targets: [ booking-service:5009 ]
+  labels: { service: booking-service }
+- targets: [ payment-service:5010 ]
+  labels: { service: payment-service }
+- targets: [ flight-ops-service:5011 ]
+  labels: { service: flight-ops-service }

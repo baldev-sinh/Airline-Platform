@@ -1,0 +1,24 @@
+# Services started on the host by scripts/start-local.ps1, reached from the Prometheus container through
+# host.docker.internal. The gateway serves actuator on its private management port 5100, not on 5000.
+- targets: [ host.docker.internal:8761 ]
+  labels: { service: service-registry }
+- targets: [ host.docker.internal:5100 ]
+  labels: { service: api-gateway }
+- targets: [ host.docker.internal:5001 ]
+  labels: { service: user-service }
+- targets: [ host.docker.internal:5002 ]
+  labels: { service: airline-core-service }
+- targets: [ host.docker.internal:5004 ]
+  labels: { service: location-service }
+- targets: [ host.docker.internal:5005 ]
+  labels: { service: pricing-service }
+- targets: [ host.docker.internal:5006 ]
+  labels: { service: seat-service }
+- targets: [ host.docker.internal:5008 ]
+  labels: { service: ancillary-service }
+- targets: [ host.docker.internal:5009 ]
+  labels: { service: booking-service }
+- targets: [ host.docker.internal:5010 ]
+  labels: { service: payment-service }
+- targets: [ host.docker.internal:5011 ]
+  labels: { service: flight-ops-service }

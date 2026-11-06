@@ -6,7 +6,7 @@
   Prerequisites:
     1. Databases and Kafka running:
          docker compose -f docker-compose/docker-compose.yml --env-file docker-compose/.env `
-           up -d userdb airlinecoredb flightopsdb locationdb pricingdb ancillarydb bookingdb paymentdb seatdb kafka kafka-ui
+           up -d userdb airlinecoredb flightopsdb locationdb pricingdb ancillarydb bookingdb paymentdb seatdb kafka kafka-ui prometheus grafana
     2. Jars built:  ./mvnw -B -DskipTests package
 
   By default payment-service runs with the offline `payment-stub` profile, so no Razorpay account is needed.
