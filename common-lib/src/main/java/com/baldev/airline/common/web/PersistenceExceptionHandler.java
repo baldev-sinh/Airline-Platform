@@ -6,6 +6,7 @@ import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.OptimisticLockingFailureException;
+import org.springframework.dao.PessimisticLockingFailureException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
@@ -13,7 +14,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 /**
- * Maps persistence-layer exceptions to 409. Registered only in services that have spring-tx on the classpath,
+ * Maps persistence-layer exceptions (duplicate keys, optimistic and pessimistic lock failures) to 409. Registered only in services that have spring-tx on the classpath,
  * and ordered before {@link GlobalExceptionHandler} so its catch-all does not win.
  */
 @RestControllerAdvice
@@ -34,5 +35,16 @@ public class PersistenceExceptionHandler {
         log.warn("Concurrent modification: {}", ex.getMessage());
         return GlobalExceptionHandler.problem(HttpStatus.CONFLICT, "CONCURRENT_MODIFICATION",
                 "The resource was modified concurrently; reload and retry");
+    }
+
+    /**
+     * A row lock could not be taken: the lock-wait timeout expired, or the database chose this transaction as a
+     * deadlock victim. The transaction has been rolled back, so retrying is safe.
+     */
+    @ExceptionHandler(PessimisticLockingFailureException.class)
+    public ResponseEntity<ProblemDetail> handlePessimisticLock(PessimisticLockingFailureException ex) {
+        log.warn("Lock not acquired: {}", ex.getMessage());
+        return GlobalExceptionHandler.problem(HttpStatus.CONFLICT, "LOCK_CONFLICT",
+                "The resource is busy with another request; retry shortly");
     }
 }

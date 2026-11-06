@@ -1,10 +1,10 @@
 package com.baldev.airline.seat.model;
 
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
 import com.baldev.airline.common.enums.SeatAvailabilityStatus;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
@@ -12,7 +12,10 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 import java.math.BigDecimal;
 import java.time.Instant;
 
-/** One physical seat on one dated flight; the unit of seat inventory. */
+/**
+ * One physical seat on one dated flight; the unit of seat inventory. The pair (flightInstanceId, seat) is unique,
+ * enforced by migration V2__unique_seat_instance_per_flight.
+ */
 @Getter
 @Setter
 @NoArgsConstructor
@@ -20,9 +23,9 @@ import java.time.Instant;
 @Builder
 @Entity
 @Table(indexes = {
-        @Index(name = "idx_seat_instance_flight_instance", columnList = "flightInstanceId"),
-        @Index(name = "idx_seat_instance_held_by_booking", columnList = "heldByBookingId"),
-        @Index(name = "idx_seat_instance_status_expiry", columnList = "status, holdExpiresAt")
+    @Index(name = "idx_seat_instance_flight_instance", columnList = "flightInstanceId"),
+    @Index(name = "idx_seat_instance_held_by_booking", columnList = "heldByBookingId"),
+    @Index(name = "idx_seat_instance_status_expiry", columnList = "status, holdExpiresAt")
 })
 @EntityListeners(AuditingEntityListener.class)
 public class SeatInstance {
@@ -49,10 +52,14 @@ public class SeatInstance {
     @Builder.Default
     private SeatAvailabilityStatus status = SeatAvailabilityStatus.AVAILABLE;
 
-    /** Booking currently holding or owning this seat; null while AVAILABLE. */
+    /**
+     * Booking currently holding or owning this seat; null while AVAILABLE.
+     */
     private Long heldByBookingId;
 
-    /** When a HELD seat is automatically released if the booking has not been confirmed. */
+    /**
+     * When a HELD seat is automatically released if the booking has not been confirmed.
+     */
     private Instant holdExpiresAt;
 
     @Column(precision = 12, scale = 2)

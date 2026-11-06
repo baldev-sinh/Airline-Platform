@@ -26,6 +26,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
 class SeatInventoryServiceImplTest {
@@ -34,12 +38,13 @@ class SeatInventoryServiceImplTest {
     private static final long FLIGHT_INSTANCE = 100L;
 
     private final SeatInstanceRepository seatInstances = mock(SeatInstanceRepository.class);
+    private final FlightInstanceCabinRepository cabins = mock(FlightInstanceCabinRepository.class);
     private SeatInventoryServiceImpl service;
 
     @BeforeEach
     void setUp() {
         service = new SeatInventoryServiceImpl(
-                mock(CabinClassRepository.class), mock(SeatRepository.class), mock(FlightInstanceCabinRepository.class),
+                mock(CabinClassRepository.class), mock(SeatRepository.class), cabins,
                 seatInstances,
                 new SeatProperties(Duration.ofMinutes(20), new BigDecimal("1000"), new BigDecimal("500")),
                 Clock.fixed(NOW, ZoneOffset.UTC));
@@ -111,7 +116,7 @@ class SeatInventoryServiceImplTest {
 
     @Test
     void confirmBooksHeldSeatsOnceEvenIfRedelivered() {
-        FlightInstanceCabin cabin = FlightInstanceCabin.builder().totalSeats(10).bookedSeats(0).build();
+        FlightInstanceCabin cabin = FlightInstanceCabin.builder().id(7L).totalSeats(10).build();
         SeatInstance mine = seat(1L, SeatAvailabilityStatus.HELD, "0");
         mine.hold(9L, NOW.plusSeconds(60));
         mine.setFlightInstanceCabin(cabin);
@@ -121,7 +126,47 @@ class SeatInventoryServiceImplTest {
         service.confirmSeats(9L);
 
         assertThat(mine.getStatus()).isEqualTo(SeatAvailabilityStatus.BOOKED);
-        assertThat(cabin.getBookedSeats()).isEqualTo(1);
+        verify(cabins, times(1)).adjustBookedSeats(7L, 1);
+    }
+
+    @Test
+    void confirmCountsSeatsOncePerCabin() {
+        FlightInstanceCabin economy = FlightInstanceCabin.builder().id(7L).totalSeats(10).build();
+        FlightInstanceCabin business = FlightInstanceCabin.builder().id(3L).totalSeats(4).build();
+        SeatInstance a = heldInCabin(1L, economy);
+        SeatInstance b = heldInCabin(2L, economy);
+        SeatInstance c = heldInCabin(3L, business);
+        when(seatInstances.findByBookingForUpdate(9L)).thenReturn(List.of(a, b, c));
+
+        service.confirmSeats(9L);
+
+        verify(cabins).adjustBookedSeats(7L, 2);
+        verify(cabins).adjustBookedSeats(3L, 1);
+        verifyNoMoreInteractions(cabins);
+    }
+
+    @Test
+    void releaseDecrementsOnlyForBookedSeats() {
+        FlightInstanceCabin cabin = FlightInstanceCabin.builder().id(7L).totalSeats(10).build();
+        SeatInstance booked = heldInCabin(1L, cabin);
+        booked.book();
+        SeatInstance held = heldInCabin(2L, cabin);
+        when(seatInstances.findByBookingForUpdate(9L)).thenReturn(List.of(booked, held));
+
+        service.releaseSeats(9L, true);
+
+        assertThat(List.of(booked, held)).allSatisfy(s -> assertThat(s.isAvailable()).isTrue());
+        verify(cabins).adjustBookedSeats(7L, -1);
+        verifyNoMoreInteractions(cabins);
+    }
+
+    @Test
+    void releaseOfUnknownBookingTouchesNothing() {
+        when(seatInstances.findByBookingForUpdate(9L)).thenReturn(List.of());
+
+        service.releaseSeats(9L, false);
+
+        verifyNoInteractions(cabins);
     }
 
     @Test
@@ -138,6 +183,13 @@ class SeatInventoryServiceImplTest {
                 .status(status)
                 .premiumSupercharge(new BigDecimal(surcharge))
                 .build();
+    }
+
+    private static SeatInstance heldInCabin(Long id, FlightInstanceCabin cabin) {
+        SeatInstance seat = seat(id, SeatAvailabilityStatus.HELD, "0");
+        seat.hold(9L, NOW.plusSeconds(60));
+        seat.setFlightInstanceCabin(cabin);
+        return seat;
     }
 
     private static SeatHoldRequest request(Long bookingId, Long... seatIds) {

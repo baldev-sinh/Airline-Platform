@@ -30,10 +30,12 @@ public class FlightInstanceCabin {
     @Column(nullable = false)
     private Integer totalSeats;
 
+    @Builder.Default
     private Integer bookedSeats=0;
 
     @OneToMany(mappedBy = "flightInstanceCabin",
     cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
     private List<SeatInstance> seats=new ArrayList<>();
 
     public Integer getAvailableSeats() {

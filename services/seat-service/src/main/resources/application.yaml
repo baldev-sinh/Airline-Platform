@@ -30,6 +30,10 @@ spring:
       minimum-idle: 2
       connection-timeout: 5000
       max-lifetime: 1800000
+      # A request waiting for a seat row lock gives up after this many seconds (MySQL default: 50) and gets a
+      # 409 instead of hanging. Must stay below booking-service's Feign read timeout (5 s). MySQL has no
+      # per-query "FOR UPDATE WAIT n", so it is set once per connection.
+      connection-init-sql: SET SESSION innodb_lock_wait_timeout = ${DB_LOCK_WAIT_TIMEOUT_SECONDS:3}
   jpa:
     open-in-view: false
     hibernate:

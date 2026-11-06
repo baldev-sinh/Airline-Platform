@@ -32,6 +32,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -137,14 +138,16 @@ public class SeatInventoryServiceImpl implements SeatInventoryService {
     @Transactional
     public void confirmSeats(Long bookingId) {
         List<SeatInstance> seats = seatInstanceRepository.findByBookingForUpdate(bookingId);
+        Map<Long, Integer> bookedPerCabin = new TreeMap<>();
         int newlyBooked = 0;
         for (SeatInstance seat : seats) {
             if (seat.getStatus() == SeatAvailabilityStatus.HELD) {
                 seat.book();
-                incrementBooked(seat.getFlightInstanceCabin(), 1);
+                countPerCabin(bookedPerCabin, seat);
                 newlyBooked++;
             }
         }
+        adjustBookedSeats(bookedPerCabin, 1);
         if (seats.isEmpty()) {
             // The hold expired and the seats were released (and possibly resold) before payment completed.
             // Needs manual re-accommodation; surfaced via the DLT rather than silently overbooking.
@@ -158,12 +161,14 @@ public class SeatInventoryServiceImpl implements SeatInventoryService {
     @Transactional
     public void releaseSeats(Long bookingId, boolean wasConfirmed) {
         List<SeatInstance> seats = seatInstanceRepository.findByBookingForUpdate(bookingId);
+        Map<Long, Integer> releasedPerCabin = new TreeMap<>();
         for (SeatInstance seat : seats) {
             if (seat.isBooked()) {
-                incrementBooked(seat.getFlightInstanceCabin(), -1);
+                countPerCabin(releasedPerCabin, seat);
             }
             seat.release();
         }
+        adjustBookedSeats(releasedPerCabin, -1);
         log.info("Released {} seats for bookingId={} (wasConfirmed={})", seats.size(), bookingId, wasConfirmed);
     }
 
@@ -179,11 +184,20 @@ public class SeatInventoryServiceImpl implements SeatInventoryService {
         return expired.size();
     }
 
-    private static void incrementBooked(FlightInstanceCabin cabin, int delta) {
+    private static void countPerCabin(Map<Long, Integer> counts, SeatInstance seat) {
+        FlightInstanceCabin cabin = seat.getFlightInstanceCabin();
         if (cabin != null) {
-            int booked = cabin.getBookedSeats() != null ? cabin.getBookedSeats() : 0;
-            cabin.setBookedSeats(Math.max(0, booked + delta));
+            counts.merge(cabin.getId(), 1, Integer::sum);
         }
+    }
+
+    /**
+     * Applies the counter changes as atomic SQL updates. The map is sorted by cabin id, so two transactions that
+     * touch the same cabins always lock their rows in the same order and cannot deadlock.
+     */
+    private void adjustBookedSeats(Map<Long, Integer> countsPerCabin, int sign) {
+        countsPerCabin.forEach((cabinId, count) ->
+                flightInstanceCabinRepository.adjustBookedSeats(cabinId, sign * count));
     }
 
     private BigDecimal surchargeFor(Seat seat) {

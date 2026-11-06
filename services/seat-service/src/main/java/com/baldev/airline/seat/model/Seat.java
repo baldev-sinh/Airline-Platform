@@ -46,20 +46,28 @@ public class Seat {
 
     private BigDecimal premiumSuperCharge;
 
+    @Builder.Default
     private Boolean isAvailable=true;
 
+    @Builder.Default
     private Boolean isBlocked=false;
 
+    @Builder.Default
     private Boolean isEmergencyExist=false;
 
+    @Builder.Default
     private Boolean isActive=true;
 
+    @Builder.Default
     private Boolean hasExtraLegroom=false;
 
+    @Builder.Default
     private Boolean hasPowerOutlet=false;
 
+    @Builder.Default
     private Boolean hasTvScreen=false;
 
+    @Builder.Default
     private Boolean hasExtraWidth = false;
 
     private Integer seatPitch;

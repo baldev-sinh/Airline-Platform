@@ -43,12 +43,15 @@ public class CabinClass {
     private Long aircraftId;
 
     @Column(nullable = false)
+    @Builder.Default
     private Integer displayOrder=0;
 
     @Column(nullable = false)
+    @Builder.Default
     private Boolean isActive=true;
 
     @Column(nullable = false)
+    @Builder.Default
     private Boolean isBookable = true;
 
     private Integer typicalSeatPitch;
