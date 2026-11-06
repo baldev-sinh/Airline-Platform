@@ -5,8 +5,6 @@
 server:
   port: ${SERVER_PORT:5002}
   shutdown: graceful
-  error:
-    include-stacktrace: never
 
 spring:
   application:
@@ -16,6 +14,10 @@ spring:
   threads:
     virtual:
       enabled: true
+  web:
+    error:
+      # Moved from server.error.* in Spring Boot 4; the old key is no longer read.
+      include-stacktrace: never
   mvc:
     problemdetails:
       enabled: true
