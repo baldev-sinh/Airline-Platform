@@ -108,7 +108,7 @@ Prerequisites: JDK 21, Docker.
 # 1. Infrastructure: databases, Kafka, registry
 cp docker-compose/.env.example docker-compose/.env    # fill in the secrets
 docker compose -f docker-compose/docker-compose.yml --env-file docker-compose/.env \
-  up -d userdb airlinecoredb flightopsdb locationdb pricingdb ancillarydb bookingdb paymentdb seatdb kafka
+  up -d userdb airlinecoredb flightopsdb locationdb pricingdb ancillarydb bookingdb paymentdb seatdb kafka kafka-ui
 
 # 2. Build
 ./mvnw -B verify
@@ -179,6 +179,7 @@ has been applied anywhere.
 - Traces: W3C `traceparent` propagated across HTTP and Kafka; export with `TRACING_EXPORT_ENABLED=true`
 - Logs: include trace ids; JSON with `LOGGING_STRUCTURED_FORMAT_CONSOLE=ecs`
 - Failed Kafka records land on `<topic>-dlt` after retries; alert on DLT lag
+- Kafka UI (local only): http://localhost:8090 shows topics, messages with headers, consumer groups and lag
 
 ## Testing and CI
 
