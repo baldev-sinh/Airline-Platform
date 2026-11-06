@@ -22,14 +22,22 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+. (Join-Path $PSScriptRoot 'local-run-common.ps1')
 $root = Split-Path $PSScriptRoot -Parent
 $runDir = Join-Path $root '.local-run'
 New-Item -ItemType Directory -Force $runDir | Out-Null
-$pidFile = Join-Path $runDir 'pids.txt'
+$pidFile = Get-PidFilePath $root
 
+# A pids.txt left behind by a reboot or a crash is harmless; only refuse to start if our services still run.
 if (Test-Path $pidFile) {
-    Write-Host "Services may already be running ($pidFile exists). Run scripts/stop-local.ps1 first." -ForegroundColor Yellow
-    exit 1
+    $running = @(Get-Content $pidFile | Where-Object { Get-TrackedProcess $_ } | ForEach-Object { Get-TrackedServiceName $_ })
+    if ($running.Count -gt 0) {
+        Write-Host "Services from a previous run are still running: $($running -join ', ')." -ForegroundColor Yellow
+        Write-Host 'Stop them first with scripts/stop-local.ps1.' -ForegroundColor Yellow
+        exit 1
+    }
+    Write-Host 'Removing pids.txt left over from a previous run (none of its services is running).'
+    Remove-Item $pidFile
 }
 
 # name, jar folder, port, extra profiles
@@ -68,7 +76,7 @@ function Start-One($svc) {
     if ($svc.Profiles) { $javaArgs = @("-Dspring.profiles.active=$($svc.Profiles)") + $javaArgs }
     $p = Start-Process java -ArgumentList $javaArgs -RedirectStandardOutput $log -RedirectStandardError "$log.err" `
         -WindowStyle Hidden -PassThru
-    Add-Content $pidFile "$($p.Id) $($svc.Name)"
+    Add-Content $pidFile (Format-PidLine $p $svc.Name)
     Write-Host ("  started {0,-22} pid {1,-6} port {2}  profiles: {3}" -f $svc.Name, $p.Id, $svc.Port, $svc.Profiles)
 }
 
