@@ -21,9 +21,9 @@ import com.baldev.airline.payment.mapper.PaymentMapper;
 import com.baldev.airline.payment.model.Payment;
 import com.baldev.airline.payment.repository.PaymentRepository;
 import com.baldev.airline.payment.service.PaymentService;
-import com.baldev.airline.payment.service.gateway.RazorpayGateway;
-import com.baldev.airline.payment.service.gateway.RazorpayGateway.CheckoutLink;
-import com.baldev.airline.payment.service.gateway.RazorpayGateway.GatewayPayment;
+import com.baldev.airline.payment.service.gateway.PaymentProvider;
+import com.baldev.airline.payment.service.gateway.PaymentProvider.CheckoutLink;
+import com.baldev.airline.payment.service.gateway.PaymentProvider.GatewayPayment;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.json.JSONException;
@@ -54,7 +54,7 @@ import java.util.stream.Collectors;
 public class PaymentServiceImpl implements PaymentService {
 
     private final PaymentRepository paymentRepository;
-    private final RazorpayGateway razorpayGateway;
+    private final PaymentProvider paymentProvider;
     private final UserClient userClient;
     private final PaymentProperties properties;
     private final ApplicationEventPublisher eventPublisher;
@@ -93,7 +93,7 @@ public class PaymentServiceImpl implements PaymentService {
         CheckoutLink link;
         try {
             UserDTO user = userClient.getUserById(request.getUserId());
-            link = razorpayGateway.createPaymentLink(payment, user);
+            link = paymentProvider.createPaymentLink(payment, user);
         } catch (RuntimeException e) {
             transactionTemplate.executeWithoutResult(status -> paymentRepository.findById(payment.getId())
                     .ifPresent(p -> {
@@ -116,7 +116,7 @@ public class PaymentServiceImpl implements PaymentService {
 
     @Override
     public PaymentDTO verifyPayment(CurrentUser user, PaymentVerifyRequest request) {
-        GatewayPayment gatewayPayment = razorpayGateway.fetchPayment(request.getRazorpayPaymentId());
+        GatewayPayment gatewayPayment = paymentProvider.fetchPayment(request.getRazorpayPaymentId());
         Long paymentId = parseId(gatewayPayment.notesPaymentId());
 
         return transactionTemplate.execute(status -> {
@@ -131,7 +131,7 @@ public class PaymentServiceImpl implements PaymentService {
 
     @Override
     public void handleRazorpayWebhook(String rawBody, String signature) {
-        if (!razorpayGateway.isValidWebhookSignature(rawBody, signature)) {
+        if (!paymentProvider.isValidWebhookSignature(rawBody, signature)) {
             log.warn("Rejected Razorpay webhook with invalid signature");
             throw new UnauthorizedException("Invalid webhook signature");
         }

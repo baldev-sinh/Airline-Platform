@@ -13,8 +13,8 @@ import com.baldev.airline.payment.client.UserClient;
 import com.baldev.airline.payment.config.PaymentProperties;
 import com.baldev.airline.payment.model.Payment;
 import com.baldev.airline.payment.repository.PaymentRepository;
-import com.baldev.airline.payment.service.gateway.RazorpayGateway;
-import com.baldev.airline.payment.service.gateway.RazorpayGateway.GatewayPayment;
+import com.baldev.airline.payment.service.gateway.PaymentProvider;
+import com.baldev.airline.payment.service.gateway.PaymentProvider.GatewayPayment;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.context.ApplicationEventPublisher;
@@ -43,7 +43,7 @@ class PaymentServiceImplTest {
     private static final CurrentUser STRANGER = new CurrentUser(6L, "s@x.com", Set.of(UserRole.ROLE_USER));
 
     private final PaymentRepository repository = mock(PaymentRepository.class);
-    private final RazorpayGateway gateway = mock(RazorpayGateway.class);
+    private final PaymentProvider gateway = mock(PaymentProvider.class);
     private final ApplicationEventPublisher events = mock(ApplicationEventPublisher.class);
     private PaymentServiceImpl service;
     private Payment payment;

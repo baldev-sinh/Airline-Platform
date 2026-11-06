@@ -173,13 +173,20 @@ has been applied anywhere.
 
 ## Observability
 
-- `GET /actuator/health/liveness` and `/actuator/health/readiness`: probes for orchestrators
+- `GET /actuator/health/liveness` and `/actuator/health/readiness`: probes for orchestrators. On the gateway,
+  actuator runs on the private management port `5100` (`MANAGEMENT_PORT`), never on the public port 5000.
 - `GET /actuator/prometheus`: metrics (HTTP, JVM, Hikari, Kafka)
 - Traces: W3C `traceparent` propagated across HTTP and Kafka; export with `TRACING_EXPORT_ENABLED=true`
 - Logs: include trace ids; JSON with `LOGGING_STRUCTURED_FORMAT_CONSOLE=ecs`
 - Failed Kafka records land on `<topic>-dlt` after retries; alert on DLT lag
 
 ## Testing and CI
+
+**End-to-end with Postman:** [postman/README.md](postman/README.md) has a collection that runs every flow
+(sign-up, onboarding, flights, search, checkout, webhook and browser payment, failures, back office) against a
+locally running stack. It needs no Razorpay account: `scripts/start-local.ps1` starts payment-service with
+the offline `payment-stub` profile.
+
 
 ```bash
 ./mvnw -B verify        # unit tests + JaCoCo coverage report (target/site/jacoco)

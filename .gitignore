@@ -15,3 +15,6 @@ target/
 !*.env.example
 
 HELP.md
+
+# Local run logs and pids (scripts/start-local.ps1)
+.local-run/

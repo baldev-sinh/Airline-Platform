@@ -1,0 +1,4203 @@
+{
+  "info": {
+    "_postman_id": "408e1460-c890-5592-935f-d7ecf1ec87c3",
+    "name": "Airline Platform",
+    "description": "End-to-end tests for every flow in the airline platform, in order. Run the whole collection (Runner, or `npx newman run`) or step through folder by folder.\n\nPrerequisites: databases + Kafka in Docker, services started with scripts/start-local.ps1 (payment-service uses the offline `payment-stub` profile, so no Razorpay account is needed). See postman/README.md.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "00 Prepare run",
+      "description": "Generates unique codes and emails so the collection can be run again and again against the same databases.",
+      "item": [
+        {
+          "name": "Generate run data",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/airlines/dropdown",
+            "description": "Any public call works here; the point is the pre-request script, which creates unique test data.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const letters = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\";",
+                  "const pick = n => Array.from({length: n}, () => letters[Math.floor(Math.random() * 26)]).join(\"\");",
+                  "const runId = Date.now().toString(36).slice(-6);",
+                  "pm.collectionVariables.set(\"runId\", runId);",
+                  "pm.collectionVariables.set(\"airlineIata\", pick(2));",
+                  "pm.collectionVariables.set(\"airlineIcao\", pick(3));",
+                  "pm.collectionVariables.set(\"depIata\", pick(3));",
+                  "pm.collectionVariables.set(\"arrIata\", pick(3));",
+                  "pm.collectionVariables.set(\"flightNumber\", pick(2) + Math.floor(100 + Math.random() * 899));",
+                  "pm.collectionVariables.set(\"customerEmail\", \"asha.\" + runId + \"@example.com\");",
+                  "pm.collectionVariables.set(\"customer2Email\", \"ravi.\" + runId + \"@example.com\");",
+                  "pm.collectionVariables.set(\"ownerEmail\", \"owner.\" + runId + \"@example.com\");",
+                  "// A flight 5 days from now, 06:10 to 08:25 (local date-times, as the API expects)",
+                  "const d = new Date(Date.now() + 5 * 86400000);",
+                  "const day = d.toISOString().slice(0, 10);",
+                  "pm.collectionVariables.set(\"flightDate\", day);",
+                  "pm.collectionVariables.set(\"departureDateTime\", day + \"T06:10:00\");",
+                  "pm.collectionVariables.set(\"arrivalDateTime\", day + \"T08:25:00\");",
+                  "const s = new Date(Date.now() + 10 * 86400000).toISOString().slice(0, 10);",
+                  "const e = new Date(Date.now() + 16 * 86400000).toISOString().slice(0, 10);",
+                  "pm.collectionVariables.set(\"scheduleStart\", s);",
+                  "pm.collectionVariables.set(\"scheduleEnd\", e);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "01 Sign up and log in",
+      "description": "Flow: Sign up and log in. Creates a customer, a second customer and an airline owner, and logs in the bootstrap admin.",
+      "item": [
+        {
+          "name": "Admin logs in (bootstrap admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/auth/login",
+            "description": "The first admin is created at startup from BOOTSTRAP_ADMIN_EMAIL / BOOTSTRAP_ADMIN_PASSWORD (local profile default: admin@airline.local / ChangeMe!Local123).",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"{{adminPassword}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.collectionVariables.set(\"adminToken\", pm.response.json().jwt);",
+                  "pm.test(\"role is admin\", () => pm.expect(pm.response.json().user.role).to.eql(\"ROLE_SYSTEM_ADMIN\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Customer signs up",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/auth/signup",
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"Asha Verma\",\n  \"email\": \"{{customerEmail}}\",\n  \"password\": \"correct-horse-battery\",\n  \"phone\": \"+919876543210\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set(\"customerToken\", pm.response.json().jwt);",
+                  "pm.collectionVariables.set(\"customerId\", pm.response.json().user.id);",
+                  "pm.test(\"defaults to ROLE_USER\", () => pm.expect(pm.response.json().user.role).to.eql(\"ROLE_USER\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Second customer signs up",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/auth/signup",
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"Ravi Kumar\",\n  \"email\": \"{{customer2Email}}\",\n  \"password\": \"another-long-password\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set(\"customer2Token\", pm.response.json().jwt);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Airline owner signs up",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/auth/signup",
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"Meera Shah\",\n  \"email\": \"{{ownerEmail}}\",\n  \"password\": \"owner-long-password\",\n  \"role\": \"ROLE_AIRLINE_OWNER\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set(\"ownerToken\", pm.response.json().jwt);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Customer logs in",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/auth/login",
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{customerEmail}}\",\n  \"password\": \"correct-horse-battery\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.collectionVariables.set(\"customerToken\", pm.response.json().jwt);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Customer reads own profile",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/users/profile",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{customerToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"it is me\", () => pm.expect(pm.response.json().email).to.eql(pm.collectionVariables.get(\"customerEmail\")));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "NEGATIVE: sign up as admin is refused",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/auth/signup",
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"Mallory\",\n  \"email\": \"mallory.{{runId}}@example.com\",\n  \"password\": \"mallory-password\",\n  \"role\": \"ROLE_SYSTEM_ADMIN\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 422\", () => pm.response.to.have.status(422));",
+                  "pm.test(\"error code is ROLE_NOT_ALLOWED\", () => pm.expect(pm.response.json().code).to.eql(\"ROLE_NOT_ALLOWED\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "NEGATIVE: short password fails validation",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/auth/signup",
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"Short\",\n  \"email\": \"short.{{runId}}@example.com\",\n  \"password\": \"abc\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"error code is VALIDATION_FAILED\", () => pm.expect(pm.response.json().code).to.eql(\"VALIDATION_FAILED\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "NEGATIVE: duplicate email",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/auth/signup",
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"Asha Again\",\n  \"email\": \"{{customerEmail}}\",\n  \"password\": \"correct-horse-battery\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 409\", () => pm.response.to.have.status(409));",
+                  "pm.test(\"error code is EMAIL_TAKEN\", () => pm.expect(pm.response.json().code).to.eql(\"EMAIL_TAKEN\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "NEGATIVE: wrong password gives the generic error",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/auth/login",
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{customerEmail}}\",\n  \"password\": \"wrong-password-123\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 401\", () => pm.response.to.have.status(401));",
+                  "pm.test(\"same message as unknown email\", () => pm.expect(pm.response.json().detail).to.eql(\"Invalid email or password\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "NEGATIVE: unknown email gives the same error",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/auth/login",
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"nobody.{{runId}}@example.com\",\n  \"password\": \"wrong-password-123\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 401\", () => pm.response.to.have.status(401));",
+                  "pm.test(\"same message as wrong password\", () => pm.expect(pm.response.json().detail).to.eql(\"Invalid email or password\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "NEGATIVE: no token",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/users/profile",
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 401\", () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "NEGATIVE: forged token",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIiwicm9sZXMiOlsiUk9MRV9TWVNURU1fQURNSU4iXX0.forged"
+              }
+            ],
+            "url": "{{baseUrl}}/api/users/profile",
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 401\", () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "NEGATIVE: spoofed admin headers are ignored",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-User-Id",
+                "value": "1"
+              },
+              {
+                "key": "X-User-Roles",
+                "value": "ROLE_SYSTEM_ADMIN"
+              }
+            ],
+            "url": "{{baseUrl}}/api/users",
+            "description": "Before hardening, these headers made any user an admin. The gateway now strips them.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{customerToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 403\", () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "NEGATIVE: internal endpoints are hidden",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/internal/payments",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{customerToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"bookingId\": 1, \"amount\": 1, \"userId\": 1, \"gateway\": \"RAZORPAY\" }",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 404\", () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "NEGATIVE: actuator is hidden",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/actuator/health",
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 404\", () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "02 Reference data (admin)",
+      "description": "Cities and airports. Writes are admin-only; reads are public.",
+      "item": [
+        {
+          "name": "Admin creates departure city",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/cities",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Mumbai {{runId}}\",\n  \"cityCode\": \"M{{runId}}\",\n  \"countryCode\": \"IN\",\n  \"countryName\": \"India\",\n  \"timeZoneOffset\": \"+05:30\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set(\"depCityId\", pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Admin creates arrival city",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/cities",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Delhi {{runId}}\",\n  \"cityCode\": \"D{{runId}}\",\n  \"countryCode\": \"IN\",\n  \"countryName\": \"India\",\n  \"timeZoneOffset\": \"+05:30\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set(\"arrCityId\", pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Admin creates departure airport",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/airports",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"iataCode\": \"{{depIata}}\",\n  \"name\": \"Test Departure Airport {{runId}}\",\n  \"timeZone\": \"Asia/Kolkata\",\n  \"cityId\": {{depCityId}},\n  \"address\": { \"street\": \"Airport Road\", \"postalCode\": \"400099\" },\n  \"geoCode\": { \"latitude\": 19.0896, \"longitude\": 72.8656 }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set(\"depAirportId\", pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Admin creates arrival airport",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/airports",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"iataCode\": \"{{arrIata}}\",\n  \"name\": \"Test Arrival Airport {{runId}}\",\n  \"timeZone\": \"Asia/Kolkata\",\n  \"cityId\": {{arrCityId}},\n  \"geoCode\": { \"latitude\": 28.5562, \"longitude\": 77.1000 }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set(\"arrAirportId\", pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Anyone can read an airport (public)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/airports/{{depAirportId}}",
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"IATA code\", () => pm.expect(pm.response.json().iataCode).to.eql(pm.collectionVariables.get(\"depIata\")));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "NEGATIVE: customer cannot create a city",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/cities",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{customerToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Nope\",\n  \"cityCode\": \"NOPE\",\n  \"countryCode\": \"IN\",\n  \"countryName\": \"India\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 403\", () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "03 Airline onboarding",
+      "description": "Flow: Airline onboarding. PENDING_APPROVAL -> ACTIVE by an admin.",
+      "item": [
+        {
+          "name": "Owner creates airline (tries to set ACTIVE)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/airlines",
+            "description": "The body asks for \"ACTIVE\". The server ignores it: new airlines always start PENDING_APPROVAL.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{ownerToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"iataCode\": \"{{airlineIata}}\",\n  \"icaoCode\": \"{{airlineIcao}}\",\n  \"name\": \"Skyline {{runId}}\",\n  \"status\": \"ACTIVE\",\n  \"headquartersCityId\": {{depCityId}},\n  \"supportEmail\": \"support@skyline.example\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set(\"airlineId\", pm.response.json().id);",
+                  "pm.test(\"status forced to PENDING_APPROVAL\", () => pm.expect(pm.response.json().status).to.eql(\"PENDING_APPROVAL\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "NEGATIVE: one airline per owner",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/airlines",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{ownerToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"iataCode\": \"ZZ\",\n  \"icaoCode\": \"ZZZ\",\n  \"name\": \"Second airline\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 409\", () => pm.response.to.have.status(409));",
+                  "pm.test(\"error code is AIRLINE_EXISTS\", () => pm.expect(pm.response.json().code).to.eql(\"AIRLINE_EXISTS\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Owner reads own airline",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/airlines/admin",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{ownerToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"same airline\", () => pm.expect(pm.response.json().id).to.eql(Number(pm.collectionVariables.get(\"airlineId\"))));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "NEGATIVE: customer cannot approve",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/api/airlines/{{airlineId}}/approve",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{customerToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 403\", () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "NEGATIVE: owner cannot approve own airline",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/api/airlines/{{airlineId}}/approve",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{ownerToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 403\", () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Admin lists airlines (paged)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/airlines?size=50&sort=id,desc",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Admin approves airline",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/api/airlines/{{airlineId}}/approve",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"ACTIVE\", () => pm.expect(pm.response.json().status).to.eql(\"ACTIVE\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Public dropdown now lists it",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/airlines/dropdown",
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"listed\", () => pm.expect(pm.response.json().map(a => a.id)).to.include(Number(pm.collectionVariables.get(\"airlineId\"))));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "04 Fleet and seat setup",
+      "description": "Flow: Fleet and seat setup. Aircraft -> cabin class -> seat map (generates seats).",
+      "item": [
+        {
+          "name": "Owner adds an aircraft",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/aircrafts",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{ownerToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"VT-{{runId}}\",\n  \"model\": \"A320neo\",\n  \"manufacturer\": \"Airbus\",\n  \"seatingCapacity\": 60,\n  \"economySeats\": 60,\n  \"status\": \"ACTIVE\",\n  \"isAvailable\": true,\n  \"yearOfManufacture\": 2022\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set(\"aircraftId\", pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Owner adds Economy cabin",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/cabin-classes",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{ownerToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"ECONOMY\",\n  \"code\": \"Y\",\n  \"description\": \"Economy\",\n  \"aircraftId\": {{aircraftId}},\n  \"displayOrder\": 1,\n  \"isActive\": true,\n  \"isBookable\": true,\n  \"typicalSeatPitch\": 30,\n  \"typicalSeatWidth\": 17\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set(\"cabinClassId\", pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Owner adds seat map (10 rows, 3+3)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/seat-maps",
+            "description": "Creating the seat map generates the physical seats 1A..10F (window, middle, aisle).",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{ownerToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Y-60\",\n  \"cabinClassId\": {{cabinClassId}},\n  \"totalRows\": 10,\n  \"leftSeatsPerRow\": 3,\n  \"rightSeatsPerRow\": 3\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set(\"seatMapId\", pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "05 Publishing flights",
+      "description": "Flow: Publishing flights. Creating an instance publishes flight-instance.created; seat-service builds the seat inventory asynchronously.",
+      "item": [
+        {
+          "name": "Owner creates flight",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/flights",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{ownerToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"flightNumber\": \"{{flightNumber}}\",\n  \"aircraftId\": {{aircraftId}},\n  \"departureAirportId\": {{depAirportId}},\n  \"arrivalAirportId\": {{arrAirportId}}\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set(\"flightId\", pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Owner creates a dated flight instance",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/flight-instances",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{ownerToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"flightId\": {{flightId}},\n  \"departureDateTime\": \"{{departureDateTime}}\",\n  \"arrivalDateTime\": \"{{arrivalDateTime}}\",\n  \"totalSeats\": 60\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set(\"flightInstanceId\", pm.response.json().id);",
+                  "pm.test(\"SCHEDULED\", () => pm.expect(pm.response.json().status).to.eql(\"SCHEDULED\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Owner creates a schedule (Mon/Wed/Fri)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/flight-schedules",
+            "description": "An overnight schedule (23:30 -> 01:45). Each generated instance arrives the next day.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{ownerToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"flightId\": {{flightId}},\n  \"departureTime\": \"23:30:00\",\n  \"arrivalTime\": \"01:45:00\",\n  \"startDate\": \"{{scheduleStart}}\",\n  \"endDate\": \"{{scheduleEnd}}\",\n  \"operatingDays\": [\"MONDAY\", \"WEDNESDAY\", \"FRIDAY\"],\n  \"isActive\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Owner lists own flight instances",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/flight-instances?flightId={{flightId}}&size=20",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{ownerToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "",
+                  "const list = pm.response.json().content;",
+                  "pm.test(\"single instance + schedule instances\", () => pm.expect(list.length).to.be.above(1));",
+                  "const overnight = list.find(i => i.departureDateTime.endsWith(\"23:30:00\"));",
+                  "pm.test(\"overnight arrival is the next day\", () => pm.expect(overnight.arrivalDateTime.slice(0, 10) > overnight.departureDateTime.slice(0, 10)).to.be.true);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Seat inventory was built (via Kafka)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/flight-instance-cabins/flight-instance/{{flightInstanceId}}",
+            "description": "Polls until seat-service has consumed flight-instance.created, then picks seats for the tests.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{customerToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "setTimeout(() => {}, 1500); // events are asynchronous: give Kafka consumers a moment"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "const key = \"poll_\" + pm.info.requestName;",
+                  "const n = Number(pm.collectionVariables.get(key) || 0);",
+                  "if (!(body.content.length > 0 && body.content[0].seats.length > 0) && n < 15) {",
+                  "    pm.collectionVariables.set(key, n + 1);",
+                  "    console.log(\"waiting for seat inventory, attempt \" + (n + 1));",
+                  "    pm.execution.setNextRequest(pm.info.requestName);",
+                  "} else {",
+                  "    pm.collectionVariables.unset(key);",
+                  "    pm.test(\"reached expected seat inventory\", () => pm.expect(body.content.length > 0 && body.content[0].seats.length > 0).to.be.true);",
+                  "",
+                  "const seats = body.content[0].seats.filter(s => s.status === \"AVAILABLE\");",
+                  "pm.test(\"60 seats available\", () => pm.expect(seats.length).to.eql(60));",
+                  "for (let i = 0; i < 6; i++) {",
+                  "    pm.collectionVariables.set(\"seat\" + (i + 1) + \"Id\", seats[i].id);",
+                  "    pm.collectionVariables.set(\"seat\" + (i + 1) + \"Price\", seats[i].price);",
+                  "    pm.collectionVariables.set(\"seat\" + (i + 1) + \"Number\", seats[i].seatNumber);",
+                  "}",
+                  "console.log(\"Using seats\", seats.slice(0, 6).map(s => s.seatNumber + \" (\" + s.price + \")\").join(\", \"));",
+                  "",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "NEGATIVE: customer cannot create flights",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/flights",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{customerToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"flightNumber\": \"XX1\",\n  \"aircraftId\": {{aircraftId}},\n  \"departureAirportId\": {{depAirportId}},\n  \"arrivalAirportId\": {{arrAirportId}}\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 403\", () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "06 Fares and extras",
+      "description": "Flow: Fares and extras. A fare per cabin, plus a meal and an ancillary offered on the flight.",
+      "item": [
+        {
+          "name": "Owner creates Saver fare",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/fares",
+            "description": "Total per passenger = 4500 + 650 + 150 = 5300.00",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{ownerToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Saver\",\n  \"rbdCode\": \"V\",\n  \"flightId\": {{flightId}},\n  \"cabinClassId\": {{cabinClassId}},\n  \"baseFare\": 4500.00,\n  \"taxesAndFees\": 650.00,\n  \"airlineFees\": 150.00,\n  \"fareLabel\": \"Lowest price\",\n  \"complimentaryMeals\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set(\"fareId\", pm.response.json().id);",
+                  "pm.collectionVariables.set(\"fareTotal\", pm.response.json().totalPrice);",
+                  "pm.test(\"total = base + taxes + fees\", () => pm.expect(Number(pm.response.json().totalPrice)).to.eql(5300));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Owner creates a meal",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/meals",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{ownerToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"VGML{{runId}}\",\n  \"name\": \"Paneer wrap\",\n  \"mealType\": \"VEG\",\n  \"dietaryRestriction\": \"Vegetarian\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set(\"mealId\", pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Owner offers the meal on the flight",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/flight-meals",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{ownerToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"flightId\": {{flightId}},\n  \"mealId\": {{mealId}},\n  \"available\": true,\n  \"price\": 350.00\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set(\"flightMealId\", pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Owner creates an ancillary",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/ancillaries",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{ownerToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"BAGGAGE\",\n  \"subType\": \"EXTRA_BAG\",\n  \"name\": \"Extra 15 kg bag {{runId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set(\"ancillaryId\", pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Owner offers it in Economy",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/flight-cabin-ancillaries",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{ownerToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"flightId\": {{flightId}},\n  \"cabinClassId\": {{cabinClassId}},\n  \"ancillaryId\": {{ancillaryId}},\n  \"available\": true,\n  \"maxQuantity\": 2,\n  \"price\": 1200.00,\n  \"includedInFare\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set(\"flightCabinAncillaryId\", pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "07 Flight search",
+      "description": "Flow: Flight search. Public, no token.",
+      "item": [
+        {
+          "name": "Search flights (public)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/flights/search?departureAirportId={{depAirportId}}&arrivalAirportId={{arrAirportId}}&departureDate={{flightDate}}&cabinClass=ECONOMY&passengers=1",
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "",
+                  "const hit = pm.response.json().content.find(f => f.id === Number(pm.collectionVariables.get(\"flightInstanceId\")));",
+                  "pm.test(\"our flight is listed\", () => pm.expect(hit).to.be.an(\"object\"));",
+                  "pm.test(\"with its lowest fare\", () => pm.expect(Number(hit.fare.totalPrice)).to.eql(5300));",
+                  "pm.collectionVariables.set(\"availableSeatsBefore\", hit.availableSeats);"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "08 Checkout and pay by webhook",
+      "description": "Flows: Checkout, then Payment succeeds. Razorpay's webhook is simulated: the body is signed with the webhook secret, exactly like Razorpay does.",
+      "item": [
+        {
+          "name": "Customer books seat 1 with a meal and a bag",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/bookings",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{customerToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"flightId\": {{flightId}},\n  \"flightInstanceId\": {{flightInstanceId}},\n  \"cabinClass\": \"ECONOMY\",\n  \"fareId\": {{fareId}},\n  \"contactInfo\": { \"email\": \"{{customerEmail}}\", \"phone\": \"+919876543210\" },\n  \"passengers\": [\n    {\n      \"firstName\": \"Asha\",\n      \"lastName\": \"Verma\",\n      \"email\": \"{{customerEmail}}\",\n      \"phone\": \"+919876543210\",\n      \"dateOfBirth\": \"1994-03-18\",\n      \"gender\": \"FEMALE\",\n      \"nationality\": \"IN\",\n      \"seatInstanceId\": {{seat1Id}}\n    }\n  ],\n  \"mealIds\": [{{flightMealId}}],\n  \"ancillaryIds\": [{{flightCabinAncillaryId}}]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+                  "",
+                  "const r = pm.response.json();",
+                  "pm.test(\"checkout URL returned\", () => pm.expect(r.checkoutUrl).to.be.a(\"string\"));",
+                  "pm.test(\"amount computed by the server\", () => pm.expect(Number(r.amount)).to.be.above(0));",
+                  "pm.collectionVariables.set(\"b1PaymentId\", r.paymentId);",
+                  "pm.collectionVariables.set(\"b1LinkId\", r.razorpayOrderId);",
+                  "pm.collectionVariables.set(\"b1AmountPaise\", Math.round(Number(r.amount) * 100));",
+                  "pm.collectionVariables.set(\"b1Amount\", r.amount);",
+                  "console.log(\"checkout URL:\", r.checkoutUrl);",
+                  "",
+                  "const expected = Number(pm.collectionVariables.get(\"fareTotal\")) + Number(pm.collectionVariables.get(\"seat1Price\")) + 350 + 1200;",
+                  "pm.test(\"total = fare + seat + meal + bag\", () => pm.expect(Number(pm.response.json().amount)).to.eql(expected));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Find the new booking id in my history",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/bookings/user/history",
+            "description": "POST /api/bookings returns the payment, not the booking id. A real frontend gets the id from the Razorpay callback URL (/booking-success/{bookingId}); here we read it from the booking history.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{customerToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "",
+                  "const pid = Number(pm.collectionVariables.get(\"b1PaymentId\"));",
+                  "const b = pm.response.json().find(x => x.paymentId === pid);",
+                  "pm.test(\"booking found by its payment id\", () => pm.expect(b).to.be.an(\"object\"));",
+                  "pm.collectionVariables.set(\"b1BookingId\", b.id);",
+                  "pm.test(\"booking starts PENDING\", () => pm.expect(b.status).to.eql(\"PENDING\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Booking is PENDING with a price breakdown",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/bookings/{{b1BookingId}}",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{customerToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "",
+                  "const b = pm.response.json();",
+                  "pm.test(\"PENDING\", () => pm.expect(b.status).to.eql(\"PENDING\"));",
+                  "pm.test(\"fare amount\", () => pm.expect(Number(b.fareAmount)).to.eql(5300));",
+                  "pm.test(\"meal amount\", () => pm.expect(Number(b.mealAmount)).to.eql(350));",
+                  "pm.test(\"bag amount\", () => pm.expect(Number(b.ancillaryAmount)).to.eql(1200));",
+                  "pm.test(\"no tickets before payment\", () => pm.expect(b.tickets || []).to.have.length(0));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Seat 1 is HELD during checkout",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/flight-instance-cabins/flight-instance/{{flightInstanceId}}",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{customerToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "setTimeout(() => {}, 1500); // events are asynchronous: give Kafka consumers a moment"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "const key = \"poll_\" + pm.info.requestName;",
+                  "const n = Number(pm.collectionVariables.get(key) || 0);",
+                  "if (!((body.content[0].seats.find(s => s.id === Number(pm.collectionVariables.get(\"seat1Id\"))) || {}).status === \"HELD\") && n < 15) {",
+                  "    pm.collectionVariables.set(key, n + 1);",
+                  "    console.log(\"waiting for seat HELD, attempt \" + (n + 1));",
+                  "    pm.execution.setNextRequest(pm.info.requestName);",
+                  "} else {",
+                  "    pm.collectionVariables.unset(key);",
+                  "    pm.test(\"reached expected seat HELD\", () => pm.expect((body.content[0].seats.find(s => s.id === Number(pm.collectionVariables.get(\"seat1Id\"))) || {}).status === \"HELD\").to.be.true);",
+                  "",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "NEGATIVE: another customer cannot take a held seat",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/bookings",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{customer2Token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"flightId\": {{flightId}},\n  \"flightInstanceId\": {{flightInstanceId}},\n  \"cabinClass\": \"ECONOMY\",\n  \"fareId\": {{fareId}},\n  \"contactInfo\": { \"email\": \"{{customerEmail}}\", \"phone\": \"+919876543210\" },\n  \"passengers\": [\n    {\n      \"firstName\": \"Ravi\",\n      \"lastName\": \"Verma\",\n      \"email\": \"{{customerEmail}}\",\n      \"phone\": \"+919876543210\",\n      \"dateOfBirth\": \"1994-03-18\",\n      \"gender\": \"FEMALE\",\n      \"nationality\": \"IN\",\n      \"seatInstanceId\": {{seat1Id}}\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 409\", () => pm.response.to.have.status(409));",
+                  "pm.test(\"error code is SEAT_UNAVAILABLE\", () => pm.expect(pm.response.json().code).to.eql(\"SEAT_UNAVAILABLE\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "NEGATIVE: another customer cannot read the booking",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/bookings/{{b1BookingId}}",
+            "description": "404, not 403: the API does not even confirm the booking exists.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{customer2Token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 404\", () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "NEGATIVE: webhook with a bad signature",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Razorpay-Signature",
+                "value": "{{webhookSignature}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/payments/webhooks/razorpay",
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{{webhookBody}}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Razorpay signs the raw body with HMAC-SHA256 using the webhook secret; we do the same.",
+                  "const body = JSON.stringify({",
+                  "    event: \"payment_link.paid\",",
+                  "    payload: {",
+                  "        payment_link: { entity: { id: pm.collectionVariables.get(\"b1LinkId\") } },",
+                  "        payment: { entity: {",
+                  "            id: \"pay_WH\" + pm.collectionVariables.get(\"b1PaymentId\") + pm.collectionVariables.get(\"runId\"),",
+                  "            status: \"captured\",",
+                  "            amount: Number(pm.collectionVariables.get(\"b1AmountPaise\")),",
+                  "            currency: \"INR\"",
+                  "        } }",
+                  "    }",
+                  "});",
+                  "const secret = pm.environment.get(\"webhookSecret\") || pm.collectionVariables.get(\"webhookSecret\");",
+                  "pm.collectionVariables.set(\"webhookBody\", body);",
+                  "pm.collectionVariables.set(\"webhookSignature\", CryptoJS.HmacSHA256(body, secret).toString(CryptoJS.enc.Hex));",
+                  "pm.collectionVariables.set(\"webhookSignature\", \"0000deadbeef\");"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 401\", () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Razorpay webhook: payment_link.paid",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Razorpay-Signature",
+                "value": "{{webhookSignature}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/payments/webhooks/razorpay",
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{{webhookBody}}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Razorpay signs the raw body with HMAC-SHA256 using the webhook secret; we do the same.",
+                  "const body = JSON.stringify({",
+                  "    event: \"payment_link.paid\",",
+                  "    payload: {",
+                  "        payment_link: { entity: { id: pm.collectionVariables.get(\"b1LinkId\") } },",
+                  "        payment: { entity: {",
+                  "            id: \"pay_WH\" + pm.collectionVariables.get(\"b1PaymentId\") + pm.collectionVariables.get(\"runId\"),",
+                  "            status: \"captured\",",
+                  "            amount: Number(pm.collectionVariables.get(\"b1AmountPaise\")),",
+                  "            currency: \"INR\"",
+                  "        } }",
+                  "    }",
+                  "});",
+                  "const secret = pm.environment.get(\"webhookSecret\") || pm.collectionVariables.get(\"webhookSecret\");",
+                  "pm.collectionVariables.set(\"webhookBody\", body);",
+                  "pm.collectionVariables.set(\"webhookSignature\", CryptoJS.HmacSHA256(body, secret).toString(CryptoJS.enc.Hex));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Razorpay retries the same webhook (idempotent)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Razorpay-Signature",
+                "value": "{{webhookSignature}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/payments/webhooks/razorpay",
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{{webhookBody}}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Razorpay signs the raw body with HMAC-SHA256 using the webhook secret; we do the same.",
+                  "const body = JSON.stringify({",
+                  "    event: \"payment_link.paid\",",
+                  "    payload: {",
+                  "        payment_link: { entity: { id: pm.collectionVariables.get(\"b1LinkId\") } },",
+                  "        payment: { entity: {",
+                  "            id: \"pay_WH\" + pm.collectionVariables.get(\"b1PaymentId\") + pm.collectionVariables.get(\"runId\"),",
+                  "            status: \"captured\",",
+                  "            amount: Number(pm.collectionVariables.get(\"b1AmountPaise\")),",
+                  "            currency: \"INR\"",
+                  "        } }",
+                  "    }",
+                  "});",
+                  "const secret = pm.environment.get(\"webhookSecret\") || pm.collectionVariables.get(\"webhookSecret\");",
+                  "pm.collectionVariables.set(\"webhookBody\", body);",
+                  "pm.collectionVariables.set(\"webhookSignature\", CryptoJS.HmacSHA256(body, secret).toString(CryptoJS.enc.Hex));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Booking becomes CONFIRMED",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/bookings/{{b1BookingId}}",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{customerToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "setTimeout(() => {}, 1500); // events are asynchronous: give Kafka consumers a moment"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "const key = \"poll_\" + pm.info.requestName;",
+                  "const n = Number(pm.collectionVariables.get(key) || 0);",
+                  "if (!(body.status === \"CONFIRMED\") && n < 15) {",
+                  "    pm.collectionVariables.set(key, n + 1);",
+                  "    console.log(\"waiting for booking CONFIRMED, attempt \" + (n + 1));",
+                  "    pm.execution.setNextRequest(pm.info.requestName);",
+                  "} else {",
+                  "    pm.collectionVariables.unset(key);",
+                  "    pm.test(\"reached expected booking CONFIRMED\", () => pm.expect(body.status === \"CONFIRMED\").to.be.true);",
+                  "pm.test(\"one e-ticket per passenger\", () => pm.expect(body.tickets).to.have.length(1));",
+                  "",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Seat 1 is BOOKED",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/flight-instance-cabins/flight-instance/{{flightInstanceId}}",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{customerToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "setTimeout(() => {}, 1500); // events are asynchronous: give Kafka consumers a moment"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "const key = \"poll_\" + pm.info.requestName;",
+                  "const n = Number(pm.collectionVariables.get(key) || 0);",
+                  "if (!((body.content[0].seats.find(s => s.id === Number(pm.collectionVariables.get(\"seat1Id\"))) || {}).status === \"BOOKED\") && n < 15) {",
+                  "    pm.collectionVariables.set(key, n + 1);",
+                  "    console.log(\"waiting for seat BOOKED, attempt \" + (n + 1));",
+                  "    pm.execution.setNextRequest(pm.info.requestName);",
+                  "} else {",
+                  "    pm.collectionVariables.unset(key);",
+                  "    pm.test(\"reached expected seat BOOKED\", () => pm.expect((body.content[0].seats.find(s => s.id === Number(pm.collectionVariables.get(\"seat1Id\"))) || {}).status === \"BOOKED\").to.be.true);",
+                  "",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Payment is SUCCESS",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/payments/{{b1PaymentId}}",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{customerToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"SUCCESS\", () => pm.expect(pm.response.json().status).to.eql(\"SUCCESS\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Search shows one seat fewer",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/flight-instances/{{flightInstanceId}}",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{customerToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "setTimeout(() => {}, 1500); // events are asynchronous: give Kafka consumers a moment"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "const key = \"poll_\" + pm.info.requestName;",
+                  "const n = Number(pm.collectionVariables.get(key) || 0);",
+                  "if (!(body.availableSeats === Number(pm.collectionVariables.get(\"availableSeatsBefore\")) - 1) && n < 15) {",
+                  "    pm.collectionVariables.set(key, n + 1);",
+                  "    console.log(\"waiting for availableSeats decremented, attempt \" + (n + 1));",
+                  "    pm.execution.setNextRequest(pm.info.requestName);",
+                  "} else {",
+                  "    pm.collectionVariables.unset(key);",
+                  "    pm.test(\"reached expected availableSeats decremented\", () => pm.expect(body.availableSeats === Number(pm.collectionVariables.get(\"availableSeatsBefore\")) - 1).to.be.true);",
+                  "",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "NEGATIVE: paid booking needs the refund process",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": "{{baseUrl}}/api/bookings/{{b1BookingId}}/cancel",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{customerToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 422\", () => pm.response.to.have.status(422));",
+                  "pm.test(\"error code is REFUND_REQUIRED\", () => pm.expect(pm.response.json().code).to.eql(\"REFUND_REQUIRED\"));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "09 Checkout and pay by browser verify",
+      "description": "Flow: Browser verify. After paying, Razorpay redirects to the frontend with razorpay_payment_id; the frontend sends it to /verify. With the stub, the id is pay_STUBOK<paymentId>.",
+      "item": [
+        {
+          "name": "Customer books seat 2 (no extras)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/bookings",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{customerToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"flightId\": {{flightId}},\n  \"flightInstanceId\": {{flightInstanceId}},\n  \"cabinClass\": \"ECONOMY\",\n  \"fareId\": {{fareId}},\n  \"contactInfo\": { \"email\": \"{{customerEmail}}\", \"phone\": \"+919876543210\" },\n  \"passengers\": [\n    {\n      \"firstName\": \"Asha\",\n      \"lastName\": \"Verma\",\n      \"email\": \"{{customerEmail}}\",\n      \"phone\": \"+919876543210\",\n      \"dateOfBirth\": \"1994-03-18\",\n      \"gender\": \"FEMALE\",\n      \"nationality\": \"IN\",\n      \"seatInstanceId\": {{seat2Id}}\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+                  "",
+                  "const r = pm.response.json();",
+                  "pm.test(\"checkout URL returned\", () => pm.expect(r.checkoutUrl).to.be.a(\"string\"));",
+                  "pm.test(\"amount computed by the server\", () => pm.expect(Number(r.amount)).to.be.above(0));",
+                  "pm.collectionVariables.set(\"b2PaymentId\", r.paymentId);",
+                  "pm.collectionVariables.set(\"b2LinkId\", r.razorpayOrderId);",
+                  "pm.collectionVariables.set(\"b2AmountPaise\", Math.round(Number(r.amount) * 100));",
+                  "pm.collectionVariables.set(\"b2Amount\", r.amount);",
+                  "console.log(\"checkout URL:\", r.checkoutUrl);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Find the new booking id in my history",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/bookings/user/history",
+            "description": "POST /api/bookings returns the payment, not the booking id. A real frontend gets the id from the Razorpay callback URL (/booking-success/{bookingId}); here we read it from the booking history.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{customerToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "",
+                  "const pid = Number(pm.collectionVariables.get(\"b2PaymentId\"));",
+                  "const b = pm.response.json().find(x => x.paymentId === pid);",
+                  "pm.test(\"booking found by its payment id\", () => pm.expect(b).to.be.an(\"object\"));",
+                  "pm.collectionVariables.set(\"b2BookingId\", b.id);",
+                  "pm.test(\"booking starts PENDING\", () => pm.expect(b.status).to.eql(\"PENDING\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "NEGATIVE: someone else cannot verify my payment",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/payments/verify",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{customer2Token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"razorpayPaymentId\": \"pay_STUBOK{{b2PaymentId}}\" }",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 404\", () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Frontend verifies the payment",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/payments/verify",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{customerToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"razorpayPaymentId\": \"pay_STUBOK{{b2PaymentId}}\" }",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"SUCCESS\", () => pm.expect(pm.response.json().status).to.eql(\"SUCCESS\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Verify again (idempotent, no second event)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/payments/verify",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{customerToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"razorpayPaymentId\": \"pay_STUBOK{{b2PaymentId}}\" }",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"still SUCCESS\", () => pm.expect(pm.response.json().status).to.eql(\"SUCCESS\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Booking becomes CONFIRMED",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/bookings/{{b2BookingId}}",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{customerToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "setTimeout(() => {}, 1500); // events are asynchronous: give Kafka consumers a moment"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "const key = \"poll_\" + pm.info.requestName;",
+                  "const n = Number(pm.collectionVariables.get(key) || 0);",
+                  "if (!(body.status === \"CONFIRMED\") && n < 15) {",
+                  "    pm.collectionVariables.set(key, n + 1);",
+                  "    console.log(\"waiting for booking CONFIRMED, attempt \" + (n + 1));",
+                  "    pm.execution.setNextRequest(pm.info.requestName);",
+                  "} else {",
+                  "    pm.collectionVariables.unset(key);",
+                  "    pm.test(\"reached expected booking CONFIRMED\", () => pm.expect(body.status === \"CONFIRMED\").to.be.true);",
+                  "",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Seat 2 is BOOKED",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/flight-instance-cabins/flight-instance/{{flightInstanceId}}",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{customerToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "setTimeout(() => {}, 1500); // events are asynchronous: give Kafka consumers a moment"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "const key = \"poll_\" + pm.info.requestName;",
+                  "const n = Number(pm.collectionVariables.get(key) || 0);",
+                  "if (!((body.content[0].seats.find(s => s.id === Number(pm.collectionVariables.get(\"seat2Id\"))) || {}).status === \"BOOKED\") && n < 15) {",
+                  "    pm.collectionVariables.set(key, n + 1);",
+                  "    console.log(\"waiting for seat BOOKED, attempt \" + (n + 1));",
+                  "    pm.execution.setNextRequest(pm.info.requestName);",
+                  "} else {",
+                  "    pm.collectionVariables.unset(key);",
+                  "    pm.test(\"reached expected seat BOOKED\", () => pm.expect((body.content[0].seats.find(s => s.id === Number(pm.collectionVariables.get(\"seat2Id\"))) || {}).status === \"BOOKED\").to.be.true);",
+                  "",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "10 Underpayment is rejected",
+      "description": "Security check: the provider reports 1 rupee less than the booking total (pay_STUBLOW<id>). The payment fails, the booking is cancelled and the seat is released.",
+      "item": [
+        {
+          "name": "Customer books seat 3",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/bookings",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{customerToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"flightId\": {{flightId}},\n  \"flightInstanceId\": {{flightInstanceId}},\n  \"cabinClass\": \"ECONOMY\",\n  \"fareId\": {{fareId}},\n  \"contactInfo\": { \"email\": \"{{customerEmail}}\", \"phone\": \"+919876543210\" },\n  \"passengers\": [\n    {\n      \"firstName\": \"Asha\",\n      \"lastName\": \"Verma\",\n      \"email\": \"{{customerEmail}}\",\n      \"phone\": \"+919876543210\",\n      \"dateOfBirth\": \"1994-03-18\",\n      \"gender\": \"FEMALE\",\n      \"nationality\": \"IN\",\n      \"seatInstanceId\": {{seat3Id}}\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+                  "",
+                  "const r = pm.response.json();",
+                  "pm.test(\"checkout URL returned\", () => pm.expect(r.checkoutUrl).to.be.a(\"string\"));",
+                  "pm.test(\"amount computed by the server\", () => pm.expect(Number(r.amount)).to.be.above(0));",
+                  "pm.collectionVariables.set(\"b3PaymentId\", r.paymentId);",
+                  "pm.collectionVariables.set(\"b3LinkId\", r.razorpayOrderId);",
+                  "pm.collectionVariables.set(\"b3AmountPaise\", Math.round(Number(r.amount) * 100));",
+                  "pm.collectionVariables.set(\"b3Amount\", r.amount);",
+                  "console.log(\"checkout URL:\", r.checkoutUrl);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Find the new booking id in my history",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/bookings/user/history",
+            "description": "POST /api/bookings returns the payment, not the booking id. A real frontend gets the id from the Razorpay callback URL (/booking-success/{bookingId}); here we read it from the booking history.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{customerToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "",
+                  "const pid = Number(pm.collectionVariables.get(\"b3PaymentId\"));",
+                  "const b = pm.response.json().find(x => x.paymentId === pid);",
+                  "pm.test(\"booking found by its payment id\", () => pm.expect(b).to.be.an(\"object\"));",
+                  "pm.collectionVariables.set(\"b3BookingId\", b.id);",
+                  "pm.test(\"booking starts PENDING\", () => pm.expect(b.status).to.eql(\"PENDING\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Verify an underpaid payment",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/payments/verify",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{customerToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"razorpayPaymentId\": \"pay_STUBLOW{{b3PaymentId}}\" }",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"FAILED\", () => pm.expect(pm.response.json().status).to.eql(\"FAILED\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Booking becomes CANCELLED",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/bookings/{{b3BookingId}}",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{customerToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "setTimeout(() => {}, 1500); // events are asynchronous: give Kafka consumers a moment"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "const key = \"poll_\" + pm.info.requestName;",
+                  "const n = Number(pm.collectionVariables.get(key) || 0);",
+                  "if (!(body.status === \"CANCELLED\") && n < 15) {",
+                  "    pm.collectionVariables.set(key, n + 1);",
+                  "    console.log(\"waiting for booking CANCELLED, attempt \" + (n + 1));",
+                  "    pm.execution.setNextRequest(pm.info.requestName);",
+                  "} else {",
+                  "    pm.collectionVariables.unset(key);",
+                  "    pm.test(\"reached expected booking CANCELLED\", () => pm.expect(body.status === \"CANCELLED\").to.be.true);",
+                  "",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Seat 3 is AVAILABLE again",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/flight-instance-cabins/flight-instance/{{flightInstanceId}}",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{customerToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "setTimeout(() => {}, 1500); // events are asynchronous: give Kafka consumers a moment"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "const key = \"poll_\" + pm.info.requestName;",
+                  "const n = Number(pm.collectionVariables.get(key) || 0);",
+                  "if (!((body.content[0].seats.find(s => s.id === Number(pm.collectionVariables.get(\"seat3Id\"))) || {}).status === \"AVAILABLE\") && n < 15) {",
+                  "    pm.collectionVariables.set(key, n + 1);",
+                  "    console.log(\"waiting for seat AVAILABLE, attempt \" + (n + 1));",
+                  "    pm.execution.setNextRequest(pm.info.requestName);",
+                  "} else {",
+                  "    pm.collectionVariables.unset(key);",
+                  "    pm.test(\"reached expected seat AVAILABLE\", () => pm.expect((body.content[0].seats.find(s => s.id === Number(pm.collectionVariables.get(\"seat3Id\"))) || {}).status === \"AVAILABLE\").to.be.true);",
+                  "",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "11 Payment link expires",
+      "description": "Flow: Payment fails or expires. Razorpay sends payment_link.expired.",
+      "item": [
+        {
+          "name": "Customer books seat 4",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/bookings",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{customerToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"flightId\": {{flightId}},\n  \"flightInstanceId\": {{flightInstanceId}},\n  \"cabinClass\": \"ECONOMY\",\n  \"fareId\": {{fareId}},\n  \"contactInfo\": { \"email\": \"{{customerEmail}}\", \"phone\": \"+919876543210\" },\n  \"passengers\": [\n    {\n      \"firstName\": \"Asha\",\n      \"lastName\": \"Verma\",\n      \"email\": \"{{customerEmail}}\",\n      \"phone\": \"+919876543210\",\n      \"dateOfBirth\": \"1994-03-18\",\n      \"gender\": \"FEMALE\",\n      \"nationality\": \"IN\",\n      \"seatInstanceId\": {{seat4Id}}\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+                  "",
+                  "const r = pm.response.json();",
+                  "pm.test(\"checkout URL returned\", () => pm.expect(r.checkoutUrl).to.be.a(\"string\"));",
+                  "pm.test(\"amount computed by the server\", () => pm.expect(Number(r.amount)).to.be.above(0));",
+                  "pm.collectionVariables.set(\"b4PaymentId\", r.paymentId);",
+                  "pm.collectionVariables.set(\"b4LinkId\", r.razorpayOrderId);",
+                  "pm.collectionVariables.set(\"b4AmountPaise\", Math.round(Number(r.amount) * 100));",
+                  "pm.collectionVariables.set(\"b4Amount\", r.amount);",
+                  "console.log(\"checkout URL:\", r.checkoutUrl);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Find the new booking id in my history",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/bookings/user/history",
+            "description": "POST /api/bookings returns the payment, not the booking id. A real frontend gets the id from the Razorpay callback URL (/booking-success/{bookingId}); here we read it from the booking history.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{customerToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "",
+                  "const pid = Number(pm.collectionVariables.get(\"b4PaymentId\"));",
+                  "const b = pm.response.json().find(x => x.paymentId === pid);",
+                  "pm.test(\"booking found by its payment id\", () => pm.expect(b).to.be.an(\"object\"));",
+                  "pm.collectionVariables.set(\"b4BookingId\", b.id);",
+                  "pm.test(\"booking starts PENDING\", () => pm.expect(b.status).to.eql(\"PENDING\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Seat 4 is HELD",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/flight-instance-cabins/flight-instance/{{flightInstanceId}}",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{customerToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "setTimeout(() => {}, 1500); // events are asynchronous: give Kafka consumers a moment"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "const key = \"poll_\" + pm.info.requestName;",
+                  "const n = Number(pm.collectionVariables.get(key) || 0);",
+                  "if (!((body.content[0].seats.find(s => s.id === Number(pm.collectionVariables.get(\"seat4Id\"))) || {}).status === \"HELD\") && n < 15) {",
+                  "    pm.collectionVariables.set(key, n + 1);",
+                  "    console.log(\"waiting for seat HELD, attempt \" + (n + 1));",
+                  "    pm.execution.setNextRequest(pm.info.requestName);",
+                  "} else {",
+                  "    pm.collectionVariables.unset(key);",
+                  "    pm.test(\"reached expected seat HELD\", () => pm.expect((body.content[0].seats.find(s => s.id === Number(pm.collectionVariables.get(\"seat4Id\"))) || {}).status === \"HELD\").to.be.true);",
+                  "",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Razorpay webhook: payment_link.expired",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Razorpay-Signature",
+                "value": "{{webhookSignature}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/payments/webhooks/razorpay",
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{{webhookBody}}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Razorpay signs the raw body with HMAC-SHA256 using the webhook secret; we do the same.",
+                  "const body = JSON.stringify({",
+                  "    event: \"payment_link.expired\",",
+                  "    payload: {",
+                  "        payment_link: { entity: { id: pm.collectionVariables.get(\"b4LinkId\") } }",
+                  "    }",
+                  "});",
+                  "const secret = pm.environment.get(\"webhookSecret\") || pm.collectionVariables.get(\"webhookSecret\");",
+                  "pm.collectionVariables.set(\"webhookBody\", body);",
+                  "pm.collectionVariables.set(\"webhookSignature\", CryptoJS.HmacSHA256(body, secret).toString(CryptoJS.enc.Hex));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Payment is FAILED",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/payments/{{b4PaymentId}}",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{customerToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"FAILED\", () => pm.expect(pm.response.json().status).to.eql(\"FAILED\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Booking becomes CANCELLED",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/bookings/{{b4BookingId}}",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{customerToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "setTimeout(() => {}, 1500); // events are asynchronous: give Kafka consumers a moment"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "const key = \"poll_\" + pm.info.requestName;",
+                  "const n = Number(pm.collectionVariables.get(key) || 0);",
+                  "if (!(body.status === \"CANCELLED\") && n < 15) {",
+                  "    pm.collectionVariables.set(key, n + 1);",
+                  "    console.log(\"waiting for booking CANCELLED, attempt \" + (n + 1));",
+                  "    pm.execution.setNextRequest(pm.info.requestName);",
+                  "} else {",
+                  "    pm.collectionVariables.unset(key);",
+                  "    pm.test(\"reached expected booking CANCELLED\", () => pm.expect(body.status === \"CANCELLED\").to.be.true);",
+                  "",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Seat 4 is AVAILABLE again",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/flight-instance-cabins/flight-instance/{{flightInstanceId}}",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{customerToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "setTimeout(() => {}, 1500); // events are asynchronous: give Kafka consumers a moment"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "const key = \"poll_\" + pm.info.requestName;",
+                  "const n = Number(pm.collectionVariables.get(key) || 0);",
+                  "if (!((body.content[0].seats.find(s => s.id === Number(pm.collectionVariables.get(\"seat4Id\"))) || {}).status === \"AVAILABLE\") && n < 15) {",
+                  "    pm.collectionVariables.set(key, n + 1);",
+                  "    console.log(\"waiting for seat AVAILABLE, attempt \" + (n + 1));",
+                  "    pm.execution.setNextRequest(pm.info.requestName);",
+                  "} else {",
+                  "    pm.collectionVariables.unset(key);",
+                  "    pm.test(\"reached expected seat AVAILABLE\", () => pm.expect((body.content[0].seats.find(s => s.id === Number(pm.collectionVariables.get(\"seat4Id\"))) || {}).status === \"AVAILABLE\").to.be.true);",
+                  "",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "12 Customer cancels before paying",
+      "description": "Flow: Cancelling a booking (PENDING).",
+      "item": [
+        {
+          "name": "Customer books seat 5",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/bookings",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{customerToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"flightId\": {{flightId}},\n  \"flightInstanceId\": {{flightInstanceId}},\n  \"cabinClass\": \"ECONOMY\",\n  \"fareId\": {{fareId}},\n  \"contactInfo\": { \"email\": \"{{customerEmail}}\", \"phone\": \"+919876543210\" },\n  \"passengers\": [\n    {\n      \"firstName\": \"Asha\",\n      \"lastName\": \"Verma\",\n      \"email\": \"{{customerEmail}}\",\n      \"phone\": \"+919876543210\",\n      \"dateOfBirth\": \"1994-03-18\",\n      \"gender\": \"FEMALE\",\n      \"nationality\": \"IN\",\n      \"seatInstanceId\": {{seat5Id}}\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+                  "",
+                  "const r = pm.response.json();",
+                  "pm.test(\"checkout URL returned\", () => pm.expect(r.checkoutUrl).to.be.a(\"string\"));",
+                  "pm.test(\"amount computed by the server\", () => pm.expect(Number(r.amount)).to.be.above(0));",
+                  "pm.collectionVariables.set(\"b5PaymentId\", r.paymentId);",
+                  "pm.collectionVariables.set(\"b5LinkId\", r.razorpayOrderId);",
+                  "pm.collectionVariables.set(\"b5AmountPaise\", Math.round(Number(r.amount) * 100));",
+                  "pm.collectionVariables.set(\"b5Amount\", r.amount);",
+                  "console.log(\"checkout URL:\", r.checkoutUrl);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Find the new booking id in my history",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/bookings/user/history",
+            "description": "POST /api/bookings returns the payment, not the booking id. A real frontend gets the id from the Razorpay callback URL (/booking-success/{bookingId}); here we read it from the booking history.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{customerToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "",
+                  "const pid = Number(pm.collectionVariables.get(\"b5PaymentId\"));",
+                  "const b = pm.response.json().find(x => x.paymentId === pid);",
+                  "pm.test(\"booking found by its payment id\", () => pm.expect(b).to.be.an(\"object\"));",
+                  "pm.collectionVariables.set(\"b5BookingId\", b.id);",
+                  "pm.test(\"booking starts PENDING\", () => pm.expect(b.status).to.eql(\"PENDING\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Customer cancels",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": "{{baseUrl}}/api/bookings/{{b5BookingId}}/cancel",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{customerToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"CANCELLED\", () => pm.expect(pm.response.json().status).to.eql(\"CANCELLED\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Cancel again (idempotent)",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": "{{baseUrl}}/api/bookings/{{b5BookingId}}/cancel",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{customerToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"still CANCELLED\", () => pm.expect(pm.response.json().status).to.eql(\"CANCELLED\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Seat 5 is AVAILABLE again",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/flight-instance-cabins/flight-instance/{{flightInstanceId}}",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{customerToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "setTimeout(() => {}, 1500); // events are asynchronous: give Kafka consumers a moment"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "const key = \"poll_\" + pm.info.requestName;",
+                  "const n = Number(pm.collectionVariables.get(key) || 0);",
+                  "if (!((body.content[0].seats.find(s => s.id === Number(pm.collectionVariables.get(\"seat5Id\"))) || {}).status === \"AVAILABLE\") && n < 15) {",
+                  "    pm.collectionVariables.set(key, n + 1);",
+                  "    console.log(\"waiting for seat AVAILABLE, attempt \" + (n + 1));",
+                  "    pm.execution.setNextRequest(pm.info.requestName);",
+                  "} else {",
+                  "    pm.collectionVariables.unset(key);",
+                  "    pm.test(\"reached expected seat AVAILABLE\", () => pm.expect((body.content[0].seats.find(s => s.id === Number(pm.collectionVariables.get(\"seat5Id\"))) || {}).status === \"AVAILABLE\").to.be.true);",
+                  "",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "13 Checkout validation",
+      "description": "Flow: Checkout fails midway, and rules checked before anything is reserved.",
+      "item": [
+        {
+          "name": "NEGATIVE: same seat twice in one booking",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/bookings",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{customerToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"flightId\": {{flightId}},\n  \"flightInstanceId\": {{flightInstanceId}},\n  \"cabinClass\": \"ECONOMY\",\n  \"fareId\": {{fareId}},\n  \"contactInfo\": { \"email\": \"{{customerEmail}}\", \"phone\": \"+919876543210\" },\n  \"passengers\": [\n    {\n      \"firstName\": \"Asha\",\n      \"lastName\": \"Verma\",\n      \"email\": \"{{customerEmail}}\",\n      \"phone\": \"+919876543210\",\n      \"dateOfBirth\": \"1994-03-18\",\n      \"gender\": \"FEMALE\",\n      \"nationality\": \"IN\",\n      \"seatInstanceId\": {{seat6Id}}\n    }\n  ,{ \"firstName\": \"Kid\", \"lastName\": \"Verma\", \"email\": \"{{customerEmail}}\", \"phone\": \"+919876543210\", \"dateOfBirth\": \"2015-01-01\", \"gender\": \"MALE\", \"seatInstanceId\": {{seat6Id}} }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 422\", () => pm.response.to.have.status(422));",
+                  "pm.test(\"error code is DUPLICATE_SEAT\", () => pm.expect(pm.response.json().code).to.eql(\"DUPLICATE_SEAT\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "NEGATIVE: seat already sold",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/bookings",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{customer2Token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"flightId\": {{flightId}},\n  \"flightInstanceId\": {{flightInstanceId}},\n  \"cabinClass\": \"ECONOMY\",\n  \"fareId\": {{fareId}},\n  \"contactInfo\": { \"email\": \"{{customerEmail}}\", \"phone\": \"+919876543210\" },\n  \"passengers\": [\n    {\n      \"firstName\": \"Ravi\",\n      \"lastName\": \"Verma\",\n      \"email\": \"{{customerEmail}}\",\n      \"phone\": \"+919876543210\",\n      \"dateOfBirth\": \"1994-03-18\",\n      \"gender\": \"FEMALE\",\n      \"nationality\": \"IN\",\n      \"seatInstanceId\": {{seat1Id}}\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 409\", () => pm.response.to.have.status(409));",
+                  "pm.test(\"error code is SEAT_UNAVAILABLE\", () => pm.expect(pm.response.json().code).to.eql(\"SEAT_UNAVAILABLE\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "NEGATIVE: meal not offered on this flight",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/bookings",
+            "description": "Fails after the seat hold, so booking-service releases the seat (compensation).",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{customer2Token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"flightId\": {{flightId}},\n  \"flightInstanceId\": {{flightInstanceId}},\n  \"cabinClass\": \"ECONOMY\",\n  \"fareId\": {{fareId}},\n  \"contactInfo\": { \"email\": \"{{customerEmail}}\", \"phone\": \"+919876543210\" },\n  \"passengers\": [\n    {\n      \"firstName\": \"Ravi\",\n      \"lastName\": \"Verma\",\n      \"email\": \"{{customerEmail}}\",\n      \"phone\": \"+919876543210\",\n      \"dateOfBirth\": \"1994-03-18\",\n      \"gender\": \"FEMALE\",\n      \"nationality\": \"IN\",\n      \"seatInstanceId\": {{seat6Id}}\n    }\n  ],\n  \"mealIds\": [999999]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 404\", () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Seat 6 was released by compensation",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/flight-instance-cabins/flight-instance/{{flightInstanceId}}",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{customerToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "setTimeout(() => {}, 1500); // events are asynchronous: give Kafka consumers a moment"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "const key = \"poll_\" + pm.info.requestName;",
+                  "const n = Number(pm.collectionVariables.get(key) || 0);",
+                  "if (!((body.content[0].seats.find(s => s.id === Number(pm.collectionVariables.get(\"seat6Id\"))) || {}).status === \"AVAILABLE\") && n < 15) {",
+                  "    pm.collectionVariables.set(key, n + 1);",
+                  "    console.log(\"waiting for seat AVAILABLE, attempt \" + (n + 1));",
+                  "    pm.execution.setNextRequest(pm.info.requestName);",
+                  "} else {",
+                  "    pm.collectionVariables.unset(key);",
+                  "    pm.test(\"reached expected seat AVAILABLE\", () => pm.expect((body.content[0].seats.find(s => s.id === Number(pm.collectionVariables.get(\"seat6Id\"))) || {}).status === \"AVAILABLE\").to.be.true);",
+                  "",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "NEGATIVE: missing passengers fails validation",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/bookings",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{customerToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"flightId\": {{flightId}},\n  \"flightInstanceId\": {{flightInstanceId}},\n  \"cabinClass\": \"ECONOMY\",\n  \"fareId\": {{fareId}},\n  \"passengers\": []\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"error code is VALIDATION_FAILED\", () => pm.expect(pm.response.json().code).to.eql(\"VALIDATION_FAILED\"));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "14 Back office",
+      "description": "Flows: Viewing bookings and payments, Admin back office.",
+      "item": [
+        {
+          "name": "Customer booking history",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/bookings/user/history",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{customerToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"5 bookings\", () => pm.expect(pm.response.json().length).to.eql(5));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Airline owner sees bookings on own flights",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/bookings/airline?size=50",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{ownerToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"includes the confirmed booking\", () => pm.expect(pm.response.json().content.map(b => b.id)).to.include(Number(pm.collectionVariables.get(\"b1BookingId\"))));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Airline owner filters CONFIRMED",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/bookings/airline?status=CONFIRMED",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{ownerToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"all confirmed\", () => pm.response.json().content.forEach(b => pm.expect(b.status).to.eql(\"CONFIRMED\")));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "NEGATIVE: customer cannot list airline bookings",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/bookings/airline",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{customerToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 403\", () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Admin lists payments",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/payments?size=20&sortBy=createdAt&sortDirection=DESC",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "NEGATIVE: unsupported sort field",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/payments?sortBy=userEmail",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "NEGATIVE: customer cannot list payments",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/payments",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{customerToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 403\", () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Admin lists users",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/users?size=5",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "NEGATIVE: admin cannot purge an active booking",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/api/bookings/{{b1BookingId}}",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 422\", () => pm.response.to.have.status(422));",
+                  "pm.test(\"error code is NOT_DELETABLE\", () => pm.expect(pm.response.json().code).to.eql(\"NOT_DELETABLE\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Admin purges a cancelled booking",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/api/bookings/{{b5BookingId}}",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 204\", () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:5000"
+    },
+    {
+      "key": "adminEmail",
+      "value": "admin@airline.local"
+    },
+    {
+      "key": "adminPassword",
+      "value": "ChangeMe!Local123"
+    },
+    {
+      "key": "webhookSecret",
+      "value": "local-stub-webhook-secret"
+    }
+  ]
+}

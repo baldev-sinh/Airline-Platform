@@ -1,0 +1,16 @@
+# Offline payment provider for local and end-to-end testing without Razorpay credentials.
+# Activate together with your usual profile, e.g. SPRING_PROFILES_ACTIVE=local,payment-stub
+# NEVER enable this profile in production: payments are simulated and no money is collected.
+#
+# How the stub behaves (see StubPaymentGateway):
+#   - payment links are created offline with id plink_STUB<paymentId>
+#   - POST /api/payments/verify understands pay_STUBOK<id> (paid), pay_STUBLOW<id> (underpaid),
+#     pay_STUBFAIL<id> (failed) and pay_STUBWAIT<id> (authorized, not captured)
+#   - webhooks are verified for real: sign the raw body with HMAC-SHA256 using the webhook secret below
+airline:
+  payment:
+    razorpay:
+      key-id: ${RAZORPAY_KEY_ID:rzp_test_stub}
+      key-secret: ${RAZORPAY_KEY_SECRET:stub}
+      webhook-secret: ${RAZORPAY_WEBHOOK_SECRET:local-stub-webhook-secret}
+      callback-base-url: ${PAYMENT_CALLBACK_BASE_URL:http://localhost:5173}

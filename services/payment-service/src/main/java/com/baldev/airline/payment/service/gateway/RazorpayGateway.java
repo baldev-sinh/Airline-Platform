@@ -12,34 +12,27 @@ import com.razorpay.Utils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.json.JSONObject;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 import java.time.Clock;
 
 /**
  * Adapter over the Razorpay SDK. Translates SDK exceptions into {@link DownstreamServiceException} and keeps
- * gateway-specific JSON out of the domain service.
+ * gateway-specific JSON out of the domain service. Replaced by {@link StubPaymentGateway} under the
+ * {@code payment-stub} profile.
  */
 @Slf4j
 @Component
+@Profile("!payment-stub")
 @RequiredArgsConstructor
-public class RazorpayGateway {
+public class RazorpayGateway implements PaymentProvider {
 
     private final RazorpayClient razorpay;
     private final PaymentProperties properties;
     private final Clock clock;
 
-    /** Gateway's view of a payment, as fetched with our API credentials (never trusted from the client). */
-    public record GatewayPayment(String id, String status, long amountMinor, String currency, String notesPaymentId) {
-
-        public boolean isCaptured() {
-            return "captured".equalsIgnoreCase(status);
-        }
-    }
-
-    public record CheckoutLink(String id, String url) {
-    }
-
+    @Override
     public CheckoutLink createPaymentLink(Payment payment, UserDTO user) {
         JSONObject request = new JSONObject();
         request.put("amount", Money.toMinorUnits(payment.getAmount()));
@@ -80,6 +73,7 @@ public class RazorpayGateway {
         }
     }
 
+    @Override
     public GatewayPayment fetchPayment(String providerPaymentId) {
         try {
             JSONObject json = razorpay.payments.fetch(providerPaymentId).toJson();
@@ -96,7 +90,7 @@ public class RazorpayGateway {
         }
     }
 
-    /** Verifies the X-Razorpay-Signature header (HMAC-SHA256 of the raw body with the webhook secret). */
+    @Override
     public boolean isValidWebhookSignature(String rawBody, String signature) {
         if (signature == null || signature.isBlank()) {
             return false;
