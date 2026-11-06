@@ -19,6 +19,11 @@
         (error handling, Feign defaults, Kafka error handling) for airline services.
     </description>
 
+    <properties>
+        <!-- Library jar, not a runnable service: jib:build runs reactor-wide from CI, so opt out here. -->
+        <jib.skip>true</jib.skip>
+    </properties>
+
     <dependencies>
         <dependency>
             <groupId>org.springframework.boot</groupId>
