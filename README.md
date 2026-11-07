@@ -98,7 +98,20 @@ services/<name>/           one Spring Boot app per bounded context
     application-local.yaml local development overrides
     db/migration/          Flyway migrations
 docker-compose/            full local stack
+frontend/                  Angular customer website (see frontend/README.md)
 ```
+
+## Web app
+
+`frontend/` is the customer website (Angular 22): flight search, fares, seat map, meals and bags, payment
+and "My trips". With the backend running:
+
+```bash
+cd frontend && npm install && npm start    # http://localhost:5173, proxies /api and /auth to :5000
+```
+
+Port 5173 matches the local `CORS_ALLOWED_ORIGINS` and `PAYMENT_CALLBACK_BASE_URL` defaults, so payment
+redirects come back to the app. Details in [frontend/README.md](frontend/README.md).
 
 ## Running locally
 
