@@ -98,7 +98,7 @@ services:
     volumes: [ seatdb-data:/var/lib/mysql ]
 
   kafka:
-    image: apache/kafka:4.2.0
+    image: apache/kafka:4.3.1
     restart: unless-stopped
     mem_limit: 1g
     networks: [ backend ]
