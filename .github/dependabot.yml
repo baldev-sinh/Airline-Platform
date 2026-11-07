@@ -1,17 +1,28 @@
+# Dependabot checks for newer dependency versions once a month and opens at most one combined
+# pull request per ecosystem (Maven, GitHub Actions, Docker Compose).
 version: 2
 updates:
   - package-ecosystem: maven
     directory: /
     schedule:
-      interval: weekly
+      interval: monthly
+    open-pull-requests-limit: 1
     groups:
-      spring:
-        patterns: [ "org.springframework*" ]
+      maven:
+        patterns: [ "*" ]
   - package-ecosystem: github-actions
     directory: /
     schedule:
-      interval: weekly
+      interval: monthly
+    open-pull-requests-limit: 1
+    groups:
+      github-actions:
+        patterns: [ "*" ]
   - package-ecosystem: docker-compose
     directory: /docker-compose
     schedule:
-      interval: weekly
+      interval: monthly
+    open-pull-requests-limit: 1
+    groups:
+      docker-compose:
+        patterns: [ "*" ]
