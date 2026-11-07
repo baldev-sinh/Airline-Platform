@@ -169,7 +169,7 @@ services:
   # Grafana with the Prometheus data source and the "Airline services" dashboard provisioned:
   # http://localhost:3000, user admin, password GRAFANA_ADMIN_PASSWORD from .env.
   grafana:
-    image: grafana/grafana:13.2.4
+    image: grafana/grafana:13.3.0
     restart: unless-stopped
     mem_limit: 512m
     networks: [ backend ]
