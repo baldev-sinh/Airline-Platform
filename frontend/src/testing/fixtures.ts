@@ -134,6 +134,7 @@ export function makeMeal(id: number, price: number): FlightMeal {
     meal: {
       id,
       code: `M${id}`,
+      ingredients: null,
       name: `Meal ${id}`,
       description: null,
       mealType: 'VEG',
