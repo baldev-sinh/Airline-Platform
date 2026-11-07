@@ -1,0 +1,10 @@
+<!-- First focusable element: lets keyboard users jump past the navigation. -->
+<a class="skip-link no-print" href="#main">Skip to main content</a>
+
+<app-site-header />
+
+<main id="main" #main tabindex="-1">
+  <router-outlet />
+</main>
+
+<app-site-footer />

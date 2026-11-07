@@ -1,0 +1,196 @@
+<div class="container page">
+  <a routerLink="/trips" class="back no-print">← All trips</a>
+
+  @if (booking.isLoading() && !booking.hasValue()) {
+    <app-loading label="Loading your trip" />
+  } @else if (booking.error()) {
+    <app-error-state [message]="errorText()" (retry)="booking.reload()" />
+  } @else if (booking.hasValue()) {
+    @let b = booking.value();
+    @let meta = statusMeta[b.status];
+
+    <header class="head">
+      <div>
+        <p class="head__ref">
+          Booking reference <strong>{{ b.bookingReference }}</strong>
+        </p>
+        <h1>{{ b.departureAirport }} to {{ b.arrivalAirport }}</h1>
+        <span [class]="'badge badge--' + meta.tone">{{ meta.label }}</span>
+      </div>
+      <div class="head__actions no-print">
+        @if (payUrl(); as url) {
+          <a class="btn btn--primary" [href]="url">Complete payment</a>
+        }
+        @if (b.status === 'CONFIRMED') {
+          <button type="button" class="btn btn--outline" (click)="print()">Print itinerary</button>
+        }
+        @if (b.status === 'PENDING') {
+          <button type="button" class="btn btn--danger" (click)="openCancel()">
+            Cancel booking
+          </button>
+        }
+      </div>
+    </header>
+
+    @if (b.status === 'PENDING') {
+      <div class="alert alert--warning block" role="status">
+        <p>
+          This booking is awaiting payment. Seats are held for a limited time; if payment isn't
+          completed, the booking is cancelled automatically.
+        </p>
+      </div>
+    }
+    @if (b.status === 'CANCELLED' && b.cancellationReason) {
+      <div class="alert alert--danger block">
+        <p>Cancelled: {{ b.cancellationReason }}</p>
+      </div>
+    }
+
+    <div class="layout">
+      <div class="stack">
+        <section class="card" aria-labelledby="itinerary-title">
+          <h2 id="itinerary-title" class="card__title">Flight</h2>
+          <div class="leg">
+            <div>
+              <p class="leg__time">{{ b.departureTime | date: 'HH:mm' }}</p>
+              <p class="leg__code">{{ b.departureAirport }}</p>
+            </div>
+            <div class="leg__mid">
+              <span>{{ b.flightDuration }}</span>
+              <span class="leg__line" aria-hidden="true"></span>
+              <span>{{ b.flightNumber }}</span>
+            </div>
+            <div class="leg__end">
+              <p class="leg__time">{{ b.arrivalTime | date: 'HH:mm' }}</p>
+              <p class="leg__code">{{ b.arrivalAirport }}</p>
+            </div>
+          </div>
+          <p class="muted">
+            {{ b.departureTime | date: 'EEEE d MMMM y' }}
+            @if (b.flightName) {
+              · {{ b.flightName }}
+            }
+            @if (b.fareName) {
+              · {{ b.fareName }} fare
+            }
+          </p>
+          <p class="muted small">All times are local to the airport.</p>
+        </section>
+
+        <section class="card" aria-labelledby="travellers-title">
+          <h2 id="travellers-title" class="card__title">Travellers and e-tickets</h2>
+          <table class="table">
+            <caption class="visually-hidden">
+              Travellers, seats and e-ticket numbers
+            </caption>
+            <thead>
+              <tr>
+                <th scope="col">Traveller</th>
+                <th scope="col">Seat</th>
+                <th scope="col">E-ticket</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (t of travellers(); track t.id) {
+                <tr>
+                  <td>{{ t.fullName || t.firstName + ' ' + t.lastName }}</td>
+                  <td>{{ t.seat ?? '–' }}</td>
+                  <td>
+                    @if (t.ticket; as ticket) {
+                      <span class="ticket">{{ ticket.ticketNumber }}</span>
+                    } @else {
+                      <span class="muted">{{
+                        b.status === 'CONFIRMED' ? 'Being issued' : 'Issued after payment'
+                      }}</span>
+                    }
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </section>
+
+        @if ((b.meals?.length ?? 0) > 0 || (b.ancillaries?.length ?? 0) > 0) {
+          <section class="card" aria-labelledby="extras-title">
+            <h2 id="extras-title" class="card__title">Extras</h2>
+            <ul class="plain-list">
+              @for (m of b.meals; track $index) {
+                <li>Meal: {{ m.meal.name }}</li>
+              }
+              @for (a of b.ancillaries; track $index) {
+                <li>{{ a.ancillary.name }}</li>
+              }
+            </ul>
+          </section>
+        }
+      </div>
+
+      <aside class="stack">
+        <section class="card" aria-labelledby="payment-title">
+          <h2 id="payment-title" class="card__title">Payment</h2>
+          <dl class="lines">
+            <div>
+              <dt>Fare</dt>
+              <dd>{{ b.fareAmount | money: b.currency }}</dd>
+            </div>
+            @if (b.seatAmount) {
+              <div>
+                <dt>Seats</dt>
+                <dd>{{ b.seatAmount | money: b.currency }}</dd>
+              </div>
+            }
+            @if (b.mealAmount) {
+              <div>
+                <dt>Meals</dt>
+                <dd>{{ b.mealAmount | money: b.currency }}</dd>
+              </div>
+            }
+            @if (b.ancillaryAmount) {
+              <div>
+                <dt>Extras</dt>
+                <dd>{{ b.ancillaryAmount | money: b.currency }}</dd>
+              </div>
+            }
+            <div class="lines__total">
+              <dt>Total</dt>
+              <dd>{{ b.totalAmount | money: b.currency }}</dd>
+            </div>
+          </dl>
+          <p class="muted small">Booked on {{ b.bookingDate | date: 'd MMM y, HH:mm' }}</p>
+        </section>
+
+        @if (b.contactInfo; as contact) {
+          <section class="card" aria-labelledby="contact-title">
+            <h2 id="contact-title" class="card__title">Contact</h2>
+            <p class="small">{{ contact.email }}<br />{{ contact.phone }}</p>
+          </section>
+        }
+      </aside>
+    </div>
+
+    <!-- Native <dialog>: showModal() gives a real modal (focus trapped, Esc closes, background inert). -->
+    <dialog #cancelDialog class="dialog" aria-labelledby="cancel-title">
+      <h2 id="cancel-title">Cancel this booking?</h2>
+      <p>
+        The held seats will be released and the payment link will stop working. This can't be
+        undone.
+      </p>
+      @if (actionError(); as message) {
+        <div class="alert alert--danger" role="alert">
+          <p>{{ message }}</p>
+        </div>
+      }
+      <div class="dialog__actions">
+        <button type="button" class="btn btn--outline" (click)="closeCancel()">Keep booking</button>
+        <button
+          type="button"
+          class="btn btn--danger"
+          [disabled]="cancelling()"
+          (click)="confirmCancel(b)"
+        >
+          {{ cancelling() ? 'Cancelling…' : 'Yes, cancel' }}
+        </button>
+      </div>
+    </dialog>
+  }
+</div>

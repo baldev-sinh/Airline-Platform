@@ -1,0 +1,106 @@
+<h2 id="step-heading" tabindex="-1">Choose your seats</h2>
+<p class="muted">
+  Pick a traveller, then a seat. Seats are held for you once you continue to payment.
+</p>
+
+@if (store.seatNotice(); as notice) {
+  <div class="alert alert--warning" role="alert">
+    <p>{{ notice }}</p>
+  </div>
+}
+
+<div class="seats">
+  <div class="seats__side">
+    <!-- Whose seat are we choosing? -->
+    <fieldset class="plain">
+      <legend>Travellers</legend>
+      <div class="who">
+        @for (p of passengers(); track p.index) {
+          <label class="who__item" [class.is-active]="store.activePassenger() === p.index">
+            <input
+              type="radio"
+              name="active-passenger"
+              class="visually-hidden"
+              [checked]="store.activePassenger() === p.index"
+              (change)="store.activePassenger.set(p.index)"
+            />
+            <span class="who__name">{{ p.name }}</span>
+            <span class="who__seat">
+              @if (p.seat; as seat) {
+                {{ seat.seatNumber }} · {{ seat.price ? (seat.price | money) : 'Included' }}
+              } @else {
+                No seat yet
+              }
+            </span>
+          </label>
+        }
+      </div>
+    </fieldset>
+
+    <button type="button" class="btn btn--outline btn--block" (click)="store.autoAssign()">
+      Choose seats for me
+    </button>
+
+    <ul class="legend" aria-label="Seat map key">
+      <li><span class="seat seat--sample"></span> Available</li>
+      <li><span class="seat seat--sample is-legroom"></span> Extra legroom</li>
+      <li><span class="seat seat--sample is-mine"></span> Your choice</li>
+      <li><span class="seat seat--sample is-taken"></span> Not available</li>
+    </ul>
+  </div>
+
+  @if (layout(); as map) {
+    <div class="cabin" role="group" aria-label="Seat map, front of the aircraft at the top">
+      <div class="cabin__nose" aria-hidden="true">Front</div>
+
+      <div class="cabin__row cabin__row--head" aria-hidden="true">
+        <span class="cabin__num"></span>
+        @for (col of map.leftColumns; track col) {
+          <span class="cabin__col">{{ col }}</span>
+        }
+        <span class="cabin__aisle"></span>
+        @for (col of map.rightColumns; track col) {
+          <span class="cabin__col">{{ col }}</span>
+        }
+      </div>
+
+      @for (row of map.rows; track row.row) {
+        <div class="cabin__row">
+          <span class="cabin__num" aria-hidden="true">{{ row.row }}</span>
+          @for (seat of row.left; track $index) {
+            <ng-container *ngTemplateOutlet="seatButton; context: { $implicit: seat }" />
+          }
+          <span class="cabin__aisle" aria-hidden="true"></span>
+          @for (seat of row.right; track $index) {
+            <ng-container *ngTemplateOutlet="seatButton; context: { $implicit: seat }" />
+          }
+        </div>
+      }
+    </div>
+  }
+</div>
+
+<!-- One seat. Defined once as a template and reused for both sides of the aisle. -->
+<ng-template #seatButton let-seat>
+  @if (seat) {
+    @let mine = store.occupantOf(seat.id) !== -1;
+    <button
+      type="button"
+      class="seat"
+      [class.is-mine]="mine"
+      [class.is-taken]="!mine && !isFree(seat)"
+      [class.is-legroom]="isExtraLegroom(seat)"
+      [disabled]="!mine && !isFree(seat)"
+      [attr.aria-pressed]="mine"
+      [attr.aria-label]="describe(seat, seat.price ? (seat.price | money) : 'no extra charge')"
+      [title]="seat.seatNumber + (seat.price ? ' · ' + (seat.price | money) : '')"
+      (click)="store.toggleSeat(seat.id)"
+    >
+      @if (mine) {
+        <span aria-hidden="true">{{ store.occupantOf(seat.id) + 1 }}</span>
+      }
+    </button>
+  } @else {
+    <span class="seat seat--gap" aria-hidden="true"></span>
+  }
+</ng-template>

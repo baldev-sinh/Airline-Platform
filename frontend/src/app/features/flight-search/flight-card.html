@@ -1,0 +1,72 @@
+@let f = flight();
+<article
+  class="flight"
+  [attr.aria-label]="
+    f.airlineName + ' ' + f.flightNumber + ', departs ' + (f.departureDateTime | date: 'HH:mm')
+  "
+>
+  <div class="flight__carrier">
+    <app-airline-mark [name]="f.airlineName" [logoUrl]="f.airlineLogo" />
+    <div>
+      <p class="flight__airline">{{ f.airlineName }}</p>
+      <p class="flight__number">
+        {{ f.flightNumber }}
+        @if (f.aircraftModal) {
+          · {{ f.aircraftModal }}
+        }
+      </p>
+    </div>
+  </div>
+
+  <div class="flight__times">
+    <div class="flight__point">
+      <time class="flight__time" [attr.datetime]="f.departureDateTime">{{
+        f.departureDateTime | date: 'HH:mm'
+      }}</time>
+      <span class="flight__code">{{ f.departureAirport.iataCode }}</span>
+    </div>
+
+    <div class="flight__path" aria-hidden="true">
+      <span class="flight__duration">{{ f.formattedDuration }}</span>
+      <span class="flight__line"></span>
+      <span class="flight__stops">Non-stop</span>
+    </div>
+
+    <div class="flight__point flight__point--end">
+      <time class="flight__time" [attr.datetime]="f.arrivalDateTime">
+        {{ f.arrivalDateTime | date: 'HH:mm' }}
+        @if (arrivesNextDay() > 0) {
+          <sup
+            class="flight__next-day"
+            [attr.title]="'Arrives ' + (f.arrivalDateTime | date: 'EEE d MMM')"
+            >+{{ arrivesNextDay() }}</sup
+          >
+        }
+      </time>
+      <span class="flight__code">{{ f.arrivalAirport.iataCode }}</span>
+    </div>
+    <p class="visually-hidden">
+      Non-stop, {{ f.formattedDuration }}. Arrives
+      {{ f.arrivalDateTime | date: 'EEEE d MMMM, HH:mm' }}.
+    </p>
+  </div>
+
+  <div class="flight__offer">
+    @if (f.fare; as fare) {
+      <p class="flight__from">{{ fare.fareLabel || fare.name }}</p>
+      <p class="flight__price">{{ fare.totalPrice | money }}</p>
+      <p class="flight__per">
+        per adult
+        @if (passengers() > 1) {
+          · {{ totalForAll() | money }} total
+        }
+      </p>
+    }
+    @if (seatsLeft(); as seats) {
+      <p class="flight__seats">Only {{ seats }} {{ seats === 1 ? 'seat' : 'seats' }} left</p>
+    }
+    <button type="button" class="btn btn--primary btn--block" (click)="selected.emit(f)">
+      Select<span class="visually-hidden"> flight {{ f.flightNumber }}</span>
+    </button>
+  </div>
+</article>

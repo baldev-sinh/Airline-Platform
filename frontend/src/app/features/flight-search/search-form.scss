@@ -1,0 +1,67 @@
+@use 'mixins' as *;
+
+.search {
+  display: grid;
+  gap: var(--space-4);
+  align-items: start;
+
+  @include from('md') {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  @include from('lg') {
+    grid-template-columns: minmax(0, 2.6fr) minmax(0, 1.1fr) minmax(0, 0.9fr) minmax(0, 1fr) auto;
+  }
+}
+
+// From  [swap]  To
+.search__route {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  gap: var(--space-2);
+  align-items: start;
+
+  @include from('md') {
+    grid-column: 1 / -1;
+  }
+
+  @include from('lg') {
+    grid-column: auto;
+  }
+}
+
+.search__swap {
+  display: grid;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  margin-top: 1.85rem; // lines up with the inputs, below their labels
+  border: 1px solid var(--color-line-strong);
+  border-radius: 50%;
+  background: var(--color-surface);
+  color: var(--color-brand);
+  cursor: pointer;
+
+  &:hover {
+    border-color: var(--color-brand);
+    background: var(--color-brand-soft);
+  }
+}
+
+.search__submit {
+  @include from('md') {
+    grid-column: 1 / -1;
+  }
+
+  @include from('lg') {
+    grid-column: auto;
+    margin-top: 1.6rem;
+    min-height: 2.875rem;
+    font-size: var(--text-md);
+  }
+}
+
+// Results page: everything on fewer, tighter lines.
+.search--compact {
+  gap: var(--space-3);
+}

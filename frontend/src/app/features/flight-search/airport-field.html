@@ -1,0 +1,55 @@
+<div class="field airport">
+  <label class="field__label" [for]="inputId()">{{ label() }}</label>
+  <input
+    class="field__control"
+    type="text"
+    role="combobox"
+    autocomplete="off"
+    aria-autocomplete="list"
+    [id]="inputId()"
+    [placeholder]="placeholder()"
+    [value]="displayText()"
+    [disabled]="disabled()"
+    [attr.aria-expanded]="open()"
+    [attr.aria-controls]="listId()"
+    [attr.aria-activedescendant]="activeOptionId()"
+    [attr.aria-describedby]="describedBy()"
+    [attr.aria-invalid]="invalid()"
+    [class.is-invalid]="invalid()"
+    (focus)="onFocus()"
+    (input)="onInput($any($event.target).value)"
+    (keydown)="onKeydown($event)"
+    (blur)="onBlur()"
+  />
+
+  @if (open()) {
+    <ul class="airport__list" role="listbox" [id]="listId()" [attr.aria-label]="label()">
+      @for (airport of suggestions(); track airport.id; let i = $index) {
+        <!-- Keyboard users use the arrow keys on the input (aria-activedescendant), so options
+             themselves are not focusable. That is the WAI-ARIA combobox pattern. -->
+        <li
+          role="option"
+          class="airport__option"
+          [id]="inputId() + '-opt-' + i"
+          [attr.aria-selected]="i === activeIndex()"
+          [class.is-active]="i === activeIndex()"
+          (mousedown)="onOptionMousedown($event, airport)"
+          (mouseenter)="activeIndex.set(i)"
+        >
+          <span class="airport__code">{{ airport.iataCode }}</span>
+          <span class="airport__names">
+            <span class="airport__city"
+              >{{ cityName(airport)
+              }}<span class="muted">, {{ airport.city?.countryName }}</span></span
+            >
+            <span class="airport__name">{{ airport.name }}</span>
+          </span>
+        </li>
+      } @empty {
+        <li class="airport__empty" role="option" aria-disabled="true" aria-selected="false">
+          No airports match "{{ text() }}"
+        </li>
+      }
+    </ul>
+  }
+</div>

@@ -331,6 +331,22 @@ services:
       SERVER_PORT: 5011
       DB_URL: jdbc:mysql://flightopsdb:3306/airline_flight_db
 
+  # ---------------------------------------------------------------- web app
+  # The Angular site, served by nginx, which also forwards /api and /auth to the gateway (same origin, so
+  # no CORS needed). Published on 5173 to match the PAYMENT_CALLBACK_BASE_URL and CORS defaults above.
+  # While developing the frontend, use `npm start` in frontend/ instead (it also uses port 5173).
+  web:
+    build: ../frontend
+    image: ${IMAGE_REGISTRY:-baldevsinh}/airline-web:${IMAGE_TAG:-0.0.1-SNAPSHOT}
+    restart: unless-stopped
+    mem_limit: 64m
+    networks: [ edge ]
+    ports: [ "5173:8080" ]
+    environment:
+      API_GATEWAY_URL: http://api-gateway:5000
+    depends_on:
+      api-gateway: { condition: service_healthy }
+
 networks:
   # Business services publish no ports: clients can only reach them through the gateway on the edge network.
   backend: { }

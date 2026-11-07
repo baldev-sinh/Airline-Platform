@@ -1,0 +1,72 @@
+<div class="container page">
+  <header class="page-header trips__header">
+    <div>
+      <h1>My trips</h1>
+      <p>Your bookings, e-tickets and payments.</p>
+    </div>
+    <a routerLink="/" class="btn btn--primary">Book a new trip</a>
+  </header>
+
+  @if (bookings.isLoading()) {
+    <app-loading label="Loading your trips" />
+  } @else if (bookings.error()) {
+    <app-error-state [message]="errorText()" (retry)="bookings.reload()" />
+  } @else if (all().length === 0) {
+    <app-empty-state title="No trips yet">
+      <p class="muted">When you book a flight, it will appear here.</p>
+      <a routerLink="/" class="btn btn--primary">Find a flight</a>
+    </app-empty-state>
+  } @else {
+    <!-- A group of toggle buttons; aria-pressed tells assistive tech which one is on. -->
+    <div class="segments" role="group" aria-label="Show trips">
+      @for (g of groups; track g.id) {
+        <button
+          type="button"
+          class="segments__btn"
+          [attr.aria-pressed]="group() === g.id"
+          (click)="group.set(g.id)"
+        >
+          {{ g.label }} <span class="segments__count">{{ counts()[g.id] }}</span>
+        </button>
+      }
+    </div>
+
+    @if (visible().length === 0) {
+      <p class="muted empty">No {{ group() }} trips.</p>
+    }
+
+    <ul class="trips">
+      @for (b of visible(); track b.id) {
+        @let meta = statusMeta[b.status];
+        <li>
+          <a class="trip" [routerLink]="['/trips', b.id]">
+            <div class="trip__date" aria-hidden="true">
+              <span class="trip__day">{{ b.departureTime | date: 'd' }}</span>
+              <span class="trip__month">{{ b.departureTime | date: 'MMM' }}</span>
+            </div>
+            <div class="trip__main">
+              <p class="trip__route">
+                {{ b.departureAirport }} <span aria-hidden="true">→</span
+                ><span class="visually-hidden">to</span> {{ b.arrivalAirport }}
+              </p>
+              <p class="trip__meta">
+                {{ b.departureTime | date: 'EEE d MMM y, HH:mm' }} · {{ b.flightNumber }} ·
+                {{ b.passengers.length }}
+                {{ b.passengers.length === 1 ? 'traveller' : 'travellers' }}
+              </p>
+              <p class="trip__ref">
+                Ref. <strong>{{ b.bookingReference }}</strong>
+              </p>
+            </div>
+            <div class="trip__side">
+              <span [class]="'badge badge--' + meta.tone">{{ meta.label }}</span>
+              @if (b.totalAmount !== null) {
+                <span class="trip__amount">{{ b.totalAmount | money: b.currency }}</span>
+              }
+            </div>
+          </a>
+        </li>
+      }
+    </ul>
+  }
+</div>

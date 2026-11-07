@@ -1,0 +1,148 @@
+@use 'mixins' as *;
+
+// Teal band at the top with the route and a "Change search" button.
+.summary {
+  background: var(--color-brand);
+  color: #fff;
+  padding-block: var(--space-4);
+}
+
+.summary__inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+}
+
+.summary__title {
+  color: #fff;
+  font-size: var(--text-xl);
+  margin: 0;
+
+  @include from('md') {
+    font-size: var(--text-2xl);
+  }
+}
+
+.summary__meta {
+  margin: 0;
+  color: #d9e6e8;
+}
+
+.summary__form {
+  margin-top: var(--space-4);
+  color: var(--color-ink);
+}
+
+// Previous day / next day
+.days {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: var(--space-4);
+}
+
+.days__link {
+  font-weight: var(--weight-semibold);
+  text-decoration: none;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+
+  &:hover {
+    background: var(--color-brand-soft);
+  }
+
+  &.is-disabled {
+    color: var(--color-line-strong);
+    pointer-events: none;
+  }
+}
+
+.results__layout {
+  display: grid;
+  gap: var(--space-5);
+
+  @include from('lg') {
+    grid-template-columns: 15rem minmax(0, 1fr);
+    align-items: start;
+  }
+}
+
+// ---- Filters ----
+.filters__toggle {
+  @include from('lg') {
+    display: none;
+  }
+}
+
+.filters__panel {
+  display: none;
+  margin-top: var(--space-3);
+  gap: var(--space-5);
+
+  &.is-open {
+    display: grid;
+  }
+
+  @include from('lg') {
+    display: grid;
+    margin-top: 0;
+    position: sticky;
+    top: calc(var(--header-height) + var(--space-4));
+  }
+}
+
+.filters__group {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.check {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  cursor: pointer;
+
+  input {
+    width: 1.125rem;
+    height: 1.125rem;
+    accent-color: var(--color-brand);
+  }
+}
+
+// ---- Results ----
+.results__bar {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: var(--space-4);
+  margin-bottom: var(--space-4);
+}
+
+.results__count {
+  margin: 0;
+  font-size: var(--text-lg);
+}
+
+.results__sort {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+
+  .field__control {
+    width: auto;
+  }
+}
+
+.results__list {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.results__note {
+  margin-top: var(--space-4);
+  font-size: var(--text-sm);
+}

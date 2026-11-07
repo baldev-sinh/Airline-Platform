@@ -1,0 +1,148 @@
+<section class="hero" aria-labelledby="hero-title">
+  <!-- Decorative flight-path arcs drawn in SVG: no photo to download, sharp on every screen. -->
+  <svg
+    class="hero__art"
+    viewBox="0 0 1200 360"
+    preserveAspectRatio="xMidYMid slice"
+    aria-hidden="true"
+  >
+    <path
+      d="M-20 300 C 260 80, 620 40, 980 150"
+      fill="none"
+      stroke="#fff"
+      stroke-opacity=".35"
+      stroke-width="2"
+      stroke-dasharray="2 10"
+      stroke-linecap="round"
+    />
+    <path
+      d="M80 360 C 360 190, 700 170, 1220 230"
+      fill="none"
+      stroke="#fff"
+      stroke-opacity=".18"
+      stroke-width="2"
+      stroke-dasharray="2 10"
+      stroke-linecap="round"
+    />
+  </svg>
+
+  <!-- A large tail fin, the logo's exact shape (see brand-logo.ts). It's a separate SVG so it keeps
+       its proportions on every screen width, while the arcs above stretch to fill the hero. -->
+  <svg class="hero__fin" viewBox="0 0 48 48" aria-hidden="true">
+    <defs>
+      <clipPath id="hero-fin">
+        <path d="M5 45 L19 5 Q19.8 3 22 3 L41 3 L34 45 Z" />
+      </clipPath>
+    </defs>
+    <path d="M5 45 L19 5 Q19.8 3 22 3 L41 3 L34 45 Z" fill="#1b6577" />
+    <path
+      clip-path="url(#hero-fin)"
+      d="M0 40 C 14 30, 30 29, 48 31 L48 37 C 30 35, 14 37, 0 47 Z"
+      fill="#f29b38"
+    />
+    <g
+      transform="translate(22 9) skewX(-19)"
+      fill="none"
+      stroke="#fff"
+      stroke-opacity=".12"
+      stroke-width="3.4"
+      stroke-linejoin="round"
+      stroke-linecap="square"
+    >
+      <path d="M0 0 V19 M0 0 H5.4 a4.3 4.3 0 0 1 0 8.6 H0 M0 8.6 H6.2 a5.2 5.2 0 0 1 0 10.4 H0" />
+    </g>
+  </svg>
+
+  <div class="container hero__inner">
+    <p class="hero__eyebrow">Fly well. Arrive better.</p>
+    <h1 id="hero-title" class="hero__title">Where would you like to go?</h1>
+  </div>
+</section>
+
+<div class="container">
+  <section class="search-card card" aria-label="Search flights">
+    <app-search-form />
+  </section>
+</div>
+
+<div class="container page">
+  <section class="benefits" aria-labelledby="benefits-title">
+    <h2 id="benefits-title" class="visually-hidden">Why book with us</h2>
+    @for (b of benefits; track b.title) {
+      <article class="benefit">
+        <span class="benefit__icon" aria-hidden="true">
+          @switch (b.icon) {
+            @case ('seat') {
+              <svg viewBox="0 0 32 32" width="28" height="28">
+                <path
+                  d="M10 5h8a2 2 0 012 2v10H10a2 2 0 01-2-2V7a2 2 0 012-2zM8 19h16l-1 4H9zM10 23v4M22 23v4"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            }
+            @case ('bag') {
+              <svg viewBox="0 0 32 32" width="28" height="28">
+                <rect
+                  x="7"
+                  y="10"
+                  width="18"
+                  height="16"
+                  rx="2"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                />
+                <path
+                  d="M12 10V6h8v4M12 15v6M20 15v6"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                />
+              </svg>
+            }
+            @default {
+              <svg viewBox="0 0 32 32" width="28" height="28">
+                <path
+                  d="M5 10h22v4a2 2 0 000 4v4H5v-4a2 2 0 000-4z"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linejoin="round"
+                />
+                <path d="M19 10v12" stroke="currentColor" stroke-width="2" stroke-dasharray="2 2" />
+              </svg>
+            }
+          }
+        </span>
+        <div>
+          <h3>{{ b.title }}</h3>
+          <p class="muted">{{ b.text }}</p>
+        </div>
+      </article>
+    }
+  </section>
+
+  <section class="manage" aria-labelledby="manage-title">
+    <div>
+      <h2 id="manage-title">Already booked?</h2>
+      <p>See your itinerary and e-tickets, finish a payment, or cancel an unpaid booking.</p>
+    </div>
+    <div class="manage__actions">
+      <a routerLink="/trips" class="btn btn--brand">Manage my trips</a>
+      <a routerLink="/help" class="btn btn--outline">Baggage and travel help</a>
+    </div>
+  </section>
+
+  @if (!auth.isSignedIn()) {
+    <section class="join" aria-labelledby="join-title">
+      <h2 id="join-title">Book faster with an account</h2>
+      <p class="muted">
+        Your trips in one place, contact details filled in for you, and e-tickets always at hand.
+      </p>
+      <a routerLink="/signup" class="btn btn--outline">Create a free account</a>
+    </section>
+  }
+</div>

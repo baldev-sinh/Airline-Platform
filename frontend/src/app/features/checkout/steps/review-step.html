@@ -1,0 +1,142 @@
+@let ctx = store.context();
+@let fare = store.selectedFare();
+
+<h2 id="step-heading" tabindex="-1">Review and pay</h2>
+<p class="muted">Please check everything before you pay. Names can't be changed after ticketing.</p>
+
+@if (ctx) {
+  <section class="card block" aria-labelledby="r-flight">
+    <div class="block__head">
+      <h3 id="r-flight">Flight</h3>
+    </div>
+    <p class="flight-line">
+      <strong
+        >{{ ctx.flight.departureDateTime | date: 'HH:mm' }}
+        {{ ctx.flight.departureAirport.iataCode }}</strong
+      >
+      →
+      <strong
+        >{{ ctx.flight.arrivalDateTime | date: 'HH:mm' }}
+        {{ ctx.flight.arrivalAirport.iataCode }}</strong
+      >
+    </p>
+    <p class="muted">
+      {{ ctx.flight.departureDateTime | date: 'EEEE d MMMM y' }} · {{ ctx.flight.airlineName }}
+      {{ ctx.flight.flightNumber }}
+      @if (ctx.flight.formattedDuration) {
+        · {{ ctx.flight.formattedDuration }}
+      }
+    </p>
+    <p>
+      Fare: <strong>{{ fare?.name }}</strong> ·
+      <button type="button" class="text-link" (click)="editStep.emit('fare')">Change</button>
+    </p>
+  </section>
+
+  <section class="card block" aria-labelledby="r-travellers">
+    <div class="block__head">
+      <h3 id="r-travellers">Travellers</h3>
+      <button type="button" class="text-link" (click)="editStep.emit('travellers')">
+        Edit<span class="visually-hidden"> travellers</span>
+      </button>
+    </div>
+    <table class="table">
+      <caption class="visually-hidden">
+        Travellers, seats and meals
+      </caption>
+      <thead>
+        <tr>
+          <th scope="col">Name</th>
+          <th scope="col">Seat</th>
+          <th scope="col">Meal</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (t of travellers(); track $index) {
+          <tr>
+            <td>
+              {{ t.firstName }} {{ t.lastName }}
+              <span class="muted small"
+                ><br />{{ t.gender ? genders[t.gender] : '' }} · born
+                {{ t.dateOfBirth | date: 'd MMM y' }}</span
+              >
+            </td>
+            <td>{{ t.seat?.seatNumber ?? '–' }}</td>
+            <td>{{ t.meal?.meal?.name ?? 'None' }}</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+    <p class="muted small">E-tickets go to {{ contact.email }} · {{ contact.phone }}</p>
+  </section>
+
+  @if (store.selectedExtras().length > 0) {
+    <section class="card block" aria-labelledby="r-extras">
+      <div class="block__head">
+        <h3 id="r-extras">Extras</h3>
+        <button type="button" class="text-link" (click)="editStep.emit('extras')">
+          Edit<span class="visually-hidden"> extras</span>
+        </button>
+      </div>
+      <ul class="plain-list">
+        @for (e of store.selectedExtras(); track e.item.id) {
+          <li>
+            {{ e.quantity }} × {{ e.item.ancillary.name }}
+            <span class="muted">({{ e.item.price * e.quantity | money }})</span>
+          </li>
+        }
+      </ul>
+    </section>
+  }
+
+  <section class="card block pay" aria-labelledby="r-pay">
+    <h3 id="r-pay" class="visually-hidden">Payment</h3>
+
+    <label class="terms">
+      <input
+        type="checkbox"
+        [checked]="store.termsAccepted()"
+        (change)="store.termsAccepted.set($any($event.target).checked)"
+      />
+      <span>
+        I have checked the traveller names and accept the fare rules
+        @if (
+          fare?.fareRules?.isRefundable === false || (!fare?.fullRefund && !fare?.partialRefund)
+        ) {
+          (this fare is non-refundable)
+        }
+        and the conditions of carriage.
+      </span>
+    </label>
+
+    @if (error(); as e) {
+      <div class="alert alert--danger" role="alert">
+        <div>
+          <p>{{ e.message }}</p>
+          @for (fieldError of e.fieldErrors; track fieldError.field) {
+            <p class="small">{{ fieldError.message }}</p>
+          }
+        </div>
+      </div>
+    }
+
+    <button
+      type="button"
+      class="btn btn--primary btn--lg btn--block"
+      [disabled]="submitting()"
+      (click)="pay()"
+    >
+      @if (submitting()) {
+        Securing your seats…
+      } @else {
+        Pay {{ store.price().total | money }} securely
+      }
+    </button>
+    <p class="pay__note">
+      <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true">
+        <path d="M4 7V5a4 4 0 018 0v2h1v8H3V7zm2 0h4V5a2 2 0 00-4 0z" fill="currentColor" />
+      </svg>
+      You'll pay on Razorpay's secure page. Your seats are held for 20 minutes.
+    </p>
+  </section>
+}

@@ -1,0 +1,76 @@
+<div class="container page">
+  <header class="page-header">
+    <h1>Help and travel information</h1>
+    <p>Answers to the questions we hear most. Can't find yours? Our care team is happy to help.</p>
+  </header>
+
+  <!-- <details>/<summary> is a native, accessible accordion: no JavaScript needed. -->
+  <div class="help">
+    <details open>
+      <summary>How booking and payment work</summary>
+      <div>
+        <ul>
+          <li>Choose a flight, a fare, your seats and any extras, then review the total.</li>
+          <li>
+            When you continue to payment, we hold your seats for 20 minutes and take you to our
+            secure payment partner, Razorpay.
+          </li>
+          <li>
+            The payment link is valid for about 15 minutes. Once payment succeeds, your booking is
+            confirmed and an e-ticket is issued for every traveller.
+          </li>
+          <li>If payment doesn't go through, nothing is charged and the seats are released.</li>
+        </ul>
+        <p>You can always see the status in <a routerLink="/trips">My trips</a>.</p>
+      </div>
+    </details>
+
+    <details>
+      <summary>Baggage allowance</summary>
+      <div>
+        <p>
+          Your cabin and checked baggage allowance depends on the fare you choose. It is shown on
+          each fare while you book and in your trip details.
+        </p>
+        <p>You can add extra checked bags during booking, usually for less than at the airport.</p>
+      </div>
+    </details>
+
+    <details>
+      <summary>Changing or cancelling a booking</summary>
+      <div>
+        <ul>
+          <li>
+            A booking that is still awaiting payment can be cancelled online at any time from My
+            trips. Its seats are released immediately.
+          </li>
+          <li>
+            Paid, ticketed bookings are cancelled or refunded according to the fare rules. Please
+            contact customer care and keep your booking reference handy.
+          </li>
+        </ul>
+      </div>
+    </details>
+
+    <details>
+      <summary>Travel documents</summary>
+      <div>
+        <p>
+          Enter each traveller's name exactly as it appears on the ID they will travel with. Carry a
+          valid government photo ID, plus a passport and any required visas for international
+          flights.
+        </p>
+      </div>
+    </details>
+
+    <details>
+      <summary>Contact customer care</summary>
+      <div>
+        <p>
+          Email <a [href]="'mailto:' + brand.supportEmail">{{ brand.supportEmail }}</a> or call
+          {{ brand.supportPhone }}, every day from 06:00 to 23:00 IST.
+        </p>
+      </div>
+    </details>
+  </div>
+</div>

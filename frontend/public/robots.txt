@@ -1,0 +1,8 @@
+# Public marketing and search pages may be indexed; account and booking pages are private.
+User-agent: *
+Disallow: /book/
+Disallow: /booking-success/
+Disallow: /trips
+Disallow: /account
+Disallow: /api/
+Disallow: /auth/

@@ -1,0 +1,51 @@
+// Shared by the sign-in and sign-up pages.
+.auth {
+  display: grid;
+  justify-items: center;
+}
+
+.auth__card {
+  display: grid;
+  gap: var(--space-4);
+  width: 100%;
+  max-width: 28rem;
+
+  h1 {
+    margin: 0;
+  }
+
+  > p {
+    margin: 0;
+  }
+}
+
+.auth__switch {
+  text-align: center;
+}
+
+.password {
+  position: relative;
+
+  .field__control {
+    padding-right: 4.5rem;
+  }
+}
+
+.password__toggle {
+  position: absolute;
+  top: 50%;
+  right: var(--space-2);
+  transform: translateY(-50%);
+  padding: var(--space-1) var(--space-2);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--color-brand);
+  font-weight: var(--weight-semibold);
+  font-size: var(--text-sm);
+  cursor: pointer;
+
+  &:hover {
+    background: var(--color-brand-soft);
+  }
+}

@@ -1,0 +1,27 @@
+// The frame fills the window, so the footer sits at the bottom even on short pages.
+:host {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+main {
+  flex: 1;
+  outline: none;
+}
+
+.skip-link {
+  position: absolute;
+  left: var(--space-4);
+  top: -100px;
+  z-index: 100;
+  padding: var(--space-2) var(--space-4);
+  background: var(--color-ink);
+  color: #fff;
+  border-radius: var(--radius-md);
+
+  &:focus {
+    top: var(--space-2);
+    color: #fff;
+  }
+}
