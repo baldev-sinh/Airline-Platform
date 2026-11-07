@@ -91,6 +91,7 @@ jobs:
           ./mvnw -B -ntp -DskipTests package jib:build
           -Dimage.registry=ghcr.io/${{ github.repository_owner }}
           -Dimage.tag=${{ github.sha }}
+          -Djib.to.tags=main
           -Djib.to.auth.username=${{ github.actor }}
           -Djib.to.auth.password=${{ secrets.GITHUB_TOKEN }}
 
@@ -106,4 +107,7 @@ jobs:
         with:
           context: frontend
           push: true
-          tags: ghcr.io/${{ github.repository_owner }}/airline-web:${{ github.sha }}
+          # Commit tag for pinning and rollback, plus a moving "main" tag for the latest build.
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/airline-web:${{ github.sha }}
+            ghcr.io/${{ github.repository_owner }}/airline-web:main
