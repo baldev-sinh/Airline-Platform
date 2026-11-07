@@ -1,0 +1,18 @@
+# Caddy: the public entry point of the production stack (see docker-compose.prod.yml).
+#
+# For the hostname below Caddy automatically gets and renews a free HTTPS certificate from Let's Encrypt
+# (the hostname must point at this server and ports 80 and 443 must be open), and redirects HTTP to HTTPS.
+# Everything is forwarded to the web container (nginx), which serves the Angular app and proxies /api and
+# /auth to the gateway, so Razorpay webhooks arrive at https://<hostname>/api/payments/webhooks/razorpay.
+#
+# PUBLIC_HOSTNAME comes from the environment, e.g. baldevairways.duckdns.org. With "localhost" Caddy uses
+# its own local certificate instead (for testing this file on a laptop).
+
+{$PUBLIC_HOSTNAME} {
+	encode zstd gzip
+
+	# HSTS: browsers must use HTTPS for this site from now on. Set here because TLS ends here.
+	header Strict-Transport-Security "max-age=31536000; includeSubDomains"
+
+	reverse_proxy web:8080
+}

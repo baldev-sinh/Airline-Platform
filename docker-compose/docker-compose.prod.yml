@@ -1,0 +1,65 @@
+# Production overrides for a public server. Always used together with the base file:
+#
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml --env-file .env up -d
+#
+# What changes compared to the local stack:
+#   - Caddy is the only thing reachable from the internet (ports 80 and 443), with automatic free HTTPS
+#     certificates from Let's Encrypt for PUBLIC_HOSTNAME.
+#   - No other port is published, not even on 127.0.0.1: the gateway, databases, Kafka and Eureka are
+#     reachable only inside Docker's networks. Use `docker compose exec` to get into a container.
+#   - Kafka UI, Prometheus and Grafana only start with `--profile monitoring` (and then stay on 127.0.0.1,
+#     reached through an SSH tunnel).
+#   - Images are pulled, never built on the server.
+# `!reset` (Docker Compose 2.24+) removes a setting inherited from the base file.
+
+x-logging: &logging
+  driver: json-file
+  options: { max-size: "10m", max-file: "3" }
+
+services:
+  caddy:
+    image: caddy:2.11-alpine
+    restart: unless-stopped
+    logging: *logging
+    mem_limit: 128m
+    networks: [ edge ]
+    ports: [ "80:80", "443:443", "443:443/udp" ]
+    environment:
+      PUBLIC_HOSTNAME: ${PUBLIC_HOSTNAME:?set PUBLIC_HOSTNAME in .env, e.g. baldevairways.duckdns.org}
+    volumes:
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data        # certificates: keep them, or Let's Encrypt rate limits can bite
+      - caddy-config:/config
+    depends_on: [ web ]
+
+  web:
+    build: !reset null
+    ports: !reset []
+
+  api-gateway:
+    ports: !reset []
+
+  payment-service:
+    environment:
+      # Fail at startup if the public address is missing: Razorpay would send customers to the wrong place.
+      PAYMENT_CALLBACK_BASE_URL: ${PUBLIC_BASE_URL:?set PUBLIC_BASE_URL in .env, e.g. https://baldevairways.duckdns.org}
+
+  service-registry: { ports: !reset [] }
+  kafka: { ports: !reset [] }
+  userdb: { ports: !reset [] }
+  airlinecoredb: { ports: !reset [] }
+  flightopsdb: { ports: !reset [] }
+  locationdb: { ports: !reset [] }
+  pricingdb: { ports: !reset [] }
+  ancillarydb: { ports: !reset [] }
+  bookingdb: { ports: !reset [] }
+  paymentdb: { ports: !reset [] }
+  seatdb: { ports: !reset [] }
+
+  kafka-ui: { profiles: [ monitoring ] }
+  prometheus: { profiles: [ monitoring ] }
+  grafana: { profiles: [ monitoring ] }
+
+volumes:
+  caddy-data:
+  caddy-config:

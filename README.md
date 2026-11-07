@@ -139,6 +139,9 @@ Or run the whole stack in containers:
 docker compose -f docker-compose/docker-compose.yml --env-file docker-compose/.env up -d
 ```
 
+To run it on a public server (HTTPS, nothing but ports 80/443 exposed), see
+[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md); the overall plan is in [docs/DEPLOYMENT_PLAN.md](docs/DEPLOYMENT_PLAN.md).
+
 The local profile ships development-only defaults (JWT key, bootstrap admin `admin@airline.local`). Production
 must not use it.
 
