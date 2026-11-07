@@ -10,6 +10,7 @@ public class MealMapper {
 
         return MealResponse.builder()
                 .id(meal.getId())
+                .code(meal.getCode())
                 .name(meal.getName())
                 .mealType(meal.getMealType())
                 .dietaryRestriction(meal.getDietaryRestriction())
