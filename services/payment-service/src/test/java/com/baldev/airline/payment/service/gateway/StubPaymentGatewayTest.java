@@ -59,6 +59,13 @@ class StubPaymentGatewayTest {
     }
 
     @Test
+    void stubPaymentsBelongToTheirOwnLinkOnly() {
+        assertThat(gateway.isPaymentOfLink("plink_STUB7", "pay_STUBOK7")).isTrue();
+        assertThat(gateway.isPaymentOfLink("plink_STUB8", "pay_STUBOK7")).isFalse();
+        assertThat(gateway.isPaymentOfLink("plink_STUB7", "pay_SomethingElse")).isFalse();
+    }
+
+    @Test
     void webhookSignatureIsCheckedForReal() throws Exception {
         String body = "{\"event\":\"payment_link.paid\"}";
         Mac mac = Mac.getInstance("HmacSHA256");

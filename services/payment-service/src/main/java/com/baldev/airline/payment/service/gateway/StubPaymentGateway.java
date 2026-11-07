@@ -86,6 +86,13 @@ public class StubPaymentGateway implements PaymentProvider {
         return new GatewayPayment(providerPaymentId, status, amount, payment.getCurrency(), String.valueOf(paymentId));
     }
 
+    /** Stub links are {@code plink_STUB<paymentId>} and stub payments {@code pay_STUB<MODE><paymentId>}. */
+    @Override
+    public boolean isPaymentOfLink(String paymentLinkId, String providerPaymentId) {
+        Matcher m = STUB_PAYMENT_ID.matcher(providerPaymentId == null ? "" : providerPaymentId);
+        return m.matches() && ("plink_STUB" + m.group(2)).equals(paymentLinkId);
+    }
+
     @Override
     public boolean isValidWebhookSignature(String rawBody, String signature) {
         if (signature == null || signature.isBlank()) {

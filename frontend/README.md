@@ -39,6 +39,9 @@ With the backend's `payment-stub` profile (the default in `start-local.ps1`), "P
 `/booking-success/<id>?razorpay_payment_id=pay_STUBOK<paymentId>`, which confirms the booking without
 real money. Edit the URL to `pay_STUBFAIL…` or `pay_STUBLOW…` to see a failed payment.
 
+To pay on Razorpay's real checkout page (test mode, test cards and UPI), follow
+[docs/RAZORPAY_TEST_MODE.md](../docs/RAZORPAY_TEST_MODE.md).
+
 ## How the code is organised
 
 ```

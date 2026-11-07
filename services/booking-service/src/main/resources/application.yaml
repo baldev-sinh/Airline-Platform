@@ -80,6 +80,11 @@ spring:
             connect-timeout: ${FEIGN_CONNECT_TIMEOUT_MS:2000}
             read-timeout: ${FEIGN_READ_TIMEOUT_MS:5000}
             logger-level: basic
+          # Creating a payment includes a round trip to the payment provider (Razorpay) over the internet,
+          # which took ~6.5 s in test mode, so this client gets more time. It must stay below the gateway's
+          # 15 s read timeout, which covers the whole booking request.
+          payment-service:
+            read-timeout: ${FEIGN_PAYMENT_READ_TIMEOUT_MS:10000}
 
 eureka:
   client:

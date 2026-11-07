@@ -364,6 +364,8 @@ export interface Booking {
 /** PaymentVerifyRequest */
 export interface PaymentVerifyRequest {
   razorpayPaymentId: string;
+  /** From the redirect URL; lets the server find our payment if Razorpay's payment has no notes. */
+  razorpayPaymentLinkId?: string;
 }
 
 /** PaymentDTO */

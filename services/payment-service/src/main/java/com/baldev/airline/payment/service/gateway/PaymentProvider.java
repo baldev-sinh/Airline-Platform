@@ -24,6 +24,12 @@ public interface PaymentProvider {
 
     GatewayPayment fetchPayment(String providerPaymentId);
 
+    /**
+     * Asks the provider whether {@code providerPaymentId} was made through payment link {@code paymentLinkId}.
+     * Lets the browser-verify path find our payment by link id without trusting the client's word for it.
+     */
+    boolean isPaymentOfLink(String paymentLinkId, String providerPaymentId);
+
     /** Verifies the X-Razorpay-Signature header (HMAC-SHA256 of the raw body with the webhook secret). */
     boolean isValidWebhookSignature(String rawBody, String signature);
 }

@@ -11,6 +11,7 @@ import com.razorpay.RazorpayException;
 import com.razorpay.Utils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.json.JSONArray;
 import org.json.JSONObject;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
@@ -86,6 +87,27 @@ public class RazorpayGateway implements PaymentProvider {
                     notes != null ? notes.optString("payment_id", null) : null);
         } catch (RazorpayException e) {
             log.warn("Razorpay payment fetch failed for {}", providerPaymentId, e);
+            throw new DownstreamServiceException("Could not verify payment with the provider, please retry", e);
+        }
+    }
+
+    /** A payment link's entity lists the payments made through it as {@code payments: [{payment_id, ...}]}. */
+    @Override
+    public boolean isPaymentOfLink(String paymentLinkId, String providerPaymentId) {
+        try {
+            JSONArray payments = razorpay.paymentLink.fetch(paymentLinkId).toJson().optJSONArray("payments");
+            if (payments == null) {
+                return false;
+            }
+            for (int i = 0; i < payments.length(); i++) {
+                JSONObject entry = payments.optJSONObject(i);
+                if (entry != null && providerPaymentId.equals(entry.optString("payment_id", null))) {
+                    return true;
+                }
+            }
+            return false;
+        } catch (RazorpayException e) {
+            log.warn("Razorpay payment link fetch failed for {}", paymentLinkId, e);
             throw new DownstreamServiceException("Could not verify payment with the provider, please retry", e);
         }
     }

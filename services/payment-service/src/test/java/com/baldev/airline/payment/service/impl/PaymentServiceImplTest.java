@@ -5,6 +5,7 @@ import com.baldev.airline.common.enums.PaymentStatus;
 import com.baldev.airline.common.enums.UserRole;
 import com.baldev.airline.common.event.PaymentCompletedEvent;
 import com.baldev.airline.common.event.PaymentFailedEvent;
+import com.baldev.airline.common.exception.BusinessRuleException;
 import com.baldev.airline.common.exception.ResourceNotFoundException;
 import com.baldev.airline.common.exception.UnauthorizedException;
 import com.baldev.airline.common.payload.request.PaymentVerifyRequest;
@@ -112,6 +113,51 @@ class PaymentServiceImplTest {
     }
 
     @Test
+    void paymentWithoutNotesIsFoundByItsConfirmedPaymentLink() {
+        payment.setProviderOrderId("plink_ABC123");
+        when(repository.findByProviderOrderIdForUpdate("plink_ABC123")).thenReturn(Optional.of(payment));
+        when(gateway.fetchPayment("pay_ABC123")).thenReturn(capturedWithoutNotes());
+        when(gateway.isPaymentOfLink("plink_ABC123", "pay_ABC123")).thenReturn(true);
+
+        service.verifyPayment(OWNER, verifyRequest("pay_ABC123", "plink_ABC123"));
+
+        assertThat(payment.getStatus()).isEqualTo(PaymentStatus.SUCCESS);
+        verify(events, times(1)).publishEvent(any(PaymentCompletedEvent.class));
+    }
+
+    @Test
+    void linkIdIsNotTrustedUnlessTheProviderConfirmsIt() {
+        when(gateway.fetchPayment("pay_ABC123")).thenReturn(capturedWithoutNotes());
+        when(gateway.isPaymentOfLink("plink_OTHER1", "pay_ABC123")).thenReturn(false);
+
+        assertThatThrownBy(() -> service.verifyPayment(OWNER, verifyRequest("pay_ABC123", "plink_OTHER1")))
+                .isInstanceOf(BusinessRuleException.class);
+        verify(repository, never()).findByProviderOrderIdForUpdate(any());
+        assertThat(payment.getStatus()).isEqualTo(PaymentStatus.PENDING);
+    }
+
+    @Test
+    void paymentWithoutNotesOrLinkIsRejected() {
+        when(gateway.fetchPayment("pay_ABC123")).thenReturn(capturedWithoutNotes());
+
+        assertThatThrownBy(() -> service.verifyPayment(OWNER, verifyRequest("pay_ABC123")))
+                .isInstanceOf(BusinessRuleException.class);
+        verify(gateway, never()).isPaymentOfLink(any(), any());
+    }
+
+    @Test
+    void confirmedLinkStillChecksOwnership() {
+        payment.setProviderOrderId("plink_ABC123");
+        when(repository.findByProviderOrderIdForUpdate("plink_ABC123")).thenReturn(Optional.of(payment));
+        when(gateway.fetchPayment("pay_ABC123")).thenReturn(capturedWithoutNotes());
+        when(gateway.isPaymentOfLink("plink_ABC123", "pay_ABC123")).thenReturn(true);
+
+        assertThatThrownBy(() -> service.verifyPayment(STRANGER, verifyRequest("pay_ABC123", "plink_ABC123")))
+                .isInstanceOf(ResourceNotFoundException.class);
+        assertThat(payment.getStatus()).isEqualTo(PaymentStatus.PENDING);
+    }
+
+    @Test
     void webhookWithInvalidSignatureIsRejected() {
         when(gateway.isValidWebhookSignature("{}", "bad")).thenReturn(false);
         assertThatThrownBy(() -> service.handleRazorpayWebhook("{}", "bad")).isInstanceOf(UnauthorizedException.class);
@@ -121,8 +167,17 @@ class PaymentServiceImplTest {
         return new GatewayPayment("pay_ABC123", "captured", amountMinor, currency, "11");
     }
 
+    /** Razorpay may not copy the link's notes onto the payment: no payment_id note. */
+    private static GatewayPayment capturedWithoutNotes() {
+        return new GatewayPayment("pay_ABC123", "captured", 123450L, "INR", null);
+    }
+
     private static PaymentVerifyRequest verifyRequest(String id) {
-        return PaymentVerifyRequest.builder().razorpayPaymentId(id).build();
+        return verifyRequest(id, null);
+    }
+
+    private static PaymentVerifyRequest verifyRequest(String id, String paymentLinkId) {
+        return PaymentVerifyRequest.builder().razorpayPaymentId(id).razorpayPaymentLinkId(paymentLinkId).build();
     }
 
     /** Runs callbacks inline; transaction boundaries themselves are Spring's responsibility, not under test. */
