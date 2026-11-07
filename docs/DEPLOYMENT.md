@@ -4,7 +4,7 @@ How to run the platform on a Linux server with `docker-compose.prod.yml`. Why it
 is still planned, is in [DEPLOYMENT_PLAN.md](DEPLOYMENT_PLAN.md).
 
 All commands run on the server, in the folder that holds `docker-compose.yml`, `docker-compose.prod.yml`, the
-`caddy/` folder and `.env`. A shortcut keeps them short:
+`caddy/` and `seed-demo/` folders (from `docker-compose/caddy` and `scripts/seed-demo`) and `.env`. A shortcut keeps them short:
 
 ```bash
 alias dc='docker compose -f docker-compose.yml -f docker-compose.prod.yml --env-file .env'
@@ -39,7 +39,11 @@ alias dc='docker compose -f docker-compose.yml -f docker-compose.prod.yml --env-
    curl -I https://baldevairways.duckdns.org/healthz      # 200
    curl https://baldevairways.duckdns.org/api/airports    # JSON
    ```
-5. In Razorpay (Test Mode) add the webhook `https://<PUBLIC_HOSTNAME>/api/payments/webhooks/razorpay` with the
+5. Load the demo network (airports, airlines, aircraft, flights, fares, meals; see "Demo data" below):
+   ```bash
+   docker run --rm --network airline_edge --env-file .env -v "$PWD/seed-demo:/seed:ro"      node:24-alpine node /seed/seed-demo.mjs --api http://api-gateway:5000
+   ```
+6. In Razorpay (Test Mode) add the webhook `https://<PUBLIC_HOSTNAME>/api/payments/webhooks/razorpay` with the
    `RAZORPAY_WEBHOOK_SECRET` from `.env`, for `payment_link.paid`, `payment_link.expired` and
    `payment_link.cancelled`. This is done once; the URL never changes.
 
@@ -76,6 +80,26 @@ ssh -L 3000:localhost:3000 -L 8090:localhost:8090 user@server    # on your lapto
 
 Then Grafana is at http://localhost:3000 (user `admin`, password `GRAFANA_ADMIN_PASSWORD`) and Kafka UI at
 http://localhost:8090.
+
+## Demo data
+
+`scripts/seed-demo/seed-demo.mjs` creates a bookable network through the public API: 7 Indian airports, two
+fictional airlines (Baldev Airways with 4 A320neo, Coastal Wings with 2 ATR 72), 20 daily flights with Saver,
+Flexi and Business fares, fare rules, baggage, meals and extras. The data is in `demo-data.mjs`.
+
+- It needs `BOOTSTRAP_ADMIN_EMAIL` / `BOOTSTRAP_ADMIN_PASSWORD` (or `SEED_ADMIN_*`) and `DEMO_OWNER_PASSWORD` from
+  `.env`. The airline owner accounts (`ops@baldevairways.example`, `ops@coastalwings.example`) are created with
+  that password on the first run.
+- It is safe to run any number of times: existing things are found, not created again.
+- Flights are scheduled `--days` ahead (default 45). Each run only adds the missing days, so a daily run keeps
+  the schedule rolling:
+  ```bash
+  # crontab -e   (every night at 03:00)
+  0 3 * * * cd /opt/airline && docker run --rm --network airline_edge --env-file .env -v "$PWD/seed-demo:/seed:ro" node:24-alpine node /seed/seed-demo.mjs --api http://api-gateway:5000 >> /var/log/airline-seed.log 2>&1
+  ```
+
+Locally (services from `scripts/start-local.ps1`, Node installed): `node scripts/seed-demo/seed-demo.mjs`. It reads
+`docker-compose/.env` itself.
 
 ## Changing the public address
 

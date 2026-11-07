@@ -30,8 +30,8 @@
             @if (fm.meal.dietaryRestriction) {
               <span class="muted"> · {{ fm.meal.dietaryRestriction }}</span>
             }
-            @if (fm.meal.description) {
-              <br /><span class="muted small">{{ fm.meal.description }}</span>
+            @if (fm.meal.description || fm.meal.ingredients; as details) {
+              <br /><span class="muted small">{{ details }}</span>
             }
           </span>
           <span class="menu__price">{{ fm.price | money }}</span>

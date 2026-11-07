@@ -6,6 +6,8 @@ import com.baldev.airline.flightops.model.FlightSchedule;
 import com.baldev.airline.common.payload.request.FlightScheduleRequest;
 import com.baldev.airline.common.payload.response.*;
 
+import java.util.List;
+
 public class FlightScheduleMapper {
 
     public static FlightSchedule toEntity(
@@ -42,7 +44,9 @@ public class FlightScheduleMapper {
                 .startDate(fs.getStartDate())
                 .endDate(fs.getEndDate())
 
-                .operatingDays(fs.getOperatingDays())
+                // Copy into a plain list now, while the transaction is open: the entity's collection is lazy, and
+                // with open-in-view off it can't be read later when the response is written as JSON.
+                .operatingDays(fs.getOperatingDays() == null ? null : List.copyOf(fs.getOperatingDays()))
                 .isActive(fs.getIsActive())
                 .build();
     }

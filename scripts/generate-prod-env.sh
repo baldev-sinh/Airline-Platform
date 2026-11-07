@@ -5,7 +5,7 @@
 #
 # - Starts from docker-compose/.env.prod.example if the file doesn't exist yet.
 # - Fills in strong random values for empty generated secrets (database passwords, JWT secret,
-#   Grafana password, Razorpay webhook secret). Values already set are never changed, so it is safe to re-run.
+#   Grafana password, Razorpay webhook secret, demo owner password). Values already set are never changed, so it is safe to re-run.
 # - Leaves the rest (hostname, Razorpay keys, admin email) for you, and lists what is still empty.
 # - Makes the file readable by its owner only.
 set -euo pipefail
@@ -39,6 +39,7 @@ fill_if_empty DB_PASSWORD 32
 fill_if_empty JWT_SECRET 64          # the gateway and user-service need at least 32 bytes
 fill_if_empty GRAFANA_ADMIN_PASSWORD 24
 fill_if_empty RAZORPAY_WEBHOOK_SECRET 32
+fill_if_empty DEMO_OWNER_PASSWORD 24   # demo airlines' owner accounts (scripts/seed-demo)
 
 missing=$(grep -E '^(PUBLIC_HOSTNAME|PUBLIC_BASE_URL|RAZORPAY_KEY_ID|RAZORPAY_KEY_SECRET|BOOTSTRAP_ADMIN_EMAIL|BOOTSTRAP_ADMIN_PASSWORD)=$' "$env_file" | cut -d= -f1 || true)
 if [[ -n "$missing" ]]; then

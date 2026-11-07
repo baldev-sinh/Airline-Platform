@@ -4,7 +4,7 @@ How the platform gets from this repository onto a public server, what has to cha
 Razorpay test mode works there without ever editing URLs by hand. The hosting provider is not chosen yet; the
 plan is the same for any Linux VM.
 
-> **Progress:** phases 1 and 2 are done. Local tunnels (ngrok, Cloudflare) are blocked or discouraged on the
+> **Progress:** phases 1, 2 and 3 are done. Local tunnels (ngrok, Cloudflare) are blocked or discouraged on the
 > current work laptop, so webhooks are tested on the deployed server instead; locally the browser-return path
 > confirms payments without them. How to run the production stack: [DEPLOYMENT.md](DEPLOYMENT.md).
 
@@ -41,7 +41,7 @@ plan is the same for any Linux VM.
 | G3 ✅ | The gateway (`5000`) and web app (`5173`) are published on all interfaces | On a server the gateway must not be reachable directly, bypassing nginx | `docker-compose.prod.yml` override: nothing published except the HTTPS entry point |
 | G4 ✅ | No HTTPS | Browsers, Razorpay and secure cookies need HTTPS | Add a **Caddy** container: automatic, free Let's Encrypt certificates for the DuckDNS hostname |
 | G5 ✅ | Docker keeps container logs forever by default | A busy server fills its disk | Log rotation in the compose file (e.g. 3 × 10 MB per container) |
-| G6 | A fresh server starts with empty databases | Visitors find no flights to book | A repeatable **demo seed**: real airports (BOM, DEL, BLR…), an airline, aircraft and seat maps, flight schedules for the coming months, fares, meals and bags |
+| G6 ✅ | A fresh server starts with empty databases | Visitors find no flights to book | A repeatable **demo seed**: real airports (BOM, DEL, BLR…), an airline, aircraft and seat maps, flight schedules for the coming months, fares, meals and bags |
 | G7 ✅ | The public address is set in several places (`PAYMENT_CALLBACK_BASE_URL`, `CORS_ALLOWED_ORIGINS`) | Easy to update one and forget another | One variable, `PUBLIC_BASE_URL`, that the others derive from |
 | G8 | No deployment automation | Manual SSH steps are slow and error-prone | GitHub Actions `deploy` job (section 4) |
 | G9 | No database backups | A broken disk loses all bookings | Nightly `mysqldump` of each database, kept for 7 days (optional for a demo) |
@@ -136,7 +136,7 @@ server's `.env` and never pass through CI.
 |---|---|---|
 | **1. Production-ready compose** ✅ done | `docker-compose.prod.yml` (no public ports except Caddy), Caddy with automatic HTTPS, log rotation, `PUBLIC_BASE_URL`, `.env.prod.example`, CI `main` tag | Nothing; can start now |
 | **2. Stable local webhooks** ✅ done (not yet run against a live ngrok tunnel: security software on the work laptop blocks ngrok) | ngrok support in `start-local.ps1 -Tunnel`, guide update | A free ngrok account |
-| **3. Demo seed** | Script that creates a realistic, bookable network and schedules | Phase 1 |
+| **3. Demo seed** ✅ done (`scripts/seed-demo`) | Script that creates a realistic, bookable network and schedules | Phase 1 |
 | **4. Go live** | Provision the VM, DuckDNS, `deploy` workflow, backups; multi-arch images if the host is ARM | Choosing the provider |
 
 Phases 1–3 can all be built and tested on your laptop before a server exists.

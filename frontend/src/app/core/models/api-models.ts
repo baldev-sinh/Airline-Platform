@@ -222,6 +222,8 @@ export interface Meal {
   code: string;
   name: string;
   description: string | null;
+  /** What's in it, e.g. "Grilled paneer, mint chutney". Meals created through the API set this, not description. */
+  ingredients: string | null;
   mealType: string | null;
   dietaryRestriction: string | null;
 }

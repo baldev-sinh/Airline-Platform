@@ -44,7 +44,8 @@ public class AncillaryServiceImpl implements AncillaryService {
                 .description(request.getDescription())
                 .metadata(request.getMetadata())
                 .displayOrder(request.getDisplayOrder())
-                .airlineId(airlineResponse.getOwnerId())
+                // The airline's id, not its owner's user id: extras are listed (and must be isolated) per airline.
+                .airlineId(airlineResponse.getId())
                 .build();
 
         Ancillary saved = ancillaryRepository.save(ancillary);
