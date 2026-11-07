@@ -54,43 +54,62 @@ PAYMENT_CALLBACK_BASE_URL=http://localhost:5173
 Leave `PAYMENT_SPRING_PROFILES=payment-stub` as it is: the default (stub) runs keep using it, and
 `-RealPayments` overrides it.
 
-## 5. Webhooks (optional, recommended)
+## 5. Webhooks with a permanent address (optional, recommended)
 
-Razorpay can only call your laptop through a public URL, so you need a tunnel to the gateway on port 5000.
-Cloudflare's quick tunnel needs no account:
+Razorpay can only call your laptop through a public URL. ngrok's free plan gives every account **one
+permanent address** (e.g. `your-name.ngrok-free.app`), so you register the webhook **once** and never change it.
+
+1. Sign up at https://ngrok.com (free) and install the agent:
+   ```powershell
+   winget install --id Ngrok.Ngrok
+   ```
+   Open a new terminal afterwards so the `ngrok` command is found.
+2. In the ngrok dashboard copy your **authtoken** (Getting Started → Your Authtoken) and your **domain**
+   (Domains: the free `*.ngrok-free.app` address assigned to your account).
+3. Add both to `docker-compose/.env`:
+   ```
+   NGROK_AUTHTOKEN=<your authtoken>
+   NGROK_DOMAIN=your-name.ngrok-free.app
+   ```
+4. In the Razorpay dashboard (Test Mode): **Account & Settings → Webhooks → Add New Webhook**:
+
+   | Field | Value |
+   |---|---|
+   | Webhook URL | `https://your-name.ngrok-free.app/api/payments/webhooks/razorpay` |
+   | Secret | `RAZORPAY_WEBHOOK_SECRET` from step 3 |
+   | Active events | `payment_link.paid`, `payment_link.expired`, `payment_link.cancelled` |
+
+That's the last time you touch a URL: `start-local.ps1 -Tunnel` (step 6) starts the tunnel on this same address
+every time. To restart only the tunnel while the services keep running, use `.\scripts\start-tunnel.ps1`.
+
+The tunnel exposes your local gateway on the internet while it runs. Every API except the webhook and public
+search still requires sign-in, and only Razorpay's webhook calls normally go through it (your browser keeps using
+`localhost`), well within the free plan's monthly limits.
+
+Without webhooks, paying and returning to the site still works. What you lose: a customer who closes the tab
+after paying stays "Awaiting payment" until they reopen the booking, and expired links aren't reported (the
+seat hold still expires on its own after 20 minutes).
+
+**No ngrok account?** Cloudflare's quick tunnel needs none, but gets a new random address every time it starts,
+so you must update the Razorpay webhook URL after each start:
 
 ```powershell
 winget install --id Cloudflare.cloudflared
 cloudflared tunnel --url http://localhost:5000
 ```
 
-It prints a URL like `https://random-words.trycloudflare.com` (a new one every time it starts). Then in the
-Razorpay dashboard (Test Mode): **Account & Settings → Webhooks → Add New Webhook**:
-
-| Field | Value |
-|---|---|
-| Webhook URL | `https://random-words.trycloudflare.com/api/payments/webhooks/razorpay` |
-| Secret | the value from step 3 |
-| Active events | `payment_link.paid`, `payment_link.expired`, `payment_link.cancelled` |
-
-The tunnel makes your local gateway reachable from the internet while it runs. Every API except the webhook
-and public search still requires sign-in, but stop the tunnel (Ctrl+C) when you're done.
-
-Without webhooks, paying and returning to the site still works. What you lose: a customer who closes the tab
-after paying stays "Awaiting payment" until they reopen the booking, and expired links aren't reported (the
-seat hold still expires on its own after 20 minutes).
-
 ## 6. Start the stack in test mode
 
 ```powershell
 .\scripts\stop-local.ps1
 .\mvnw.cmd -B -DskipTests package      # rebuild the jars after pulling code changes (needs the services stopped)
-.\scripts\start-local.ps1 -RealPayments
+.\scripts\start-local.ps1 -RealPayments -Tunnel   # leave out -Tunnel if you skipped step 5
 ```
 
 The script reads the keys from `docker-compose/.env` and **refuses to start** if they are missing, still the
 stub placeholders, or live keys (`rzp_live_...`). A local run can never take real money. When everything is up
-it prints `Payments: Razorpay TEST mode`.
+it prints `Payments: Razorpay TEST mode`. With `-Tunnel` it also prints `ngrok tunnel is up` and the webhook URL;
+`stop-local.ps1` stops the tunnel together with the services.
 
 Then start the website (`cd frontend`, `npm start`) and book a flight as usual
 (see [FRONTEND_TESTING.md](FRONTEND_TESTING.md)).
@@ -129,5 +148,7 @@ Without `-RealPayments`, payment-service uses the offline stub again, whatever i
 | `start-local.ps1` stops with "-RealPayments needs a real Razorpay TEST value" | A key in `docker-compose/.env` is empty or still a stub placeholder. Fill in step 4 |
 | "Payment provider is unavailable" when clicking Pay | Razorpay rejected the keys. Check the key id and secret (Test Mode keys), then restart. The cause is in `.local-run/payment-service.log` |
 | After paying, the page stays on "We're still confirming your payment" | The verify call failed. Look for `verify` or `Razorpay` in `.local-run/payment-service.log`. With webhooks set up, the booking still confirms within seconds |
-| Webhooks show failures in the Razorpay dashboard | Tunnel not running, or the URL changed (quick tunnels get a new URL each start: update the webhook). A `401` means the webhook secret differs from `RAZORPAY_WEBHOOK_SECRET` |
+| `start-local.ps1 -Tunnel` stops with "ngrok is not installed" or "Set NGROK_AUTHTOKEN and NGROK_DOMAIN" | Install ngrok (step 5) and open a new terminal, or add the two values to `docker-compose/.env` |
+| "The ngrok tunnel did not come up" | Usually a wrong authtoken, or `NGROK_DOMAIN` isn't the domain shown in *your* ngrok dashboard. The script prints the last lines of `.local-run/ngrok.log` |
+| Webhooks show failures in the Razorpay dashboard | Tunnel not running (`.\scripts\start-tunnel.ps1` restarts it), or with Cloudflare's quick tunnel the URL changed (update the webhook). A `401` means the webhook secret differs from `RAZORPAY_WEBHOOK_SECRET` |
 | "We could not open the secure payment page" | The payment link URL wasn't on the allow-list in `frontend/src/environments/`. Razorpay links use `rzp.io`; add the host shown in the error log if Razorpay changes it |

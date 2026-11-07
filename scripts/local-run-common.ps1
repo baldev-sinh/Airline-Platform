@@ -29,8 +29,10 @@ function Get-TrackedProcess([string]$line) {
     $processId = 0
     if (-not [int]::TryParse($parts[0], [ref]$processId)) { return $null }
 
+    # Every entry is a Java service, except the optional ngrok tunnel (start-local.ps1 -Tunnel).
+    $expectedName = if ($parts[1] -eq 'ngrok') { 'ngrok' } else { 'java' }
     $process = Get-Process -Id $processId -ErrorAction SilentlyContinue
-    if (-not $process -or $process.ProcessName -ne 'java') { return $null }
+    if (-not $process -or $process.ProcessName -ne $expectedName) { return $null }
 
     if ($parts.Count -ge 3) {
         $recordedTicks = 0L
@@ -49,6 +51,35 @@ function Get-TrackedProcess([string]$line) {
     $commandLine = (Get-CimInstance Win32_Process -Filter "ProcessId=$processId" -ErrorAction SilentlyContinue).CommandLine
     if (-not $commandLine -or $commandLine -notlike "*$($parts[1])*.jar*") { return $null }
     return $process
+}
+
+<#
+  Reads KEY=VALUE lines from a .env file into a hashtable (comments and blank lines skipped, surrounding quotes
+  removed). Returns an empty hashtable if the file does not exist.
+#>
+function Read-DotEnv([string]$path) {
+    $values = @{}
+    if (Test-Path $path) {
+        foreach ($line in Get-Content $path) {
+            if ($line -match '^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*?)\s*$') {
+                $values[$Matches[1]] = $Matches[2].Trim('"', "'")
+            }
+        }
+    }
+    return $values
+}
+
+<#
+  Returns the value of an environment variable, falling back to the .env values. When the value comes from the
+  file it is also set in this process's environment, so the programs started afterwards inherit it.
+#>
+function Resolve-Setting([string]$name, [hashtable]$fromFile) {
+    $value = [Environment]::GetEnvironmentVariable($name)
+    if ([string]::IsNullOrWhiteSpace($value) -and $fromFile.ContainsKey($name)) {
+        $value = $fromFile[$name]
+        Set-Item "env:$name" $value
+    }
+    return $value
 }
 
 function Get-TrackedServiceName([string]$line) {

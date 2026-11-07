@@ -10,13 +10,20 @@
     2. Jars built:  ./mvnw -B -DskipTests package
 
   By default payment-service runs with the offline `payment-stub` profile, so no Razorpay account is needed.
-  Pass -RealPayments to use Razorpay test mode instead (set RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET and
-  RAZORPAY_WEBHOOK_SECRET in your environment first).
+  Pass -RealPayments to use Razorpay test mode instead (keys from the environment or docker-compose/.env).
+
+  Pass -Tunnel as well to start an ngrok tunnel on your permanent ngrok address, so Razorpay webhooks reach
+  this machine at the same URL every time (NGROK_AUTHTOKEN and NGROK_DOMAIN in docker-compose/.env).
+  See docs/RAZORPAY_TEST_MODE.md.
 
   Logs go to .local-run/<service>.log. Stop everything with scripts/stop-local.ps1.
+
+.EXAMPLE
+  ./scripts/start-local.ps1 -RealPayments -Tunnel
 #>
 param(
     [switch]$RealPayments,
+    [switch]$Tunnel,
     [int]$TimeoutSeconds = 300,
     [int]$BatchSize = 3
 )
@@ -43,20 +50,11 @@ if (Test-Path $pidFile) {
 # Razorpay test mode: take the keys from the environment, or else from docker-compose/.env (git-ignored).
 # Refuse to start with missing, placeholder or LIVE keys: a local run must never be able to take real money,
 # and a placeholder would otherwise only fail later, when someone tries to pay.
+$dotEnv = Read-DotEnv (Join-Path $root 'docker-compose/.env')
+
 if ($RealPayments) {
-    $envFile = Join-Path $root 'docker-compose/.env'
-    $fromFile = @{}
-    if (Test-Path $envFile) {
-        foreach ($line in Get-Content $envFile) {
-            if ($line -match '^\s*(RAZORPAY_[A-Z_]+)\s*=\s*(.*?)\s*$') { $fromFile[$Matches[1]] = $Matches[2].Trim('"', "'") }
-        }
-    }
     foreach ($name in 'RAZORPAY_KEY_ID', 'RAZORPAY_KEY_SECRET', 'RAZORPAY_WEBHOOK_SECRET') {
-        $value = [Environment]::GetEnvironmentVariable($name)
-        if ([string]::IsNullOrWhiteSpace($value) -and $fromFile.ContainsKey($name)) {
-            $value = $fromFile[$name]
-            Set-Item "env:$name" $value   # inherited by the services started below
-        }
+        $value = Resolve-Setting $name $dotEnv   # also exported, so the services started below inherit it
         if ([string]::IsNullOrWhiteSpace($value) -or $value -in 'stub', 'placeholder', 'rzp_test_stub', 'rzp_test_placeholder', 'local-stub-webhook-secret') {
             throw "-RealPayments needs a real Razorpay TEST value for $name. Set it in docker-compose/.env (see docs/RAZORPAY_TEST_MODE.md)."
         }
@@ -65,6 +63,14 @@ if ($RealPayments) {
         throw "RAZORPAY_KEY_ID must be a TEST key (rzp_test_...). Live keys (rzp_live_...) are never used for local runs."
     }
     Write-Host "Razorpay TEST mode with key $($env:RAZORPAY_KEY_ID.Substring(0, [Math]::Min(14, $env:RAZORPAY_KEY_ID.Length)))..." -ForegroundColor Yellow
+}
+
+# ngrok tunnel: check everything it needs now, before minutes of service startup, and fail with a clear message.
+if ($Tunnel) {
+    & (Join-Path $PSScriptRoot 'start-tunnel.ps1') -CheckOnly
+    if (-not $RealPayments) {
+        Write-Host '-Tunnel without -RealPayments: the offline stub needs no webhooks, but starting the tunnel anyway.' -ForegroundColor Yellow
+    }
 }
 
 # name, jar folder, port, extra profiles
@@ -133,6 +139,10 @@ while ((Get-Date) -lt $deadline) {
         if ($r.StatusCode -eq 200) { break }
     } catch { }
     Start-Sleep -Seconds 3
+}
+
+if ($Tunnel) {
+    & (Join-Path $PSScriptRoot 'start-tunnel.ps1')
 }
 
 Write-Host ''
