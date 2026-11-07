@@ -1,0 +1,98 @@
+<form
+  class="search"
+  [class.search--compact]="compact()"
+  [formGroup]="form"
+  (ngSubmit)="submit()"
+  novalidate
+>
+  <div class="search__route">
+    <div>
+      <app-airport-field
+        formControlName="from"
+        inputId="search-from"
+        label="From"
+        describedBy="search-from-error"
+        [invalid]="form.controls.from.invalid && form.controls.from.touched"
+      />
+      <app-field-error
+        [control]="form.controls.from"
+        errorId="search-from-error"
+        label="Departure airport"
+      />
+    </div>
+
+    <button
+      type="button"
+      class="search__swap"
+      (click)="swap()"
+      aria-label="Swap departure and arrival airports"
+    >
+      <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
+        <path d="M4 6h11l-3-3M14 12H3l3 3" fill="none" stroke="currentColor" stroke-width="1.8" />
+      </svg>
+    </button>
+
+    <div>
+      <app-airport-field
+        formControlName="to"
+        inputId="search-to"
+        label="To"
+        describedBy="search-to-error"
+        [invalid]="
+          (form.controls.to.invalid || form.hasError('sameAirport')) && form.controls.to.touched
+        "
+      />
+      <app-field-error
+        [control]="form.controls.to"
+        errorId="search-to-error"
+        label="Arrival airport"
+      />
+      @if (form.hasError('sameAirport') && form.controls.to.touched) {
+        <p class="field__error" id="search-to-error">Choose a different arrival airport</p>
+      }
+    </div>
+  </div>
+
+  <div class="field">
+    <label class="field__label" for="search-date">Departure date</label>
+    <input
+      id="search-date"
+      class="field__control"
+      type="date"
+      formControlName="date"
+      [min]="today"
+      aria-describedby="search-date-error"
+    />
+    <app-field-error
+      [control]="form.controls.date"
+      errorId="search-date-error"
+      label="Departure date"
+    />
+  </div>
+
+  <div class="field">
+    <label class="field__label" for="search-pax">Travellers</label>
+    <select id="search-pax" class="field__control" formControlName="passengers">
+      @for (count of passengerOptions; track count) {
+        <option [ngValue]="count">{{ count }} {{ count === 1 ? 'adult' : 'adults' }}</option>
+      }
+    </select>
+  </div>
+
+  <div class="field">
+    <label class="field__label" for="search-cabin">Cabin</label>
+    <select id="search-cabin" class="field__control" formControlName="cabin">
+      @for (option of cabinOptions; track option.value) {
+        <option [ngValue]="option.value">{{ option.label }}</option>
+      }
+    </select>
+  </div>
+
+  <button type="submit" class="btn btn--primary btn--lg search__submit">
+    <svg width="18" height="18" viewBox="0 0 20 20" aria-hidden="true">
+      <circle cx="8.5" cy="8.5" r="5.5" fill="none" stroke="currentColor" stroke-width="2" />
+      <path d="M13 13l4.5 4.5" stroke="currentColor" stroke-width="2" />
+    </svg>
+    Search flights
+  </button>
+</form>

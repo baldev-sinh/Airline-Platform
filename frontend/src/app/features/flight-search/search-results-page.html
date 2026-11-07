@@ -1,0 +1,190 @@
+@let c = criteria();
+
+@if (!c) {
+  <!-- The URL was edited by hand or is out of date (e.g. a date in the past). -->
+  <div class="container page">
+    <h1>Search for flights</h1>
+    <p class="muted">
+      That search link is incomplete or out of date. Tell us where and when you'd like to fly.
+    </p>
+    <div class="card"><app-search-form /></div>
+  </div>
+} @else {
+  <section class="summary no-print" aria-label="Your search">
+    <div class="container summary__inner">
+      <div>
+        <h1 class="summary__title">{{ routeTitle() }}</h1>
+        <p class="summary__meta">
+          {{ c.date | date: 'EEE d MMM y' }} · {{ c.passengers }}
+          {{ c.passengers === 1 ? 'adult' : 'adults' }} ·
+          {{ cabinLabels[c.cabin] }}
+        </p>
+      </div>
+      <button
+        type="button"
+        class="btn btn--outline"
+        aria-controls="modify-search"
+        [attr.aria-expanded]="showModify()"
+        (click)="showModify.set(!showModify())"
+      >
+        {{ showModify() ? 'Close' : 'Change search' }}
+      </button>
+    </div>
+    @if (showModify()) {
+      <div id="modify-search" class="container summary__form">
+        <div class="card"><app-search-form [initial]="c" [compact]="true" /></div>
+      </div>
+    }
+  </section>
+
+  <div class="container page results">
+    <nav class="days" aria-label="Nearby dates">
+      @for (day of nearbyDays(); track day.date; let first = $first) {
+        @if (day.disabled) {
+          <span class="days__link is-disabled" aria-disabled="true">← Previous day</span>
+        } @else {
+          <a class="days__link" routerLink="/flights" [queryParams]="day.params">
+            @if (first) {
+              ← {{ day.date | date: 'EEE d MMM' }}
+            } @else {
+              {{ day.date | date: 'EEE d MMM' }} →
+            }
+          </a>
+        }
+      }
+    </nav>
+
+    @if (results.isLoading()) {
+      <app-loading label="Finding the best flights for you" />
+    } @else if (results.error()) {
+      <app-error-state
+        title="We couldn't search flights right now"
+        [message]="errorText()"
+        (retry)="results.reload()"
+      />
+    } @else if (unknownAirport()) {
+      <app-empty-state title="We don't fly there yet">
+        <p class="muted">
+          One of the airports in this search isn't on our network. Try a different city.
+        </p>
+      </app-empty-state>
+    } @else if (allFlights().length === 0) {
+      <app-empty-state title="No flights on this date">
+        <p class="muted">
+          Every seat may be sold, or we don't operate this route that day. Try a nearby date.
+        </p>
+      </app-empty-state>
+    } @else {
+      <div class="results__layout">
+        <!-- Filters: a sidebar on desktop, a collapsible panel on phones. -->
+        <aside class="filters" aria-label="Filter flights">
+          <button
+            type="button"
+            class="btn btn--outline btn--block filters__toggle"
+            aria-controls="filter-panel"
+            [attr.aria-expanded]="showFilters()"
+            (click)="showFilters.set(!showFilters())"
+          >
+            Filters
+            @if (activeFilterCount() > 0) {
+              ({{ activeFilterCount() }})
+            }
+          </button>
+
+          <div id="filter-panel" class="filters__panel card" [class.is-open]="showFilters()">
+            <fieldset class="plain filters__group">
+              <legend>Departure time</legend>
+              @for (w of timeWindows; track w.value) {
+                <label class="check">
+                  <input
+                    type="checkbox"
+                    [checked]="windows().includes(w.value)"
+                    (change)="toggleWindow(w.value)"
+                  />
+                  <span
+                    >{{ w.label }} <span class="muted">{{ w.hours }}</span></span
+                  >
+                </label>
+              }
+            </fieldset>
+
+            @if (airlines().length > 1) {
+              <fieldset class="plain filters__group">
+                <legend>Airlines</legend>
+                @for (a of airlines(); track a.id) {
+                  <label class="check">
+                    <input
+                      type="checkbox"
+                      [checked]="airlineIds().includes(a.id)"
+                      (change)="toggleAirline(a.id)"
+                    />
+                    <span
+                      >{{ a.name }} <span class="muted">({{ a.count }})</span></span
+                    >
+                  </label>
+                }
+              </fieldset>
+            }
+
+            @if (activeFilterCount() > 0) {
+              <button type="button" class="text-link" (click)="clearFilters()">
+                Clear all filters
+              </button>
+            }
+          </div>
+        </aside>
+
+        <section aria-labelledby="results-heading">
+          <div class="results__bar">
+            <!-- aria-live: screen readers announce the new count when filters change. -->
+            <h2 id="results-heading" class="results__count" aria-live="polite">
+              {{ visibleFlights().length }}
+              {{ visibleFlights().length === 1 ? 'flight' : 'flights' }}
+            </h2>
+            <div class="results__sort">
+              <label for="sort" class="field__label">Sort by</label>
+              <select
+                id="sort"
+                class="field__control"
+                [value]="sort()"
+                (change)="onSortChange($any($event.target).value)"
+              >
+                @for (option of sortOptions; track option.value) {
+                  <option [value]="option.value">{{ option.label }}</option>
+                }
+              </select>
+            </div>
+          </div>
+
+          @if (hasFiltersHidingEverything()) {
+            <div class="alert">
+              <p>
+                No flights match these filters.
+                <button type="button" class="text-link" (click)="clearFilters()">
+                  Clear filters
+                </button>
+              </p>
+            </div>
+          }
+
+          <ol class="results__list">
+            @for (flight of visibleFlights(); track flight.id) {
+              <li>
+                <app-flight-card
+                  [flight]="flight"
+                  [passengers]="c.passengers"
+                  (selected)="select($event)"
+                />
+              </li>
+            }
+          </ol>
+
+          <p class="results__note muted">
+            Prices are per adult and include taxes and fees. Seat selection, meals and extra bags
+            can be added in the next steps.
+          </p>
+        </section>
+      </div>
+    }
+  </div>
+}

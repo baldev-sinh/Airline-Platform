@@ -1,0 +1,115 @@
+@if (context.isLoading()) {
+  <app-loading label="Preparing your booking" />
+} @else if (context.error()) {
+  <div class="container page">
+    <app-error-state
+      title="We couldn't open this flight"
+      [message]="errorText()"
+      (retry)="context.reload()"
+    />
+    <p><a routerLink="/">Start a new search</a></p>
+  </div>
+} @else if (store.context(); as ctx) {
+  @let f = ctx.flight;
+
+  <section class="trip-bar" aria-label="Selected flight">
+    <div class="container trip-bar__inner">
+      <p class="trip-bar__route">
+        <strong>{{ f.departureAirport.city?.name || f.departureAirport.iataCode }}</strong>
+        <span aria-hidden="true"> → </span><span class="visually-hidden"> to </span>
+        <strong>{{ f.arrivalAirport.city?.name || f.arrivalAirport.iataCode }}</strong>
+      </p>
+      <p class="trip-bar__meta">
+        {{ f.departureDateTime | date: 'EEE d MMM' }} · {{ f.departureDateTime | date: 'HH:mm' }}–{{
+          f.arrivalDateTime | date: 'HH:mm'
+        }}
+        · {{ f.airlineName }} {{ f.flightNumber }} · {{ cabinLabels[store.cabinType()] }} ·
+        {{ store.passengerCount() }} {{ store.passengerCount() === 1 ? 'adult' : 'adults' }}
+      </p>
+    </div>
+  </section>
+
+  <div class="container page">
+    @if (blocker(); as reason) {
+      <div class="alert alert--warning" role="alert">
+        <div>
+          <p>
+            <strong>{{ reason }}</strong>
+          </p>
+          <p><a routerLink="/">Search for another flight</a></p>
+        </div>
+      </div>
+    } @else {
+      <!-- Progress through the five steps. aria-current marks where the user is. -->
+      <nav class="stepper no-print" aria-label="Booking steps">
+        <ol>
+          @for (s of steps; track s.id; let i = $index) {
+            <li [class.is-done]="i < store.stepIndex()" [class.is-current]="s.id === store.step()">
+              <button
+                type="button"
+                class="stepper__button"
+                [attr.aria-current]="s.id === store.step() ? 'step' : null"
+                [disabled]="i > store.stepIndex()"
+                (click)="goTo(s.id)"
+              >
+                <span class="stepper__num" aria-hidden="true">{{
+                  i < store.stepIndex() ? '✓' : i + 1
+                }}</span>
+                <span class="stepper__label">{{ s.label }}</span>
+              </button>
+            </li>
+          }
+        </ol>
+      </nav>
+
+      <div class="checkout">
+        <div class="checkout__body">
+          @switch (store.step()) {
+            @case ('fare') {
+              <app-fare-step />
+            }
+            @case ('travellers') {
+              <app-travellers-step />
+            }
+            @case ('seats') {
+              <app-seat-step />
+            }
+            @case ('extras') {
+              <app-extras-step />
+            }
+            @case ('review') {
+              <app-review-step (seatsLost)="onSeatsLost()" (editStep)="goTo($event)" />
+            }
+          }
+
+          @if (stepError(); as message) {
+            <div class="alert alert--danger checkout__error" role="alert">
+              <p>{{ message }}</p>
+            </div>
+          }
+
+          @if (store.step() !== 'review') {
+            <div class="checkout__nav">
+              @if (store.stepIndex() > 0) {
+                <button type="button" class="btn btn--outline" (click)="back()">Back</button>
+              } @else {
+                <a class="btn btn--outline" routerLink="/">Change flight</a>
+              }
+              <button type="button" class="btn btn--primary btn--lg" (click)="continue()">
+                Continue
+              </button>
+            </div>
+          } @else {
+            <div class="checkout__nav checkout__nav--start">
+              <button type="button" class="btn btn--outline" (click)="back()">Back</button>
+            </div>
+          }
+        </div>
+
+        <aside class="checkout__aside" aria-label="Price summary">
+          <app-price-summary />
+        </aside>
+      </div>
+    }
+  </div>
+}

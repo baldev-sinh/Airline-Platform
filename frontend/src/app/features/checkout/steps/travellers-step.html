@@ -1,0 +1,153 @@
+<h2 id="step-heading" tabindex="-1">Who's travelling?</h2>
+<p class="muted">
+  Enter names exactly as they appear on the ID or passport each traveller will carry.
+</p>
+
+<form [formGroup]="form" novalidate (ngSubmit)="$event.preventDefault()">
+  <div formArrayName="passengers">
+    @for (passenger of store.passengerForms; track passenger; let i = $index) {
+      <div class="card traveller">
+        <fieldset class="plain" [formGroupName]="i">
+          <legend>Traveller {{ i + 1 }} <span class="traveller__tag">· Adult</span></legend>
+          <div class="form-grid">
+            <div class="field">
+              <label class="field__label" [for]="'p' + i + '-first'">First and middle names</label>
+              <input
+                class="field__control"
+                [id]="'p' + i + '-first'"
+                formControlName="firstName"
+                autocomplete="given-name"
+                [attr.aria-describedby]="'p' + i + '-first-error'"
+              />
+              <app-field-error
+                [control]="passenger.controls.firstName"
+                [errorId]="'p' + i + '-first-error'"
+                label="First name"
+              />
+            </div>
+
+            <div class="field">
+              <label class="field__label" [for]="'p' + i + '-last'">Last name</label>
+              <input
+                class="field__control"
+                [id]="'p' + i + '-last'"
+                formControlName="lastName"
+                autocomplete="family-name"
+                [attr.aria-describedby]="'p' + i + '-last-error'"
+              />
+              <app-field-error
+                [control]="passenger.controls.lastName"
+                [errorId]="'p' + i + '-last-error'"
+                label="Last name"
+              />
+            </div>
+
+            <div class="field">
+              <label class="field__label" [for]="'p' + i + '-gender'">Gender</label>
+              <select
+                class="field__control"
+                [id]="'p' + i + '-gender'"
+                formControlName="gender"
+                [attr.aria-describedby]="'p' + i + '-gender-error'"
+              >
+                <option value="" disabled>Select</option>
+                @for (g of genders; track g[0]) {
+                  <option [value]="g[0]">{{ g[1] }}</option>
+                }
+              </select>
+              <app-field-error
+                [control]="passenger.controls.gender"
+                [errorId]="'p' + i + '-gender-error'"
+                label="Gender"
+              />
+            </div>
+
+            <div class="field">
+              <label class="field__label" [for]="'p' + i + '-dob'">Date of birth</label>
+              <input
+                class="field__control"
+                type="date"
+                [id]="'p' + i + '-dob'"
+                formControlName="dateOfBirth"
+                [max]="today"
+                autocomplete="bday"
+                [attr.aria-describedby]="'p' + i + '-dob-error'"
+              />
+              <app-field-error
+                [control]="passenger.controls.dateOfBirth"
+                [errorId]="'p' + i + '-dob-error'"
+                label="Date of birth"
+              />
+            </div>
+
+            <div class="field">
+              <label class="field__label" [for]="'p' + i + '-nat'"
+                >Nationality <span class="muted">(country code)</span></label
+              >
+              <input
+                class="field__control"
+                [id]="'p' + i + '-nat'"
+                formControlName="nationality"
+                maxlength="2"
+                autocomplete="country"
+                [attr.aria-describedby]="'p' + i + '-nat-hint p' + i + '-nat-error'"
+              />
+              <p class="field__hint" [id]="'p' + i + '-nat-hint'">Two letters, e.g. IN for India</p>
+              <app-field-error
+                [control]="passenger.controls.nationality"
+                [errorId]="'p' + i + '-nat-error'"
+                label="Nationality"
+                patternMessage="Use the two-letter country code, e.g. IN"
+              />
+            </div>
+          </div>
+        </fieldset>
+      </div>
+    }
+  </div>
+
+  <div class="card">
+    <fieldset class="plain" formGroupName="contact">
+      <legend class="card__title">Contact details</legend>
+      <p class="muted">We'll send the e-tickets and any flight updates here.</p>
+      <div class="form-grid">
+        <div class="field">
+          <label class="field__label" for="contact-email">Email</label>
+          <input
+            id="contact-email"
+            class="field__control"
+            type="email"
+            inputmode="email"
+            formControlName="email"
+            autocomplete="email"
+            aria-describedby="contact-email-error"
+          />
+          <app-field-error
+            [control]="form.controls.contact.controls.email"
+            errorId="contact-email-error"
+            label="Email"
+          />
+        </div>
+        <div class="field">
+          <label class="field__label" for="contact-phone">Mobile number</label>
+          <input
+            id="contact-phone"
+            class="field__control"
+            type="tel"
+            inputmode="tel"
+            formControlName="phone"
+            autocomplete="tel"
+            placeholder="+91 98765 43210"
+            aria-describedby="contact-phone-hint contact-phone-error"
+          />
+          <p class="field__hint" id="contact-phone-hint">{{ phoneHint }}</p>
+          <app-field-error
+            [control]="form.controls.contact.controls.phone"
+            errorId="contact-phone-error"
+            label="Mobile number"
+          />
+        </div>
+      </div>
+    </fieldset>
+  </div>
+</form>

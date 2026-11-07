@@ -1,0 +1,76 @@
+<div class="container page">
+  @if (booking.error()) {
+    <app-error-state
+      title="We couldn't check your booking"
+      [message]="errorText()"
+      (retry)="booking.reload()"
+    />
+    <p>
+      If you paid, don't worry: your payment is safe and your booking will appear in
+      <a routerLink="/trips">My trips</a>.
+    </p>
+  } @else if (!booking.hasValue()) {
+    <app-loading label="Confirming your payment" />
+  } @else {
+    @let b = booking.value();
+
+    <!-- role="status": the result is announced to screen readers when it appears. -->
+    <section class="result card" role="status" aria-live="polite">
+      @switch (b.status) {
+        @case ('CONFIRMED') {
+          <div class="result__icon result__icon--ok" aria-hidden="true">✓</div>
+          <h1>You're booked!</h1>
+          <p class="muted">
+            Your e-tickets have been issued. We've sent the details to
+            {{ b.contactInfo?.email ?? 'your email' }}.
+          </p>
+          <p class="pnr">
+            Booking reference <strong>{{ b.bookingReference }}</strong>
+          </p>
+        }
+        @case ('PENDING') {
+          <div class="result__icon result__icon--wait" aria-hidden="true">…</div>
+          <h1>We're still confirming your payment</h1>
+          <p class="muted">
+            This can take a few minutes. You don't need to pay again. Your booking will update
+            automatically in My trips.
+          </p>
+          <p class="pnr">
+            Booking reference <strong>{{ b.bookingReference }}</strong>
+          </p>
+        }
+        @default {
+          <div class="result__icon result__icon--fail" aria-hidden="true">!</div>
+          <h1>Payment didn't go through</h1>
+          <p class="muted">
+            {{ b.cancellationReason || 'The payment was not completed.' }} Nothing has been charged,
+            and the seats have been released.
+          </p>
+        }
+      }
+
+      <dl class="facts result__facts">
+        <dt>Flight</dt>
+        <dd>{{ b.flightNumber }} · {{ b.departureAirport }} → {{ b.arrivalAirport }}</dd>
+        <dt>Departs</dt>
+        <dd>{{ b.departureTime | date: 'EEE d MMM y, HH:mm' }}</dd>
+        <dt>Travellers</dt>
+        <dd>{{ b.passengers.length }}</dd>
+        @if (b.totalAmount !== null) {
+          <dt>Total</dt>
+          <dd>{{ b.totalAmount | money: b.currency }}</dd>
+        }
+      </dl>
+
+      <div class="result__actions">
+        @if (status() === 'CANCELLED') {
+          <a routerLink="/" class="btn btn--primary">Search flights again</a>
+          <a routerLink="/trips" class="btn btn--outline">My trips</a>
+        } @else {
+          <a [routerLink]="['/trips', b.id]" class="btn btn--primary">View trip and e-tickets</a>
+          <a routerLink="/" class="btn btn--outline">Book another flight</a>
+        }
+      </div>
+    </section>
+  }
+</div>

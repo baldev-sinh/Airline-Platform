@@ -1,0 +1,103 @@
+.block {
+  margin-bottom: var(--space-4);
+}
+
+.small {
+  font-size: var(--text-sm);
+}
+
+.menu {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-4);
+  padding: 0;
+  list-style: none;
+}
+
+.menu__item {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: start;
+  gap: var(--space-3);
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--color-line);
+}
+
+// The familiar square-with-dot food marker used in India: green = vegetarian, red = non-veg.
+.menu__type {
+  width: 1rem;
+  height: 1rem;
+  margin-top: 0.2rem;
+  border: 2px solid var(--color-danger);
+  border-radius: 2px;
+  background: radial-gradient(circle, var(--color-danger) 0 35%, transparent 36%);
+
+  &.is-veg {
+    border-color: var(--color-success);
+    background: radial-gradient(circle, var(--color-success) 0 35%, transparent 36%);
+  }
+}
+
+.menu__price,
+.extra__price {
+  font-weight: var(--weight-semibold);
+}
+
+.extras {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.extra {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--color-line);
+
+  p {
+    margin: 0;
+  }
+}
+
+.extra__name {
+  font-weight: var(--weight-semibold);
+}
+
+.stepper {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  border: 1px solid var(--color-line-strong);
+  border-radius: var(--radius-md);
+}
+
+.stepper__btn {
+  width: 2.75rem;
+  height: 2.75rem;
+  border: 0;
+  background: none;
+  color: var(--color-brand);
+  font-size: var(--text-xl);
+  cursor: pointer;
+
+  &:disabled {
+    color: var(--color-line-strong);
+    cursor: default;
+  }
+
+  &:focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
+  }
+}
+
+.stepper__value {
+  min-width: 2rem;
+  text-align: center;
+  font-weight: var(--weight-bold);
+}

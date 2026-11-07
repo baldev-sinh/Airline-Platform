@@ -1,0 +1,111 @@
+<div class="container page auth">
+  <div class="auth__card card">
+    <h1>Create your account</h1>
+    <p class="muted">It takes a minute. Your trips and e-tickets will always be one click away.</p>
+
+    @if (error(); as e) {
+      <div class="alert alert--danger" role="alert">
+        <p>{{ e.message }}</p>
+      </div>
+    }
+
+    <form class="stack" [formGroup]="form" (ngSubmit)="submit()" novalidate>
+      <div class="field">
+        <label class="field__label" for="signup-name">Full name</label>
+        <input
+          id="signup-name"
+          class="field__control"
+          formControlName="fullName"
+          autocomplete="name"
+          aria-describedby="signup-name-hint signup-name-error"
+        />
+        <p class="field__hint" id="signup-name-hint">As it appears on your ID</p>
+        <app-field-error
+          [control]="form.controls.fullName"
+          errorId="signup-name-error"
+          label="Full name"
+        />
+      </div>
+
+      <div class="field">
+        <label class="field__label" for="signup-email">Email</label>
+        <input
+          id="signup-email"
+          class="field__control"
+          type="email"
+          inputmode="email"
+          formControlName="email"
+          autocomplete="email"
+          aria-describedby="signup-email-error"
+        />
+        <app-field-error
+          [control]="form.controls.email"
+          errorId="signup-email-error"
+          label="Email"
+        />
+      </div>
+
+      <div class="field">
+        <label class="field__label" for="signup-phone"
+          >Mobile number <span class="muted">(optional)</span></label
+        >
+        <input
+          id="signup-phone"
+          class="field__control"
+          type="tel"
+          inputmode="tel"
+          formControlName="phone"
+          autocomplete="tel"
+          placeholder="+91 98765 43210"
+          aria-describedby="signup-phone-hint signup-phone-error"
+        />
+        <p class="field__hint" id="signup-phone-hint">{{ phoneHint }}</p>
+        <app-field-error
+          [control]="form.controls.phone"
+          errorId="signup-phone-error"
+          label="Mobile number"
+        />
+      </div>
+
+      <div class="field">
+        <label class="field__label" for="signup-password">Password</label>
+        <div class="password">
+          <input
+            id="signup-password"
+            class="field__control"
+            [type]="showPassword() ? 'text' : 'password'"
+            formControlName="password"
+            autocomplete="new-password"
+            aria-describedby="signup-password-hint signup-password-error"
+          />
+          <button
+            type="button"
+            class="password__toggle"
+            (click)="showPassword.set(!showPassword())"
+            [attr.aria-pressed]="showPassword()"
+          >
+            {{ showPassword() ? 'Hide' : 'Show' }}<span class="visually-hidden"> password</span>
+          </button>
+        </div>
+        <p class="field__hint" id="signup-password-hint">
+          At least {{ passwordMin }} characters. A short sentence is easy to remember and hard to
+          guess.
+        </p>
+        <app-field-error
+          [control]="form.controls.password"
+          errorId="signup-password-error"
+          label="Password"
+        />
+      </div>
+
+      <button type="submit" class="btn btn--primary btn--block btn--lg" [disabled]="submitting()">
+        {{ submitting() ? 'Creating your account…' : 'Create account' }}
+      </button>
+    </form>
+
+    <p class="auth__switch">
+      Already have an account?
+      <a routerLink="/login" [queryParams]="{ returnUrl: returnUrl() }">Sign in</a>
+    </p>
+  </div>
+</div>

@@ -1,0 +1,112 @@
+<h2 id="step-heading" tabindex="-1">Make your trip more comfortable</h2>
+<p class="muted">All optional. Adding extras now is usually cheaper than at the airport.</p>
+
+@if (meals().length === 0 && extras().length === 0) {
+  <div class="alert">
+    <p>There are no extras on sale for this flight. You can continue to review your booking.</p>
+  </div>
+}
+
+@if (meals().length > 0) {
+  <section class="card block" aria-labelledby="meals-title">
+    <h3 id="meals-title" class="card__title">Pre-order a meal</h3>
+    @if (mealsIncluded()) {
+      <p class="muted">
+        Your fare already includes a standard meal. Pick one below only if you'd like an extra or
+        special meal.
+      </p>
+    }
+
+    <ul class="menu" aria-label="Menu">
+      @for (fm of meals(); track fm.id) {
+        <li class="menu__item">
+          <span
+            class="menu__type"
+            [class.is-veg]="fm.meal.mealType === 'VEG'"
+            aria-hidden="true"
+          ></span>
+          <span>
+            <strong>{{ fm.meal.name }}</strong>
+            @if (fm.meal.dietaryRestriction) {
+              <span class="muted"> · {{ fm.meal.dietaryRestriction }}</span>
+            }
+            @if (fm.meal.description) {
+              <br /><span class="muted small">{{ fm.meal.description }}</span>
+            }
+          </span>
+          <span class="menu__price">{{ fm.price | money }}</span>
+        </li>
+      }
+    </ul>
+
+    <div class="form-grid">
+      @for (t of travellers(); track t.index) {
+        <div class="field">
+          <label class="field__label" [for]="'meal-' + t.index">Meal for {{ t.name }}</label>
+          <select
+            class="field__control"
+            [id]="'meal-' + t.index"
+            [value]="store.mealIds()[t.index] ?? ''"
+            (change)="onMealChange(t.index, $any($event.target).value)"
+          >
+            <option value="">No meal</option>
+            @for (fm of meals(); track fm.id) {
+              <option [value]="fm.id" [selected]="store.mealIds()[t.index] === fm.id">
+                {{ fm.meal.name }} ({{ fm.price | money }})
+              </option>
+            }
+          </select>
+        </div>
+      }
+    </div>
+  </section>
+}
+
+@if (extras().length > 0) {
+  <section class="card block" aria-labelledby="extras-title">
+    <h3 id="extras-title" class="card__title">Bags and services</h3>
+    <ul class="extras">
+      @for (item of extras(); track item.id) {
+        <li class="extra">
+          <div>
+            <p class="extra__name">{{ item.ancillary.name }}</p>
+            @if (item.ancillary.description) {
+              <p class="muted small">{{ item.ancillary.description }}</p>
+            }
+            <p class="extra__price">
+              {{ item.price | money }} each
+              <span class="muted">· up to {{ max(item) }} per booking</span>
+            </p>
+          </div>
+
+          <!-- Quantity stepper: a labelled group of two buttons around a live count. -->
+          <div
+            class="stepper"
+            role="group"
+            [attr.aria-label]="'Quantity of ' + item.ancillary.name"
+          >
+            <button
+              type="button"
+              class="stepper__btn"
+              [disabled]="quantity(item) === 0"
+              (click)="store.setExtraQuantity(item, quantity(item) - 1)"
+              [attr.aria-label]="'Remove one ' + item.ancillary.name"
+            >
+              −
+            </button>
+            <output class="stepper__value" aria-live="polite">{{ quantity(item) }}</output>
+            <button
+              type="button"
+              class="stepper__btn"
+              [disabled]="quantity(item) >= max(item)"
+              (click)="store.setExtraQuantity(item, quantity(item) + 1)"
+              [attr.aria-label]="'Add one ' + item.ancillary.name"
+            >
+              +
+            </button>
+          </div>
+        </li>
+      }
+    </ul>
+  </section>
+}

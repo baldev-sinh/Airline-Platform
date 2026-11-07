@@ -1,0 +1,93 @@
+@use 'mixins' as *;
+
+.fares {
+  display: grid;
+  gap: var(--space-3);
+
+  @include from('md') {
+    grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+  }
+}
+
+.fare {
+  display: grid;
+  grid-template-rows: auto auto 1fr auto;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  background: var(--color-surface);
+  border: 2px solid var(--color-line);
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  transition: border-color 120ms ease;
+
+  &:hover {
+    border-color: var(--color-line-strong);
+  }
+
+  &.is-selected {
+    border-color: var(--color-brand);
+    box-shadow: 0 0 0 3px rgb(15 76 92 / 12%);
+  }
+
+  // The radio itself is visually hidden, so show focus on the whole card.
+  &:has(input:focus-visible) {
+    box-shadow: var(--focus-ring);
+  }
+}
+
+.fare__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.fare__name {
+  font-size: var(--text-lg);
+  font-weight: var(--weight-bold);
+}
+
+.fare__price {
+  font-size: var(--text-2xl);
+  font-weight: var(--weight-bold);
+  color: var(--color-brand);
+}
+
+.fare__features {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--text-sm);
+
+  span {
+    display: inline-block;
+    width: 1rem;
+    color: var(--color-success);
+    font-weight: var(--weight-bold);
+  }
+
+  .is-missing {
+    color: var(--color-muted);
+
+    span {
+      color: var(--color-muted);
+    }
+  }
+}
+
+.fare__pick {
+  margin-top: var(--space-2);
+  padding: var(--space-2);
+  border-radius: var(--radius-md);
+  text-align: center;
+  font-weight: var(--weight-semibold);
+  background: var(--color-canvas);
+  color: var(--color-brand);
+
+  .is-selected & {
+    background: var(--color-brand);
+    color: #fff;
+  }
+}

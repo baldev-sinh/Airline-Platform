@@ -1,0 +1,132 @@
+@use 'mixins' as *;
+
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-line);
+}
+
+.header__inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: var(--header-height);
+  gap: var(--space-4);
+}
+
+.header__logo {
+  text-decoration: none;
+}
+
+// ----- Mobile: menu collapses behind a button -----
+.header__menu-button {
+  display: inline-grid;
+  place-items: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-brand);
+  cursor: pointer;
+
+  @include from('md') {
+    display: none;
+  }
+}
+
+.header__menu {
+  display: none;
+  position: absolute;
+  inset: var(--header-height) 0 auto 0;
+  padding: var(--space-4);
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-line);
+  box-shadow: var(--shadow-raised);
+
+  &.is-open {
+    display: grid;
+    gap: var(--space-4);
+  }
+
+  // ----- Desktop: menu always visible, in one row -----
+  @include from('md') {
+    display: flex;
+    position: static;
+    flex: 1;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0;
+    border: 0;
+    box-shadow: none;
+    margin-left: var(--space-6);
+  }
+}
+
+.header__links {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+
+  @include from('md') {
+    display: flex;
+    gap: var(--space-5);
+  }
+
+  a {
+    display: block;
+    padding: var(--space-2) 0;
+    color: var(--color-ink);
+    font-weight: var(--weight-medium);
+    text-decoration: none;
+    border-bottom: 3px solid transparent;
+
+    &:hover {
+      color: var(--color-brand);
+    }
+
+    &.is-active {
+      color: var(--color-brand);
+      border-bottom-color: var(--color-accent);
+    }
+  }
+}
+
+.header__account {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.header__user {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-md);
+  color: var(--color-ink);
+  font-weight: var(--weight-medium);
+  text-decoration: none;
+
+  &:hover,
+  &.is-active {
+    background: var(--color-brand-soft);
+  }
+}
+
+.header__avatar {
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  background: var(--color-brand);
+  color: #fff;
+  font-weight: var(--weight-bold);
+  text-transform: uppercase;
+}

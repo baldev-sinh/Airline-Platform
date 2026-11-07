@@ -1,0 +1,49 @@
+<header class="header no-print">
+  <div class="container header__inner">
+    <a routerLink="/" class="header__logo" aria-label="Baldev Airways home">
+      <app-brand-logo />
+    </a>
+
+    <button
+      type="button"
+      class="header__menu-button"
+      aria-controls="site-menu"
+      [attr.aria-expanded]="menuOpen()"
+      (click)="toggleMenu()"
+    >
+      <span class="visually-hidden">Menu</span>
+      <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true">
+        @if (menuOpen()) {
+          <path d="M5 5l12 12M17 5L5 17" stroke="currentColor" stroke-width="2" />
+        } @else {
+          <path d="M3 6h16M3 11h16M3 16h16" stroke="currentColor" stroke-width="2" />
+        }
+      </svg>
+    </button>
+
+    <nav id="site-menu" class="header__menu" [class.is-open]="menuOpen()" aria-label="Main">
+      <ul class="header__links">
+        <li>
+          <a routerLink="/" routerLinkActive="is-active" [routerLinkActiveOptions]="{ exact: true }"
+            >Book a flight</a
+          >
+        </li>
+        <li><a routerLink="/trips" routerLinkActive="is-active">My trips</a></li>
+        <li><a routerLink="/help" routerLinkActive="is-active">Help</a></li>
+      </ul>
+
+      <div class="header__account">
+        @if (auth.user(); as user) {
+          <a routerLink="/account" routerLinkActive="is-active" class="header__user">
+            <span class="header__avatar" aria-hidden="true">{{ user.fullName.charAt(0) }}</span>
+            <span>Hi, {{ firstName(user.fullName) }}</span>
+          </a>
+          <button type="button" class="btn btn--ghost" (click)="signOut()">Sign out</button>
+        } @else {
+          <a routerLink="/login" class="btn btn--ghost">Sign in</a>
+          <a routerLink="/signup" class="btn btn--brand">Join</a>
+        }
+      </div>
+    </nav>
+  </div>
+</header>

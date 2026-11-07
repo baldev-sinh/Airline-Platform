@@ -1,0 +1,77 @@
+<div class="container page auth">
+  <div class="auth__card card">
+    <h1>Sign in</h1>
+    <p class="muted">Manage your trips and book faster.</p>
+
+    @if (sessionExpired()) {
+      <div class="alert alert--warning" role="status">
+        <p>
+          For your security you were signed out after a period of time. Please sign in again to
+          continue.
+        </p>
+      </div>
+    }
+
+    @if (error(); as e) {
+      <div class="alert alert--danger" role="alert">
+        <p>{{ e.message }}</p>
+      </div>
+    }
+
+    <form class="stack" [formGroup]="form" (ngSubmit)="submit()" novalidate>
+      <div class="field">
+        <label class="field__label" for="login-email">Email</label>
+        <input
+          id="login-email"
+          class="field__control"
+          type="email"
+          formControlName="email"
+          autocomplete="username"
+          inputmode="email"
+          aria-describedby="login-email-error"
+        />
+        <app-field-error
+          [control]="form.controls.email"
+          errorId="login-email-error"
+          label="Email"
+        />
+      </div>
+
+      <div class="field">
+        <label class="field__label" for="login-password">Password</label>
+        <div class="password">
+          <input
+            id="login-password"
+            class="field__control"
+            [type]="showPassword() ? 'text' : 'password'"
+            formControlName="password"
+            autocomplete="current-password"
+            aria-describedby="login-password-error"
+          />
+          <button
+            type="button"
+            class="password__toggle"
+            (click)="showPassword.set(!showPassword())"
+            [attr.aria-pressed]="showPassword()"
+          >
+            {{ showPassword() ? 'Hide' : 'Show' }}<span class="visually-hidden"> password</span>
+          </button>
+        </div>
+        <app-field-error
+          [control]="form.controls.password"
+          errorId="login-password-error"
+          label="Password"
+        />
+      </div>
+
+      <button type="submit" class="btn btn--primary btn--block btn--lg" [disabled]="submitting()">
+        {{ submitting() ? 'Signing in…' : 'Sign in' }}
+      </button>
+    </form>
+
+    <p class="auth__switch">
+      New here?
+      <a routerLink="/signup" [queryParams]="{ returnUrl: returnUrl() }">Create an account</a>
+    </p>
+  </div>
+</div>

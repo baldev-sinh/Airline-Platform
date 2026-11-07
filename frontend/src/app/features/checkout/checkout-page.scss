@@ -1,0 +1,128 @@
+@use 'mixins' as *;
+
+.trip-bar {
+  background: var(--color-brand);
+  color: #fff;
+  padding-block: var(--space-3);
+
+  p {
+    margin: 0;
+  }
+}
+
+.trip-bar__route {
+  font-size: var(--text-lg);
+}
+
+.trip-bar__meta {
+  color: #d9e6e8;
+  font-size: var(--text-sm);
+}
+
+// ---------- Stepper ----------
+.stepper ol {
+  display: flex;
+  gap: var(--space-1);
+  margin: 0 0 var(--space-5);
+  padding: 0;
+  list-style: none;
+  overflow-x: auto;
+}
+
+.stepper li {
+  flex: 1;
+  min-width: 4.5rem;
+  border-bottom: 3px solid var(--color-line);
+
+  &.is-done {
+    border-bottom-color: var(--color-brand);
+  }
+
+  &.is-current {
+    border-bottom-color: var(--color-accent);
+  }
+}
+
+.stepper__button {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  padding: var(--space-2) var(--space-1);
+  border: 0;
+  background: none;
+  color: var(--color-ink);
+  font-weight: var(--weight-semibold);
+  cursor: pointer;
+
+  &:disabled {
+    color: var(--color-muted);
+    cursor: default;
+  }
+}
+
+.stepper__num {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 50%;
+  background: var(--color-line);
+  font-size: var(--text-sm);
+
+  .is-done & {
+    background: var(--color-brand);
+    color: #fff;
+  }
+
+  .is-current & {
+    background: var(--color-accent);
+  }
+}
+
+.stepper__label {
+  display: none;
+  white-space: nowrap;
+
+  @include from('sm') {
+    display: inline;
+  }
+
+  .is-current & {
+    display: inline;
+  }
+}
+
+// ---------- Layout: steps + sticky price summary ----------
+.checkout {
+  display: grid;
+  gap: var(--space-5);
+
+  @include from('lg') {
+    grid-template-columns: minmax(0, 1fr) 20rem;
+    align-items: start;
+  }
+}
+
+.checkout__aside {
+  @include from('lg') {
+    position: sticky;
+    top: calc(var(--header-height) + var(--space-4));
+  }
+}
+
+.checkout__error {
+  margin-top: var(--space-4);
+}
+
+.checkout__nav {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-top: var(--space-5);
+
+  &--start {
+    justify-content: flex-start;
+  }
+}
