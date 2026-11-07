@@ -101,6 +101,8 @@ service answers 401.
 
 ### Using Razorpay test mode instead (optional)
 
+Step-by-step guide, including webhooks through a tunnel and what to expect: [docs/RAZORPAY_TEST_MODE.md](../docs/RAZORPAY_TEST_MODE.md).
+
 1. Create a Razorpay account and switch the dashboard to **Test Mode**. Test keys are free and never charge
    real money.
 2. Generate an API key (Settings → API Keys) and set `RAZORPAY_KEY_ID` and `RAZORPAY_KEY_SECRET` in your

@@ -40,6 +40,33 @@ if (Test-Path $pidFile) {
     Remove-Item $pidFile
 }
 
+# Razorpay test mode: take the keys from the environment, or else from docker-compose/.env (git-ignored).
+# Refuse to start with missing, placeholder or LIVE keys: a local run must never be able to take real money,
+# and a placeholder would otherwise only fail later, when someone tries to pay.
+if ($RealPayments) {
+    $envFile = Join-Path $root 'docker-compose/.env'
+    $fromFile = @{}
+    if (Test-Path $envFile) {
+        foreach ($line in Get-Content $envFile) {
+            if ($line -match '^\s*(RAZORPAY_[A-Z_]+)\s*=\s*(.*?)\s*$') { $fromFile[$Matches[1]] = $Matches[2].Trim('"', "'") }
+        }
+    }
+    foreach ($name in 'RAZORPAY_KEY_ID', 'RAZORPAY_KEY_SECRET', 'RAZORPAY_WEBHOOK_SECRET') {
+        $value = [Environment]::GetEnvironmentVariable($name)
+        if ([string]::IsNullOrWhiteSpace($value) -and $fromFile.ContainsKey($name)) {
+            $value = $fromFile[$name]
+            Set-Item "env:$name" $value   # inherited by the services started below
+        }
+        if ([string]::IsNullOrWhiteSpace($value) -or $value -in 'stub', 'placeholder', 'rzp_test_stub', 'rzp_test_placeholder', 'local-stub-webhook-secret') {
+            throw "-RealPayments needs a real Razorpay TEST value for $name. Set it in docker-compose/.env (see docs/RAZORPAY_TEST_MODE.md)."
+        }
+    }
+    if ($env:RAZORPAY_KEY_ID -notlike 'rzp_test_*') {
+        throw "RAZORPAY_KEY_ID must be a TEST key (rzp_test_...). Live keys (rzp_live_...) are never used for local runs."
+    }
+    Write-Host "Razorpay TEST mode with key $($env:RAZORPAY_KEY_ID.Substring(0, [Math]::Min(14, $env:RAZORPAY_KEY_ID.Length)))..." -ForegroundColor Yellow
+}
+
 # name, jar folder, port, extra profiles
 $services = @(
     @{ Name = 'service-registry';     Dir = 'cloud/service-registry';         Port = 8761; Profiles = '' },
@@ -112,4 +139,6 @@ Write-Host ''
 Write-Host 'All services are up. API gateway: http://localhost:5000   Eureka: http://localhost:8761' -ForegroundColor Green
 if (-not $RealPayments) {
     Write-Host 'Payments: OFFLINE STUB (no money moves). Webhook secret: local-stub-webhook-secret' -ForegroundColor Yellow
+} else {
+    Write-Host 'Payments: Razorpay TEST mode (test cards and UPI only, no real money). Guide: docs/RAZORPAY_TEST_MODE.md' -ForegroundColor Yellow
 }
