@@ -47,7 +47,15 @@ curl.exe http://localhost:5000/api/airports
 
 A JSON list (`[]` on a fresh database) means you're ready. Anything else: see [Troubleshooting](#troubleshooting).
 
-**4. Seed test data** by running only folders 00 to 07 of the collection:
+**4. Seed test data.** Quickest: the demo seed creates a realistic network (real airport codes, two airlines,
+20 daily flights for the next 45 days) and is safe to re-run:
+
+```powershell
+node scripts/seed-demo/seed-demo.mjs
+```
+
+It needs `DEMO_OWNER_PASSWORD` (any 10+ characters) in `docker-compose/.env`. Then search, for example, `DEL` → `BOM`
+tomorrow. Alternatively, run only folders 00 to 07 of the Postman collection:
 
 ```powershell
 npx newman run postman/airline-platform.postman_collection.json -e postman/airline-local.postman_environment.json `
