@@ -1,10 +1,10 @@
 package com.baldev.airline.airlinecore.model;
 
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
 import com.baldev.airline.common.enums.AircraftStatus;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
@@ -24,10 +24,10 @@ public class Aircraft {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(unique=true, nullable=false)
+    @Column(unique = true, nullable = false)
     private String code;
 
-    @Column(nullable=false)
+    @Column(nullable = false)
     private String model;
 
     @Column(nullable = false, length = 50)
@@ -37,16 +37,16 @@ public class Aircraft {
     private Integer seatingCapacity;
 
     @Column(name = "economy_seats")
-    private Integer economySeats=0;
+    private Integer economySeats = 0;
 
     @Column(name = "premium_economy_seats")
-    private Integer premiumEconomySeats=0;
+    private Integer premiumEconomySeats = 0;
 
     @Column(name = "business_seats")
-    private Integer businessSeats=0;
+    private Integer businessSeats = 0;
 
     @Column(name = "first_class_seats")
-    private Integer firstClassSeats=0;
+    private Integer firstClassSeats = 0;
 
     private Integer rangeKm;
 
@@ -64,6 +64,7 @@ public class Aircraft {
     @Enumerated(EnumType.STRING)
     @JdbcTypeCode(SqlTypes.VARCHAR)
     @Column(name = "status", nullable = false, length = 20)
+    @Builder.Default
     private AircraftStatus status = AircraftStatus.ACTIVE;
 
     private Boolean isAvailable = true;
@@ -81,7 +82,9 @@ public class Aircraft {
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
 
-    /** Sum of the configured cabins; a cabin the aircraft does not have is null and counts as zero. */
+    /**
+     * Sum of the configured cabins; a cabin the aircraft does not have is null and counts as zero.
+     */
     public Integer getTotalSeats() {
         return seats(economySeats) + seats(premiumEconomySeats) + seats(businessSeats) + seats(firstClassSeats);
     }
@@ -90,14 +93,14 @@ public class Aircraft {
         return count != null ? count : 0;
     }
 
-    public  boolean isOperational(){
+    public boolean isOperational() {
         return AircraftStatus.ACTIVE.equals(status)
-                && Boolean.TRUE.equals(isAvailable);
+            && Boolean.TRUE.equals(isAvailable);
     }
 
-    public boolean requiresMaintenance(){
-        return nextMaintenanceDate!=null
-                && nextMaintenanceDate.isBefore(LocalDate.now().plusWeeks(2));
+    public boolean requiresMaintenance() {
+        return nextMaintenanceDate != null
+            && nextMaintenanceDate.isBefore(LocalDate.now().plusWeeks(2));
     }
 
 }
