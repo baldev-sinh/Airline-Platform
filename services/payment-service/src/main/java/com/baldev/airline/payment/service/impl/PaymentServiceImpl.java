@@ -117,10 +117,21 @@ public class PaymentServiceImpl implements PaymentService {
     @Override
     public PaymentDTO verifyPayment(CurrentUser user, PaymentVerifyRequest request) {
         GatewayPayment gatewayPayment = paymentProvider.fetchPayment(request.getRazorpayPaymentId());
-        Long paymentId = parseId(gatewayPayment.notesPaymentId());
+
+        // Which of our payments is this? Preferably the payment_id note we put on the link. If the provider's
+        // payment carries no notes, fall back to the payment link id from the callback URL, but only after the
+        // provider confirms the payment was made through that link (checked here, outside the row lock).
+        Long paymentId = gatewayPayment.notesPaymentId() != null ? parseId(gatewayPayment.notesPaymentId()) : null;
+        String linkId = request.getRazorpayPaymentLinkId();
+        if (paymentId == null && (linkId == null || !paymentProvider.isPaymentOfLink(linkId, gatewayPayment.id()))) {
+            throw new BusinessRuleException("PAYMENT_NOT_LINKED", "This payment is not linked to a booking");
+        }
 
         return transactionTemplate.execute(status -> {
-            Payment payment = paymentRepository.findByIdForUpdate(paymentId)
+            Optional<Payment> found = paymentId != null
+                    ? paymentRepository.findByIdForUpdate(paymentId)
+                    : paymentRepository.findByProviderOrderIdForUpdate(linkId);
+            Payment payment = found
                     .filter(p -> p.getUserId().equals(user.id()))
                     // Same response for "not found" and "not yours": never confirm another user's payment exists.
                     .orElseThrow(() -> new ResourceNotFoundException("Payment not found"));

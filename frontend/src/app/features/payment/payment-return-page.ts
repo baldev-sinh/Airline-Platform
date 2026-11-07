@@ -22,11 +22,13 @@ import { MoneyPipe } from '../../shared/money-pipe';
 
 /** Same rule as the server (PaymentVerifyRequest): "pay_" followed by 6–40 letters or digits. */
 const PAYMENT_ID = /^pay_[A-Za-z0-9]{6,40}$/;
+/** Same rule as the server for the payment link id: "plink_" followed by 6–40 letters or digits. */
+const PAYMENT_LINK_ID = /^plink_[A-Za-z0-9]{6,40}$/;
 const POLL_EVERY_MS = 2000;
 const POLL_ATTEMPTS = 15; // ~30 seconds
 
 /**
- * /booking-success/:bookingId?razorpay_payment_id=pay_...
+ * /booking-success/:bookingId?razorpay_payment_id=pay_...&razorpay_payment_link_id=plink_...
  *
  * What happens after paying:
  *  1. Razorpay redirects the customer here.
@@ -48,12 +50,17 @@ export class PaymentReturnPage {
   readonly bookingId = input.required<string>();
   // Query parameter names chosen by Razorpay.
   readonly razorpay_payment_id = input<string>();
+  readonly razorpay_payment_link_id = input<string>();
 
   private readonly bookingApi = inject(BookingApi);
 
   protected readonly booking = rxResource({
-    params: () => ({ id: Number(this.bookingId()), paymentId: this.razorpay_payment_id() ?? null }),
-    stream: ({ params }) => this.confirm(params.id, params.paymentId),
+    params: () => ({
+      id: Number(this.bookingId()),
+      paymentId: this.razorpay_payment_id() ?? null,
+      linkId: this.razorpay_payment_link_id() ?? null,
+    }),
+    stream: ({ params }) => this.confirm(params.id, params.paymentId, params.linkId),
   });
 
   protected readonly status = computed(() =>
@@ -61,14 +68,24 @@ export class PaymentReturnPage {
   );
   protected readonly errorText = computed(() => errorMessage(this.booking.error()));
 
-  private confirm(bookingId: number, paymentId: string | null): Observable<Booking> {
+  private confirm(
+    bookingId: number,
+    paymentId: string | null,
+    linkId: string | null,
+  ): Observable<Booking> {
     // Verifying is best effort: if it fails, the webhook will still settle the payment.
     const verify$ =
       paymentId && PAYMENT_ID.test(paymentId)
-        ? this.bookingApi.verifyPayment({ razorpayPaymentId: paymentId }).pipe(
-            ignoreElements(),
-            catchError(() => of()),
-          )
+        ? this.bookingApi
+            .verifyPayment({
+              razorpayPaymentId: paymentId,
+              // Only sent when well-formed; the server re-checks it with Razorpay anyway.
+              ...(linkId && PAYMENT_LINK_ID.test(linkId) ? { razorpayPaymentLinkId: linkId } : {}),
+            })
+            .pipe(
+              ignoreElements(),
+              catchError(() => of()),
+            )
         : of();
 
     // Fetch the booking every 2 s. takeWhile stops at the first one that isn't PENDING (or after
