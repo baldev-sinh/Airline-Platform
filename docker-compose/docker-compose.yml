@@ -132,7 +132,7 @@ services:
   # Local debugging only: it has no login, so it is bound to 127.0.0.1 and runs read-only (no producing,
   # deleting or resetting offsets). Set KAFKA_CLUSTERS_0_READONLY to "false" to replay a DLT message by hand.
   kafka-ui:
-    image: ghcr.io/kafbat/kafka-ui:v1.4.2
+    image: ghcr.io/kafbat/kafka-ui:v1.5.0
     restart: unless-stopped
     mem_limit: 512m
     networks: [ backend ]
