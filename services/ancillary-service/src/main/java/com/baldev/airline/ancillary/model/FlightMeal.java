@@ -23,10 +23,12 @@ public class FlightMeal {
     @ManyToOne
     private Meal meal;
 
+    @Builder.Default
     private Boolean available = true;
 
     private BigDecimal price;
 
+    @Builder.Default
     private Integer displayOrder = 0;
 
 }

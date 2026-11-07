@@ -37,15 +37,19 @@ public class Aircraft {
     private Integer seatingCapacity;
 
     @Column(name = "economy_seats")
+    @Builder.Default
     private Integer economySeats = 0;
 
     @Column(name = "premium_economy_seats")
+    @Builder.Default
     private Integer premiumEconomySeats = 0;
 
     @Column(name = "business_seats")
+    @Builder.Default
     private Integer businessSeats = 0;
 
     @Column(name = "first_class_seats")
+    @Builder.Default
     private Integer firstClassSeats = 0;
 
     private Integer rangeKm;
@@ -67,6 +71,7 @@ public class Aircraft {
     @Builder.Default
     private AircraftStatus status = AircraftStatus.ACTIVE;
 
+    @Builder.Default
     private Boolean isAvailable = true;
 
     @ManyToOne

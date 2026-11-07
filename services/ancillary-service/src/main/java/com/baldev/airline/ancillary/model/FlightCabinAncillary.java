@@ -31,5 +31,6 @@ public class FlightCabinAncillary {
 
     private BigDecimal price;
 
+    @Builder.Default
     private Boolean includedInFare = false;
 }

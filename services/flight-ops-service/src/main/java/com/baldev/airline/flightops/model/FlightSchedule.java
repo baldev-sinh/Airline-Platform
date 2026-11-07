@@ -50,6 +50,7 @@ public class FlightSchedule {
 
 
 
+    @Builder.Default
     private Boolean isActive=true;
 
 }
