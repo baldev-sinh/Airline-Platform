@@ -12,6 +12,7 @@ import lombok.*;
 @Builder
 public class FlexibilityBenefits {
 
+    @Builder.Default
     private Boolean freeDateChange = false;
 
     @Column(name = "partial_refund", nullable = false)

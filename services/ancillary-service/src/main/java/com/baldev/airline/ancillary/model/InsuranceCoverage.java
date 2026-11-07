@@ -39,9 +39,11 @@ public class InsuranceCoverage {
 
     private String emergencyContact;
 
+    @Builder.Default
     private boolean isFlat = true;
     private String claimCondition;
     private Integer displayOrder;
+    @Builder.Default
     private boolean active = true;
 
 

@@ -37,12 +37,15 @@ public class Meal {
 
     private String imageUrl;
 
+    @Builder.Default
     private Boolean available = true;
 
+    @Builder.Default
     private Boolean requiresAdvanceBooking = false;
 
     private Integer advanceBookingHours;
 
+    @Builder.Default
     private Integer displayOrder = 0;
 
     @Column(nullable = false)

@@ -64,9 +64,11 @@ public class Fare {
     private FareRules fareRules;
 
     @Embedded
+    @Builder.Default
     private SeatBenefits seatBenefits=new SeatBenefits();
 
     @Embedded
+    @Builder.Default
     private BoardingBenefits boardingBenefits = new BoardingBenefits();
 
     @Embedded
