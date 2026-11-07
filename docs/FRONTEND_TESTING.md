@@ -33,7 +33,7 @@ RAZORPAY_WEBHOOK_SECRET=local-stub-webhook-secret
 **3. Start databases and Kafka, build, and start the services:**
 
 ```powershell
-docker compose -f docker-compose/docker-compose.yml --env-file docker-compose/.env up -d userdb airlinecoredb flightopsdb locationdb pricingdb ancillarydb bookingdb paymentdb seatdb kafka
+docker compose -f docker-compose/docker-compose.yml --env-file docker-compose/.env up -d userdb airlinecoredb flightopsdb locationdb pricingdb ancillarydb bookingdb paymentdb seatdb kafka kafka-ui prometheus grafana
 .\mvnw.cmd -B -DskipTests package
 .\scripts\start-local.ps1
 ```

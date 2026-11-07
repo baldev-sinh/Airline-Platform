@@ -29,3 +29,7 @@ management:
       probes:
         enabled: true
       show-details: never
+  observations:
+    key-values:
+      # Every metric is tagged with the service name, like the business services, so dashboards can tell them apart.
+      application: ${spring.application.name}
