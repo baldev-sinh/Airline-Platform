@@ -15,9 +15,16 @@ Commands are for PowerShell on Windows, run from the repository root.
 3. **Verify:** the site calls `POST /api/payments/verify`. payment-service **re-fetches the payment from Razorpay
    with its own keys**, then checks that it is captured, belongs to this booking, and matches the amount and
    currency. Only then does it confirm the booking (via Kafka). The browser is never trusted.
-4. **Webhooks (optional, recommended):** Razorpay also calls
-   `POST /api/payments/webhooks/razorpay` (signed with your webhook secret) when a link is paid, expires or is
-   cancelled. This settles payments even if the customer closes the tab.
+4. **Webhooks (recommended locally, required in production):** Razorpay also calls
+   `POST /api/payments/webhooks/razorpay` (signed with your webhook secret) the moment a link is paid, expires or
+   is cancelled. It doesn't depend on the customer's browser, so it settles payments even if the customer closes
+   the tab, and it is the only *instant* report of expired or cancelled links.
+5. **Reconciliation (safety net):** every 2 minutes payment-service asks Razorpay about payments still pending
+   after 2 minutes, and settles or fails them exactly as steps 3 and 4 would. It catches anything both of them
+   missed, such as a closed tab with no webhook configured, or a webhook sent while the service was down.
+
+All three use the same checks (captured, amount, currency) and are safe to overlap: a payment is settled once,
+whichever path gets there first.
 
 ## 1. Create a Razorpay account and switch to Test Mode
 
@@ -86,9 +93,10 @@ The tunnel exposes your local gateway on the internet while it runs. Every API e
 search still requires sign-in, and only Razorpay's webhook calls normally go through it (your browser keeps using
 `localhost`), well within the free plan's monthly limits.
 
-Without webhooks, paying and returning to the site still works. What you lose: a customer who closes the tab
-after paying stays "Awaiting payment" until they reopen the booking, and expired links aren't reported (the
-seat hold still expires on its own after 20 minutes).
+Without webhooks, paying and returning to the site still confirms the booking straight away. If the customer
+closes the tab after paying, or a link expires, nothing reports it instantly; the reconciliation job (step 5 of
+"How it works") finds it within about 2–4 minutes and confirms or cancels the booking. Webhooks make that instant,
+which is why production must have them.
 
 **No ngrok account?** Cloudflare's quick tunnel needs none, but gets a new random address every time it starts,
 so you must update the Razorpay webhook URL after each start:
