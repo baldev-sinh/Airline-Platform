@@ -1,5 +1,5 @@
 import { registerLocaleData } from '@angular/common';
-import { provideHttpClient, withFetch, withInterceptors } from '@angular/common/http';
+import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import localeEnIn from '@angular/common/locales/en-IN';
 import {
   ApplicationConfig,
@@ -45,8 +45,9 @@ export const appConfig: ApplicationConfig = {
     ),
     { provide: TitleStrategy, useClass: PageTitleStrategy },
 
+    // Requests use the browser's fetch() API: Angular's default, so no `withFetch()`.
+    // (`withXhr()` would switch to XMLHttpRequest, needed only for upload progress bars.)
     provideHttpClient(
-      withFetch(),
       // Order matters: the first is the outermost (see core/http/interceptors.ts).
       withInterceptors([errorInterceptor, authInterceptor, retryInterceptor]),
     ),

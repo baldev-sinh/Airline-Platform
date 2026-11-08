@@ -33,6 +33,9 @@ straight back to the checkout (`?returnUrl=`).
 For a full manual walkthrough (seeding data, every page, edge cases, the container), see
 [docs/FRONTEND_TESTING.md](../docs/FRONTEND_TESTING.md).
 
+New to Angular? [docs/FRONTEND_GUIDE.md](../docs/FRONTEND_GUIDE.md) teaches it from zero using this
+codebase.
+
 ### Trying a payment locally
 
 With the backend's `payment-stub` profile (the default in `start-local.ps1`), "Pay" sends you to
