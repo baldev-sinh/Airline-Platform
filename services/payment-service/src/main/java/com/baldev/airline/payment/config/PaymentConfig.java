@@ -5,12 +5,14 @@ import com.razorpay.RazorpayException;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.context.annotation.Profile;
 
 import java.time.Clock;
 
 @Configuration
 @EnableConfigurationProperties(PaymentProperties.class)
+@EnableScheduling // PaymentReconciliationJob
 public class PaymentConfig {
 
     /** One thread-safe client for the application, instead of a new client (and connection pool) per call. */

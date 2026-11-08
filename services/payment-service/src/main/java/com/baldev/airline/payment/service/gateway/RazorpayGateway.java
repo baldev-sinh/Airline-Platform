@@ -112,6 +112,32 @@ public class RazorpayGateway implements PaymentProvider {
         }
     }
 
+    /**
+     * A payment link's entity has its {@code status} and the payments made through it
+     * ({@code payments: [{payment_id, status, ...}]}); the captured one is the one that counts.
+     */
+    @Override
+    public PaymentLinkState fetchPaymentLink(String paymentLinkId) {
+        try {
+            JSONObject link = razorpay.paymentLink.fetch(paymentLinkId).toJson();
+            String paymentId = null;
+            JSONArray payments = link.optJSONArray("payments");
+            if (payments != null) {
+                for (int i = 0; i < payments.length(); i++) {
+                    JSONObject entry = payments.optJSONObject(i);
+                    if (entry == null) continue;
+                    if (paymentId == null || "captured".equalsIgnoreCase(entry.optString("status"))) {
+                        paymentId = entry.optString("payment_id", null);
+                    }
+                }
+            }
+            return new PaymentLinkState(link.optString("status"), paymentId);
+        } catch (RazorpayException e) {
+            log.warn("Razorpay payment link fetch failed for {}", paymentLinkId, e);
+            throw new DownstreamServiceException("Could not check payment status with the provider", e);
+        }
+    }
+
     @Override
     public boolean isValidWebhookSignature(String rawBody, String signature) {
         if (signature == null || signature.isBlank()) {

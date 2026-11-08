@@ -24,18 +24,22 @@ import com.baldev.airline.payment.service.PaymentService;
 import com.baldev.airline.payment.service.gateway.PaymentProvider;
 import com.baldev.airline.payment.service.gateway.PaymentProvider.CheckoutLink;
 import com.baldev.airline.payment.service.gateway.PaymentProvider.GatewayPayment;
+import com.baldev.airline.payment.service.gateway.PaymentProvider.PaymentLinkState;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -217,6 +221,45 @@ public class PaymentServiceImpl implements PaymentService {
                 .collect(Collectors.toMap(Payment::getBookingId, Function.identity(), latest))
                 .entrySet().stream()
                 .collect(Collectors.toMap(Map.Entry::getKey, e -> PaymentMapper.toDTO(e.getValue())));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<Long> findPendingForReconciliation(Duration minAge, Duration maxAge, int limit) {
+        Instant now = clock.instant();
+        return paymentRepository.findIdsWithLinkCreatedBetween(
+                PaymentStatus.PENDING, now.minus(maxAge), now.minus(minAge), PageRequest.of(0, limit));
+    }
+
+    @Override
+    public ReconcileOutcome reconcile(Long paymentId) {
+        Payment snapshot = paymentRepository.findById(paymentId).orElse(null);
+        if (snapshot == null || snapshot.isTerminal() || snapshot.getProviderOrderId() == null) {
+            return ReconcileOutcome.SKIPPED;
+        }
+
+        // Ask the provider first, outside the row lock (network calls must not hold database locks).
+        PaymentLinkState link = paymentProvider.fetchPaymentLink(snapshot.getProviderOrderId());
+        GatewayPayment paid = link.isPaid() && link.paymentId() != null
+                ? paymentProvider.fetchPayment(link.paymentId())
+                : null;
+
+        return transactionTemplate.execute(status -> {
+            Payment payment = paymentRepository.findByIdForUpdate(paymentId).orElse(null);
+            if (payment == null || payment.isTerminal()) {
+                return ReconcileOutcome.SKIPPED; // the browser verify or the webhook got there first
+            }
+            if (paid != null) {
+                settle(payment, paid); // same amount, currency and capture checks as verify and webhook
+            } else if (link.isClosed()) {
+                fail(payment, "Checkout " + link.status().toLowerCase());
+            }
+            return switch (payment.getStatus()) {
+                case SUCCESS -> ReconcileOutcome.SETTLED;
+                case FAILED -> ReconcileOutcome.FAILED;
+                default -> ReconcileOutcome.STILL_OPEN;
+            };
+        });
     }
 
     /**

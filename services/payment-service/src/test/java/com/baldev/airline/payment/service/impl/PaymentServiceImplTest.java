@@ -15,7 +15,9 @@ import com.baldev.airline.payment.config.PaymentProperties;
 import com.baldev.airline.payment.model.Payment;
 import com.baldev.airline.payment.repository.PaymentRepository;
 import com.baldev.airline.payment.service.gateway.PaymentProvider;
+import com.baldev.airline.payment.service.PaymentService.ReconcileOutcome;
 import com.baldev.airline.payment.service.gateway.PaymentProvider.GatewayPayment;
+import com.baldev.airline.payment.service.gateway.PaymentProvider.PaymentLinkState;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.context.ApplicationEventPublisher;
@@ -155,6 +157,63 @@ class PaymentServiceImplTest {
         assertThatThrownBy(() -> service.verifyPayment(STRANGER, verifyRequest("pay_ABC123", "plink_ABC123")))
                 .isInstanceOf(ResourceNotFoundException.class);
         assertThat(payment.getStatus()).isEqualTo(PaymentStatus.PENDING);
+    }
+
+    // ---- Reconciliation: payments neither the browser nor the webhook reported ----
+
+    private void pendingWithLink() {
+        payment.setProviderOrderId("plink_ABC123");
+        when(repository.findById(11L)).thenReturn(Optional.of(payment));
+    }
+
+    @Test
+    void reconcileSettlesALinkThatWasPaid() {
+        pendingWithLink();
+        when(gateway.fetchPaymentLink("plink_ABC123")).thenReturn(new PaymentLinkState("paid", "pay_ABC123"));
+        when(gateway.fetchPayment("pay_ABC123")).thenReturn(captured(123450L, "INR"));
+
+        assertThat(service.reconcile(11L)).isEqualTo(ReconcileOutcome.SETTLED);
+        assertThat(payment.getStatus()).isEqualTo(PaymentStatus.SUCCESS);
+        verify(events, times(1)).publishEvent(any(PaymentCompletedEvent.class));
+    }
+
+    @Test
+    void reconcileStillChecksTheAmount() {
+        pendingWithLink();
+        when(gateway.fetchPaymentLink("plink_ABC123")).thenReturn(new PaymentLinkState("paid", "pay_ABC123"));
+        when(gateway.fetchPayment("pay_ABC123")).thenReturn(captured(100L, "INR")); // underpaid
+
+        assertThat(service.reconcile(11L)).isEqualTo(ReconcileOutcome.FAILED);
+        verify(events, never()).publishEvent(any(PaymentCompletedEvent.class));
+    }
+
+    @Test
+    void reconcileFailsAnExpiredLink() {
+        pendingWithLink();
+        when(gateway.fetchPaymentLink("plink_ABC123")).thenReturn(new PaymentLinkState("expired", null));
+
+        assertThat(service.reconcile(11L)).isEqualTo(ReconcileOutcome.FAILED);
+        assertThat(payment.getFailureReason()).isEqualTo("Checkout expired");
+        verify(events).publishEvent(any(PaymentFailedEvent.class));
+    }
+
+    @Test
+    void reconcileLeavesAnOpenLinkAlone() {
+        pendingWithLink();
+        when(gateway.fetchPaymentLink("plink_ABC123")).thenReturn(new PaymentLinkState("created", null));
+
+        assertThat(service.reconcile(11L)).isEqualTo(ReconcileOutcome.STILL_OPEN);
+        assertThat(payment.getStatus()).isEqualTo(PaymentStatus.PENDING);
+        verify(events, never()).publishEvent(any());
+    }
+
+    @Test
+    void reconcileSkipsSettledPaymentsWithoutAskingTheProvider() {
+        pendingWithLink();
+        payment.setStatus(PaymentStatus.SUCCESS);
+
+        assertThat(service.reconcile(11L)).isEqualTo(ReconcileOutcome.SKIPPED);
+        verify(gateway, never()).fetchPaymentLink(any());
     }
 
     @Test

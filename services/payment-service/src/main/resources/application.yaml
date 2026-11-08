@@ -92,6 +92,14 @@ eureka:
 airline:
   payment:
     currency: ${PAYMENT_CURRENCY:INR}
+    # Safety net for payments neither the browser nor the webhook reported: every `interval`, pending payments
+    # older than `min-age` (and younger than `max-age`) are checked with the provider and settled or failed.
+    reconciliation:
+      enabled: ${PAYMENT_RECONCILIATION_ENABLED:true}
+      interval: ${PAYMENT_RECONCILIATION_INTERVAL:PT2M}
+      min-age: PT2M
+      max-age: PT24H
+      batch-size: 50
     razorpay:
       key-id: ${RAZORPAY_KEY_ID}
       key-secret: ${RAZORPAY_KEY_SECRET}

@@ -13,6 +13,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
+import java.time.Clock;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -40,10 +41,12 @@ import java.util.regex.Pattern;
 @RequiredArgsConstructor
 public class StubPaymentGateway implements PaymentProvider {
 
+    private static final Pattern STUB_LINK_ID = Pattern.compile("^plink_STUB(\\d+)$");
     private static final Pattern STUB_PAYMENT_ID = Pattern.compile("^pay_STUB(OK|LOW|FAIL|WAIT)(\\d+)$");
 
     private final PaymentRepository paymentRepository;
     private final PaymentProperties properties;
+    private final Clock clock;
 
     @PostConstruct
     void warn() {
@@ -91,6 +94,21 @@ public class StubPaymentGateway implements PaymentProvider {
     public boolean isPaymentOfLink(String paymentLinkId, String providerPaymentId) {
         Matcher m = STUB_PAYMENT_ID.matcher(providerPaymentId == null ? "" : providerPaymentId);
         return m.matches() && ("plink_STUB" + m.group(2)).equals(paymentLinkId);
+    }
+
+    /**
+     * Stub links are open until the configured link expiry has passed, then expired, like Razorpay's. Stub
+     * payments are settled through the browser-verify path, so a stub link never reports "paid" here.
+     */
+    @Override
+    public PaymentLinkState fetchPaymentLink(String paymentLinkId) {
+        Matcher m = STUB_LINK_ID.matcher(paymentLinkId == null ? "" : paymentLinkId);
+        Payment payment = m.matches() ? paymentRepository.findById(Long.valueOf(m.group(1))).orElse(null) : null;
+        if (payment == null || payment.getCreatedAt() == null) {
+            return new PaymentLinkState("created", null);
+        }
+        boolean expired = payment.getCreatedAt().plus(properties.linkExpiry()).isBefore(clock.instant());
+        return new PaymentLinkState(expired ? "expired" : "created", null);
     }
 
     @Override

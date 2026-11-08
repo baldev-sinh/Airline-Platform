@@ -20,6 +20,23 @@ public interface PaymentProvider {
     record CheckoutLink(String id, String url) {
     }
 
+    /**
+     * The provider's view of a payment link. {@code status} is the provider's own value
+     * (Razorpay: created, partially_paid, paid, expired, cancelled); {@code paymentId} is the payment made
+     * through the link, if any.
+     */
+    record PaymentLinkState(String status, String paymentId) {
+
+        public boolean isPaid() {
+            return "paid".equalsIgnoreCase(status);
+        }
+
+        /** The link can no longer be paid. */
+        public boolean isClosed() {
+            return "expired".equalsIgnoreCase(status) || "cancelled".equalsIgnoreCase(status);
+        }
+    }
+
     CheckoutLink createPaymentLink(Payment payment, UserDTO user);
 
     GatewayPayment fetchPayment(String providerPaymentId);
@@ -29,6 +46,9 @@ public interface PaymentProvider {
      * Lets the browser-verify path find our payment by link id without trusting the client's word for it.
      */
     boolean isPaymentOfLink(String paymentLinkId, String providerPaymentId);
+
+    /** Asks the provider what happened to a payment link (used to reconcile payments left pending). */
+    PaymentLinkState fetchPaymentLink(String paymentLinkId);
 
     /** Verifies the X-Razorpay-Signature header (HMAC-SHA256 of the raw body with the webhook secret). */
     boolean isValidWebhookSignature(String rawBody, String signature);
