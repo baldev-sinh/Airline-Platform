@@ -17,7 +17,7 @@ alias dc='docker compose -f docker-compose.yml -f docker-compose.prod.yml --env-
 | `caddy` | The internet, ports 80 (redirects to HTTPS) and 443. Gets and renews the HTTPS certificate itself |
 | `web` (nginx + Angular app) | Caddy only. Proxies `/api` and `/auth` to the gateway |
 | `api-gateway`, the 10 other services, 9 MySQL databases, Kafka | Inside Docker only: no published ports |
-| `kafka-ui`, `prometheus`, `grafana` | Only with `--profile monitoring`, on `127.0.0.1` (use an SSH tunnel) |
+| `kafka-ui`, `prometheus`, `grafana`, `otel-collector`, `tempo`, `loki` | Only with `--profile monitoring`, on `127.0.0.1` (use an SSH tunnel); set `TRACING_EXPORT_ENABLED=true` in `.env` with it |
 
 ## First start
 

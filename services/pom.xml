@@ -116,6 +116,12 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-opentelemetry</artifactId>
         </dependency>
+        <!-- Instruments Feign clients: a service-to-service call joins the caller's trace (traceparent header)
+             instead of starting a new one. Version from the Spring Cloud BOM. -->
+        <dependency>
+            <groupId>io.github.openfeign</groupId>
+            <artifactId>feign-micrometer</artifactId>
+        </dependency>
 
         <dependency>
             <groupId>org.projectlombok</groupId>

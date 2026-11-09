@@ -15,13 +15,14 @@ frontend. This guide assumes the usual local setup:
 
 ```powershell
 docker compose -f docker-compose/docker-compose.yml --env-file docker-compose/.env `
-  up -d userdb airlinecoredb flightopsdb locationdb pricingdb ancillarydb bookingdb paymentdb seatdb kafka kafka-ui prometheus grafana
+  up -d userdb airlinecoredb flightopsdb locationdb pricingdb ancillarydb bookingdb paymentdb seatdb kafka kafka-ui prometheus grafana otel-collector tempo loki
 ```
 
 - **Always list the service names.** `docker-compose.yml` also defines the 11 backend services and the
   website as containers. A bare `up -d` starts those too, and they use the same ports as
   `start-local.ps1`, so the two clash. Run a bare `up -d` only when you want the whole stack in Docker.
-- `kafka-ui`, `prometheus` and `grafana` are optional. Leave them out to save memory (up to 512 MB each).
+- `kafka-ui`, `prometheus`, `grafana`, `otel-collector`, `tempo` and `loki` are optional. Leave them out to save
+  memory (256 to 512 MB each); services keep working, they just cannot send traces.
 - Grafana won't start without `GRAFANA_ADMIN_PASSWORD` in `docker-compose/.env`.
 - See what's running: `docker compose -f docker-compose/docker-compose.yml ps`.
 - Stop it all: replace `up -d ...` with `down`. Data survives, because it's kept in Docker volumes.
@@ -75,9 +76,10 @@ Select-String -Path .local-run\*.log -Pattern 'ERROR'       # search every servi
 
 - The `local` profile sets `com.baldev.airline` to **DEBUG**, so the project's own code logs in detail.
 - If a service never becomes healthy, `start-local.ps1` says which log to open.
-- Tracing samples every request locally, and the gateway accepts the `traceparent` header. Log lines written
-  during a request should include a trace ID. Search for that ID across `.local-run/*.log` to follow one
-  request through every service it touched.
+- Tracing samples every request locally. To follow one request through every service it touched, open Grafana
+  (http://localhost:3000) > *Explore* > **Tempo**, search by service or route (`{resource.service.name="booking-service"}`),
+  and open the trace: it shows each hop with its duration, and every span links to its log lines in **Loki**.
+  Without Grafana, search for the trace ID across `.local-run/*.log`.
 
 ## 4. Breakpoints in a backend service
 

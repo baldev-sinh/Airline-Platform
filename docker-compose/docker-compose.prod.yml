@@ -7,8 +7,9 @@
 #     certificates from Let's Encrypt for PUBLIC_HOSTNAME.
 #   - No other port is published, not even on 127.0.0.1: the gateway, databases, Kafka and Eureka are
 #     reachable only inside Docker's networks. Use `docker compose exec` to get into a container.
-#   - Kafka UI, Prometheus and Grafana only start with `--profile monitoring` (and then stay on 127.0.0.1,
-#     reached through an SSH tunnel).
+#   - Kafka UI and the observability stack (Prometheus, Grafana, Tempo, Loki, OpenTelemetry Collector) only start
+#     with `--profile monitoring` (Grafana then stays on 127.0.0.1, reached through an SSH tunnel). Set
+#     TRACING_EXPORT_ENABLED=true in .env when you run it, so services send traces to the collector.
 #   - Images are pulled, never built on the server.
 # `!reset` (Docker Compose 2.24+) removes a setting inherited from the base file.
 
@@ -79,6 +80,10 @@ services:
   kafka-ui: { profiles: [ monitoring ] }
   prometheus: { profiles: [ monitoring ] }
   grafana: { profiles: [ monitoring ] }
+  otel-collector: { profiles: [ monitoring ] }
+  tempo: { profiles: [ monitoring ] }
+  tempo-init: { profiles: [ monitoring ] }
+  loki: { profiles: [ monitoring ] }
 
 volumes:
   caddy-data:

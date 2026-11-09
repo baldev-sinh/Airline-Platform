@@ -8,7 +8,7 @@
     1. Databases and Kafka running:
          docker compose -f docker-compose/docker-compose.yml --env-file docker-compose/.env `
            up -d userdb airlinecoredb flightopsdb locationdb pricingdb ancillarydb bookingdb paymentdb seatdb notificationdb `
-           kafka kafka-ui redis mailpit prometheus grafana
+           kafka kafka-ui redis mailpit prometheus grafana otel-collector tempo loki
     2. Jars built:  ./mvnw -B -DskipTests package
 
   By default payment-service runs with the offline `payment-stub` profile, so no Razorpay account is needed.
@@ -21,7 +21,9 @@
   Configuration comes from config-repo/ through config-server (started first). REDIS_PASSWORD is read from
   docker-compose/.env. E-mails land in Mailpit: http://localhost:8025.
 
-  Logs go to .local-run/<service>.log. Stop everything with scripts/stop-local.ps1.
+  Logs go to .local-run/<service>.log, plus a JSON copy (.local-run/<service>.json) that the OpenTelemetry
+  Collector ships to Loki. Traces go to the collector on localhost:4318 (then Tempo). Both show up in Grafana
+  (http://localhost:3000, Explore). Stop everything with scripts/stop-local.ps1.
 
 .EXAMPLE
   ./scripts/start-local.ps1 -RealPayments -Tunnel
@@ -63,6 +65,18 @@ if ([string]::IsNullOrWhiteSpace((Resolve-Setting 'REDIS_PASSWORD' $dotEnv))) {
     throw 'Set REDIS_PASSWORD in docker-compose/.env (the redis container requires it).'
 }
 $null = Resolve-Setting 'CONFIG_SERVER_PASSWORD' $dotEnv   # optional locally: the local profile has a default
+
+# Observability: every trace goes to the OpenTelemetry Collector (docker compose service otel-collector).
+# Values from the environment or docker-compose/.env win; these are the local defaults.
+foreach ($setting in @(
+        @('TRACING_EXPORT_ENABLED', 'true'),
+        @('TRACING_SAMPLING_PROBABILITY', '1.0'),
+        @('OTEL_EXPORTER_OTLP_TRACES_ENDPOINT', 'http://localhost:4318/v1/traces'))) {
+    $value = Resolve-Setting $setting[0] $dotEnv
+    if ([string]::IsNullOrWhiteSpace($value)) {
+        Set-Item "env:$($setting[0])" $setting[1]
+    }
+}
 
 if ($RealPayments) {
     foreach ($name in 'RAZORPAY_KEY_ID', 'RAZORPAY_KEY_SECRET', 'RAZORPAY_WEBHOOK_SECRET') {
@@ -120,7 +134,9 @@ function Start-One($svc) {
         Where-Object { $_.Name -notlike '*-plain.jar' } | Select-Object -First 1
     if (-not $jar) { throw "No jar in $($svc.Dir)/target. Build first: ./mvnw -B -DskipTests package" }
     $log = Join-Path $runDir "$($svc.Name).log"
-    $javaArgs = @('-Xmx384m', '-jar', $jar.FullName)
+    # Human-readable log on stdout (.log) and an ECS JSON copy (.json) for the collector -> Loki.
+    $json = (Join-Path $runDir "$($svc.Name).json") -replace '\\', '/'
+    $javaArgs = @('-Xmx384m', '-Dlogging.structured.format.file=ecs', "-Dlogging.file.name=$json", '-jar', $jar.FullName)
     if ($svc.Profiles) { $javaArgs = @("-Dspring.profiles.active=$($svc.Profiles)") + $javaArgs }
     $p = Start-Process java -ArgumentList $javaArgs -RedirectStandardOutput $log -RedirectStandardError "$log.err" `
         -WindowStyle Hidden -PassThru
