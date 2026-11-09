@@ -110,7 +110,7 @@ public class AccessTokenVerifier {
         } catch (RuntimeException e) {
             throw new Rejected(Reason.INVALID, "Invalid access token");
         }
-        if (revocations.isRevoked(verified)) {
+        if (revocations.isRevoked(verified.tokenId(), verified.userId(), verified.issuedAt())) {
             throw new Rejected(Reason.REVOKED, "Access token has been revoked");
         }
         return verified;

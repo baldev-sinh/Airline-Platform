@@ -94,7 +94,7 @@ class AuthenticationFilterTest {
     void rejectsRevokedToken() {
         AuthenticationFilter revoking = filter(new TokenRevocations() {
             @Override
-            public boolean isRevoked(AccessTokenVerifier.VerifiedToken token) {
+            public boolean isRevoked(String tokenId, Long userId, Instant issuedAt) {
                 return true;
             }
 

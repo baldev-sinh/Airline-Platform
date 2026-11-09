@@ -1,6 +1,5 @@
 package com.baldev.airline.common.security;
 
-import com.baldev.airline.common.security.AccessTokenVerifier.VerifiedToken;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -39,10 +38,10 @@ public class RedisTokenRevocations implements TokenRevocations {
     }
 
     @Override
-    public boolean isRevoked(VerifiedToken token) {
+    public boolean isRevoked(String tokenId, Long userId, Instant issuedAt) {
         try {
             List<String> values = redis.opsForValue().multiGet(List.of(
-                    JTI_PREFIX + token.tokenId(), USER_PREFIX + token.userId()));
+                    JTI_PREFIX + tokenId, USER_PREFIX + userId));
             if (values == null) {
                 return false;
             }
@@ -53,8 +52,8 @@ public class RedisTokenRevocations implements TokenRevocations {
             // Inclusive: iat has one-second precision, so a token minted in the same second as the revocation
             // (e.g. by whoever held a stolen refresh token) must not survive it. A sign-in within that very
             // second is revoked too and simply has to be repeated.
-            return before != null && token.issuedAt() != null
-                    && token.issuedAt().getEpochSecond() <= Long.parseLong(before);
+            return before != null && issuedAt != null
+                    && issuedAt.getEpochSecond() <= Long.parseLong(before);
         } catch (RuntimeException e) {
             log.warn("Token revocation check failed ({}); {}", e.toString(), failOpen ? "allowing" : "rejecting");
             return !failOpen;
