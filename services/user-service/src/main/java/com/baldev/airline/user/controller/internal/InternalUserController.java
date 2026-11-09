@@ -1,6 +1,6 @@
 package com.baldev.airline.user.controller.internal;
 
-import com.baldev.airline.common.payload.dto.UserDTO;
+import com.baldev.airline.user.payload.dto.UserDTO;
 import com.baldev.airline.user.service.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;

@@ -62,6 +62,18 @@ export class TripDetailPage {
       : null;
   });
 
+  /**
+   * Pending bookings can always be cancelled; ticketed ones until departure, under the fare's refund
+   * rules (the server decides the refund and rejects what is not allowed).
+   */
+  protected readonly canCancel = computed(() => {
+    if (!this.booking.hasValue()) {
+      return false;
+    }
+    const b = this.booking.value();
+    return b.status === 'PENDING' || (b.status === 'CONFIRMED' && b.isUpcoming === true);
+  });
+
   protected openCancel(): void {
     this.actionError.set(null);
     this.cancelDialog()?.nativeElement.showModal(); // native modal: focus trap + Esc to close built in

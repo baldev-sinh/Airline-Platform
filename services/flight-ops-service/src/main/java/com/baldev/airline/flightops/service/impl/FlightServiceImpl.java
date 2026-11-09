@@ -4,14 +4,17 @@ import com.baldev.airline.common.enums.FlightStatus;
 import com.baldev.airline.common.exception.BusinessRuleException;
 import com.baldev.airline.common.exception.ConflictException;
 import com.baldev.airline.common.exception.ResourceNotFoundException;
-import com.baldev.airline.common.payload.request.FlightRequest;
-import com.baldev.airline.common.payload.response.FlightResponse;
+import com.baldev.airline.flightops.payload.request.FlightRequest;
+import com.baldev.airline.flightops.payload.response.FlightResponse;
 import com.baldev.airline.flightops.mapper.FlightMapper;
 import com.baldev.airline.flightops.model.Flight;
 import com.baldev.airline.flightops.repository.FlightRepository;
 import com.baldev.airline.flightops.service.FlightService;
 import com.baldev.airline.flightops.service.support.AirlineOwnership;
 import com.baldev.airline.flightops.service.support.FlightResponseAssembler;
+import com.baldev.airline.flightops.config.FlightOpsCacheConfig;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
@@ -53,6 +56,8 @@ public class FlightServiceImpl implements FlightService {
 
     @Override
     @Transactional(readOnly = true)
+    // A partial response (a dependency was down) is served but never cached.
+    @Cacheable(cacheNames = FlightOpsCacheConfig.FLIGHTS, key = "#id", unless = "#result.partial == true")
     public FlightResponse getFlightById(Long id) {
         return assembler.toFlightResponse(flightRepository.findById(id)
                 .orElseThrow(() -> ResourceNotFoundException.of("Flight", id)));
@@ -60,6 +65,7 @@ public class FlightServiceImpl implements FlightService {
 
     @Override
     @Transactional
+    @CacheEvict(cacheNames = FlightOpsCacheConfig.FLIGHTS, key = "#id")
     public FlightResponse updateFlight(Long userId, Long id, FlightRequest request) {
         Flight existing = findOwned(userId, id);
         if (request.getFlightNumber() != null
@@ -73,6 +79,7 @@ public class FlightServiceImpl implements FlightService {
 
     @Override
     @Transactional
+    @CacheEvict(cacheNames = FlightOpsCacheConfig.FLIGHTS, key = "#id")
     public FlightResponse changeStatus(Long userId, Long id, FlightStatus status) {
         Flight existing = findOwned(userId, id);
         existing.setStatus(status);
@@ -81,6 +88,7 @@ public class FlightServiceImpl implements FlightService {
 
     @Override
     @Transactional
+    @CacheEvict(cacheNames = FlightOpsCacheConfig.FLIGHTS, key = "#id")
     public void deleteFlight(Long userId, Long id) {
         flightRepository.delete(findOwned(userId, id));
     }

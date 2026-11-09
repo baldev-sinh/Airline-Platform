@@ -8,11 +8,11 @@ import com.baldev.airline.common.exception.BusinessRuleException;
 import com.baldev.airline.common.exception.ConflictException;
 import com.baldev.airline.common.exception.ResourceNotFoundException;
 import com.baldev.airline.common.exception.UnauthorizedException;
-import com.baldev.airline.common.payload.dto.PaymentDTO;
-import com.baldev.airline.common.payload.dto.UserDTO;
-import com.baldev.airline.common.payload.request.PaymentInitiateRequest;
-import com.baldev.airline.common.payload.request.PaymentVerifyRequest;
-import com.baldev.airline.common.payload.response.PaymentInitiateResponse;
+import com.baldev.airline.payment.payload.dto.PaymentDTO;
+import com.baldev.airline.payment.client.dto.UserDTO;
+import com.baldev.airline.payment.payload.request.PaymentInitiateRequest;
+import com.baldev.airline.payment.payload.request.PaymentVerifyRequest;
+import com.baldev.airline.payment.payload.response.PaymentInitiateResponse;
 import com.baldev.airline.common.util.Money;
 import com.baldev.airline.common.web.CurrentUser;
 import com.baldev.airline.payment.client.UserClient;
@@ -21,6 +21,7 @@ import com.baldev.airline.payment.mapper.PaymentMapper;
 import com.baldev.airline.payment.model.Payment;
 import com.baldev.airline.payment.repository.PaymentRepository;
 import com.baldev.airline.payment.service.PaymentService;
+import com.baldev.airline.payment.service.RefundService;
 import com.baldev.airline.payment.service.gateway.PaymentProvider;
 import com.baldev.airline.payment.service.gateway.PaymentProvider.CheckoutLink;
 import com.baldev.airline.payment.service.gateway.PaymentProvider.GatewayPayment;
@@ -64,6 +65,7 @@ public class PaymentServiceImpl implements PaymentService {
     private final ApplicationEventPublisher eventPublisher;
     private final TransactionTemplate transactionTemplate;
     private final Clock clock;
+    private final RefundService refundService;
 
     @Override
     public PaymentInitiateResponse initiatePayment(PaymentInitiateRequest request) {
@@ -159,6 +161,10 @@ public class PaymentServiceImpl implements PaymentService {
             throw new BusinessRuleException("INVALID_WEBHOOK", "Malformed webhook payload");
         }
         JSONObject payload = json.optJSONObject("payload");
+        if (event.startsWith("refund.")) {
+            handleRefundWebhook(event, payload);
+            return;
+        }
         String linkId = Optional.ofNullable(payload)
                 .map(p -> p.optJSONObject("payment_link"))
                 .map(p -> p.optJSONObject("entity"))
@@ -196,6 +202,31 @@ public class PaymentServiceImpl implements PaymentService {
                 default -> log.debug("Ignoring Razorpay webhook event={}", event);
             }
         });
+    }
+
+    /** refund.processed / refund.failed: {"payload": {"refund": {"entity": {"id", "status", "notes": {"refund_key"}}}}} */
+    private void handleRefundWebhook(String event, JSONObject payload) {
+        JSONObject entity = Optional.ofNullable(payload)
+                .map(p -> p.optJSONObject("refund"))
+                .map(r -> r.optJSONObject("entity"))
+                .orElse(null);
+        if (entity == null) {
+            log.warn("Razorpay webhook {} without refund entity", event);
+            return;
+        }
+        JSONObject notes = entity.optJSONObject("notes");
+        String status = switch (event) {
+            case "refund.processed" -> "processed";
+            case "refund.failed" -> "failed";
+            default -> null;
+        };
+        if (status == null) {
+            log.debug("Ignoring Razorpay webhook event={}", event);
+            return;
+        }
+        refundService.onProviderUpdate(entity.optString("id", null),
+                notes != null ? notes.optString("refund_key", null) : null, status,
+                "failed".equals(status) ? "Refund failed at the payment provider" : null);
     }
 
     @Override

@@ -5,8 +5,8 @@ import com.baldev.airline.ancillary.model.Ancillary;
 import com.baldev.airline.ancillary.repository.AncillaryRepository;
 import com.baldev.airline.ancillary.repository.InsuranceCoverageRepository;
 import com.baldev.airline.common.enums.AncillaryType;
-import com.baldev.airline.common.payload.request.AncillaryRequest;
-import com.baldev.airline.common.payload.response.AirlineResponse;
+import com.baldev.airline.ancillary.payload.request.AncillaryRequest;
+import com.baldev.airline.ancillary.client.dto.AirlineResponse;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 

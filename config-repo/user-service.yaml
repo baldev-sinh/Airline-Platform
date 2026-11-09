@@ -1,0 +1,26 @@
+# user-service: identity, signup/login, token issuance.
+airline:
+  # Transactional outbox: events commit with the state change and are relayed to Kafka (common-lib OutboxRelay).
+  outbox:
+    enabled: true
+  security:
+    jwt:
+      issuer: ${JWT_ISSUER:airline-user-service}
+      audience: ${JWT_AUDIENCE:airline-api}
+    signing:
+      # RSA private key (PKCS#8 PEM, 2048+ bits) that signs access tokens. Only user-service has it; everyone
+      # else verifies with the public keys at /.well-known/jwks.json. Generate: scripts/generate-prod-env.sh
+      private-key: ${JWT_PRIVATE_KEY}
+      key-id: ${JWT_KEY_ID:}
+      # During a key rotation, list the retired key here until its tokens have expired (access-token-ttl):
+      # previous-keys:
+      #   - key-id: 2026-01
+      #     public-key: ${JWT_PREVIOUS_PUBLIC_KEY}
+    tokens:
+      access-token-ttl: ${JWT_ACCESS_TOKEN_TTL:15m}
+      refresh-token-ttl: ${JWT_REFRESH_TOKEN_TTL:14d}
+  bootstrap-admin:
+    # Creates the first system admin on startup if both values are set and the email does not exist yet.
+    # Leave unset in steady state; rotate the password after first login.
+    email: ${BOOTSTRAP_ADMIN_EMAIL:}
+    password: ${BOOTSTRAP_ADMIN_PASSWORD:}

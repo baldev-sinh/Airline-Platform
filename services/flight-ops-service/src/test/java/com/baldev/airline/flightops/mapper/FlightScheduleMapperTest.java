@@ -1,6 +1,6 @@
 package com.baldev.airline.flightops.mapper;
 
-import com.baldev.airline.common.payload.response.FlightScheduleResponse;
+import com.baldev.airline.flightops.payload.response.FlightScheduleResponse;
 import com.baldev.airline.flightops.model.Flight;
 import com.baldev.airline.flightops.model.FlightSchedule;
 import org.junit.jupiter.api.Test;

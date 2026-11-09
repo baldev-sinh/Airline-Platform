@@ -1,8 +1,10 @@
 package com.baldev.airline.seat.controller;
 
 
-import com.baldev.airline.common.payload.request.FlightInstanceCabinRequest;
-import com.baldev.airline.common.payload.response.FlightInstanceCabinResponse;
+import com.baldev.airline.common.web.CurrentUser;
+import com.baldev.airline.seat.service.support.SeatOwnership;
+import com.baldev.airline.seat.payload.request.FlightInstanceCabinRequest;
+import com.baldev.airline.seat.payload.response.FlightInstanceCabinResponse;
 import com.baldev.airline.seat.service.FlightInstanceCabinService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -18,10 +20,12 @@ import org.springframework.web.bind.annotation.*;
 public class FlightInstanceCabinController {
 
     private final FlightInstanceCabinService flightInstanceCabinService;
+    private final SeatOwnership ownership;
 
     @PostMapping
     public ResponseEntity<FlightInstanceCabinResponse> createFlightInstanceCabin(
-            @Valid @RequestBody FlightInstanceCabinRequest request) {
+            @Valid @RequestBody FlightInstanceCabinRequest request, CurrentUser user) {
+        ownership.requireOwnedFlightInstance(user, request.getFlightInstanceId());
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(flightInstanceCabinService.createFlightInstanceCabin(request));
     }
@@ -52,13 +56,17 @@ public class FlightInstanceCabinController {
     @PutMapping("/{id}")
     public ResponseEntity<FlightInstanceCabinResponse> updateFlightInstanceCabin(
             @PathVariable Long id,
-            @RequestBody FlightInstanceCabinRequest request) {
+            @RequestBody FlightInstanceCabinRequest request, CurrentUser user) {
+        ownership.requireOwnedFlightInstance(user,
+                flightInstanceCabinService.getFlightInstanceCabinById(id).getFlightInstanceId());
         return ResponseEntity.ok(
                 flightInstanceCabinService.updateFlightInstanceCabin(id, request));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteFlightInstanceCabin(@PathVariable Long id) {
+    public ResponseEntity<Void> deleteFlightInstanceCabin(@PathVariable Long id, CurrentUser user) {
+        ownership.requireOwnedFlightInstance(user,
+                flightInstanceCabinService.getFlightInstanceCabinById(id).getFlightInstanceId());
         flightInstanceCabinService.deleteFlightInstanceCabin(id);
         return ResponseEntity.noContent().build();
     }

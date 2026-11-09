@@ -1,0 +1,8 @@
+# location-service: cities and airports (reference data, changed rarely by administrators).
+airline:
+  cache:
+    ttl:
+      airports: 6h
+      allAirports: 1h
+      airportsByCity: 1h
+      cities: 6h

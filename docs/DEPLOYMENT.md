@@ -25,8 +25,9 @@ alias dc='docker compose -f docker-compose.yml -f docker-compose.prod.yml --env-
    `PUBLIC_HOSTNAME` pointing at the server's public IP (e.g. a DuckDNS subdomain).
 2. Create `.env`:
    ```bash
-   scripts/generate-prod-env.sh .env     # generates DB passwords, JWT secret, webhook secret; chmod 600
-   nano .env                             # fill in PUBLIC_HOSTNAME, PUBLIC_BASE_URL, Razorpay keys, admin email
+   scripts/generate-prod-env.sh .env     # generates DB, config-server and Redis passwords, the token signing key, webhook secret; chmod 600
+   nano .env                             # fill in PUBLIC_HOSTNAME, PUBLIC_BASE_URL, Razorpay keys, admin email,
+                                         # and the SMTP provider (SMTP_*, NOTIFICATION_FROM) for customer e-mails
    ```
 3. Start everything:
    ```bash
@@ -44,8 +45,8 @@ alias dc='docker compose -f docker-compose.yml -f docker-compose.prod.yml --env-
    docker run --rm --network airline_edge --env-file .env -v "$PWD/seed-demo:/seed:ro"      node:24-alpine node /seed/seed-demo.mjs --api http://api-gateway:5000
    ```
 6. In Razorpay (Test Mode) add the webhook `https://<PUBLIC_HOSTNAME>/api/payments/webhooks/razorpay` with the
-   `RAZORPAY_WEBHOOK_SECRET` from `.env`, for `payment_link.paid`, `payment_link.expired` and
-   `payment_link.cancelled`. This is done once; the URL never changes.
+   `RAZORPAY_WEBHOOK_SECRET` from `.env`, for `payment_link.paid`, `payment_link.expired`,
+   `payment_link.cancelled`, `refund.processed` and `refund.failed`. This is done once; the URL never changes.
 
 ## Deploying a new version
 

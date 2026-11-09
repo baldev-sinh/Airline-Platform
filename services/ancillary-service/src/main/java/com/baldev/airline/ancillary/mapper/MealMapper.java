@@ -1,8 +1,7 @@
 package com.baldev.airline.ancillary.mapper;
 
 import com.baldev.airline.ancillary.model.Meal;
-import com.baldev.airline.common.payload.response.MealResponse;
-
+import com.baldev.airline.ancillary.payload.response.MealResponse;
 public class MealMapper {
 
     public static MealResponse toResponse(Meal meal) {

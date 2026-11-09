@@ -1,9 +1,8 @@
 package com.baldev.airline.seat.service;
 
 
-import com.baldev.airline.common.payload.request.SeatRequest;
-import com.baldev.airline.common.payload.response.SeatResponse;
-
+import com.baldev.airline.seat.payload.request.SeatRequest;
+import com.baldev.airline.seat.payload.response.SeatResponse;
 import java.util.List;
 
 public interface SeatService {

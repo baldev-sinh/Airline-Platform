@@ -2,8 +2,8 @@ package com.baldev.airline.payment.controller;
 
 import com.baldev.airline.common.exception.BadRequestException;
 import com.baldev.airline.common.exception.ForbiddenException;
-import com.baldev.airline.common.payload.dto.PaymentDTO;
-import com.baldev.airline.common.payload.request.PaymentVerifyRequest;
+import com.baldev.airline.payment.payload.dto.PaymentDTO;
+import com.baldev.airline.payment.payload.request.PaymentVerifyRequest;
 import com.baldev.airline.common.web.CurrentUser;
 import com.baldev.airline.payment.service.PaymentService;
 import jakarta.validation.Valid;

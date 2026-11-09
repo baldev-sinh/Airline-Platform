@@ -13,7 +13,7 @@ import org.springframework.web.bind.annotation.RestController;
  * Razorpay server-to-server notifications. Public at the gateway (no JWT) because it is authenticated by the
  * HMAC signature over the raw body, which is why the body is bound as a String and never re-serialized.
  * Configure the webhook in the Razorpay dashboard for: payment_link.paid, payment_link.expired,
- * payment_link.cancelled.
+ * payment_link.cancelled, refund.processed, refund.failed.
  */
 @RestController
 @RequiredArgsConstructor

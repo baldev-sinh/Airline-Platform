@@ -1,6 +1,6 @@
 package com.baldev.airline.booking.client;
 
-import com.baldev.airline.common.payload.response.AirlineResponse;
+import com.baldev.airline.booking.client.dto.AirlineResponse;
 import com.baldev.airline.common.web.RequestHeaders;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;

@@ -6,8 +6,8 @@ import com.baldev.airline.common.exception.ResourceNotFoundException;
 import com.baldev.airline.pricing.mapper.FareRuleMapper;
 import com.baldev.airline.pricing.model.Fare;
 import com.baldev.airline.pricing.model.FareRules;
-import com.baldev.airline.common.payload.request.FareRulesRequest;
-import com.baldev.airline.common.payload.response.FareRulesResponse;
+import com.baldev.airline.pricing.payload.request.FareRulesRequest;
+import com.baldev.airline.pricing.payload.response.FareRulesResponse;
 import com.baldev.airline.pricing.repository.FareRepository;
 import com.baldev.airline.pricing.repository.FareRuleRepository;
 import com.baldev.airline.pricing.service.FareRulesService;
@@ -52,8 +52,11 @@ public class FareRulesServiceImpl implements FareRulesService {
 
     @Override
     public FareRulesResponse getFareRulesByFareId(Long fareId) {
-        FareRules fareRules= fareRuleRepository.findByFareId(fareId);
-
+        FareRules fareRules = fareRuleRepository.findByFareId(fareId);
+        if (fareRules == null) {
+            // A fare without rules is a normal case (booking-service then applies its default refund policy).
+            throw new ResourceNotFoundException("No fare rules for fare " + fareId);
+        }
         return FareRuleMapper.toResponse(fareRules);
     }
 

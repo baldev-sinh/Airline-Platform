@@ -3,7 +3,7 @@ package com.baldev.airline.flightops.service.specification;
 
 import com.baldev.airline.common.enums.FlightStatus;
 import com.baldev.airline.flightops.model.FlightInstance;
-import com.baldev.airline.common.payload.request.FlightSearchRequest;
+import com.baldev.airline.flightops.payload.request.FlightSearchRequest;
 import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.Expression;
 import jakarta.persistence.criteria.Predicate;

@@ -1,0 +1,4 @@
+# api-gateway, local profile. Never use in production.
+airline:
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173}

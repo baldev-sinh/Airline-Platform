@@ -1,7 +1,7 @@
 package com.baldev.airline.seat.controller;
 
 
-import com.baldev.airline.common.payload.response.SeatResponse;
+import com.baldev.airline.seat.payload.response.SeatResponse;
 import com.baldev.airline.seat.service.SeatService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;

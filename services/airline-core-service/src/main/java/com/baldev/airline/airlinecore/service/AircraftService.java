@@ -2,9 +2,8 @@ package com.baldev.airline.airlinecore.service;
 
 
 
-import com.baldev.airline.common.payload.request.AircraftRequest;
-import com.baldev.airline.common.payload.response.AircraftResponse;
-
+import com.baldev.airline.airlinecore.payload.request.AircraftRequest;
+import com.baldev.airline.airlinecore.payload.response.AircraftResponse;
 import java.util.List;
 
 public interface AircraftService {

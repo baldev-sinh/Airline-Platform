@@ -24,7 +24,7 @@ plan is the same for any Linux VM.
 | Container images | CI publishes all 12 images (11 services and the web app) to GHCR on every push to `main`; they are public |
 | Orchestration | `docker-compose.yml` with health checks, restart policies, memory limits, and separate `backend`/`edge` networks |
 | Exposure | Databases, Kafka, Eureka, Kafka UI, Prometheus and Grafana are bound to `127.0.0.1` only |
-| Configuration | Everything comes from environment variables; required secrets (`JWT_SECRET`, `DB_PASSWORD`, `RAZORPAY_*`…) stop the stack at startup if missing |
+| Configuration | Settings come from config-server (`config-repo/`), secrets from environment variables; required secrets (`JWT_PRIVATE_KEY`, `DB_PASSWORD`, `REDIS_PASSWORD`, `CONFIG_SERVER_PASSWORD`, `RAZORPAY_*`…) stop the stack at startup if missing |
 | Databases | Flyway creates and migrates every schema on startup; no manual SQL |
 | First admin | `BOOTSTRAP_ADMIN_EMAIL` / `BOOTSTRAP_ADMIN_PASSWORD` create it once |
 | Web app | nginx serves it and proxies `/api` and `/auth` (same origin, no CORS), with CSP and security headers |

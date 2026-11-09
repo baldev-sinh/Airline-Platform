@@ -1,6 +1,6 @@
 package com.baldev.airline.payment.service.gateway;
 
-import com.baldev.airline.common.payload.dto.UserDTO;
+import com.baldev.airline.payment.client.dto.UserDTO;
 import com.baldev.airline.payment.model.Payment;
 
 /**
@@ -37,6 +37,27 @@ public interface PaymentProvider {
         }
     }
 
+    /**
+     * The provider's view of a refund. {@code status}: Razorpay pending, processed or failed.
+     */
+    record RefundResult(String id, String status) {
+
+        public boolean isProcessed() {
+            return "processed".equalsIgnoreCase(status);
+        }
+
+        public boolean isFailed() {
+            return "failed".equalsIgnoreCase(status);
+        }
+    }
+
+    /** The provider refused a refund for good (e.g. more than the captured amount): retrying cannot help. */
+    class RefundRejectedException extends RuntimeException {
+        public RefundRejectedException(String message, Throwable cause) {
+            super(message, cause);
+        }
+    }
+
     CheckoutLink createPaymentLink(Payment payment, UserDTO user);
 
     GatewayPayment fetchPayment(String providerPaymentId);
@@ -49,6 +70,19 @@ public interface PaymentProvider {
 
     /** Asks the provider what happened to a payment link (used to reconcile payments left pending). */
     PaymentLinkState fetchPaymentLink(String paymentLinkId);
+
+    /**
+     * Refunds {@code amountMinor} of a captured payment. Idempotent per {@code refundKey}: if a refund with this key
+     * already exists at the provider (an earlier attempt whose response was lost), that one is returned instead of
+     * creating a second refund.
+     *
+     * @throws RefundRejectedException if the provider refuses the refund permanently
+     * @throws com.baldev.airline.common.exception.DownstreamServiceException if the provider is unreachable (retry)
+     */
+    RefundResult refund(String providerPaymentId, long amountMinor, String refundKey);
+
+    /** Current state of a refund at the provider (used to reconcile refunds still pending there). */
+    RefundResult fetchRefund(String providerPaymentId, String providerRefundId);
 
     /** Verifies the X-Razorpay-Signature header (HMAC-SHA256 of the raw body with the webhook secret). */
     boolean isValidWebhookSignature(String rawBody, String signature);

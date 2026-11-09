@@ -14,10 +14,11 @@
     <packaging>pom</packaging>
 
     <name>Cloud Infrastructure</name>
-    <description>Edge and platform components (service registry, API gateway)</description>
+    <description>Edge and platform components (service registry, config server, API gateway)</description>
 
     <modules>
         <module>service-registry</module>
+        <module>config-server</module>
         <module>api-gateway</module>
     </modules>
 

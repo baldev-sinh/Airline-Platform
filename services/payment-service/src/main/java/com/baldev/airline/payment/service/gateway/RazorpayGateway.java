@@ -1,13 +1,14 @@
 package com.baldev.airline.payment.service.gateway;
 
 import com.baldev.airline.common.exception.DownstreamServiceException;
-import com.baldev.airline.common.payload.dto.UserDTO;
+import com.baldev.airline.payment.client.dto.UserDTO;
 import com.baldev.airline.common.util.Money;
 import com.baldev.airline.payment.config.PaymentProperties;
 import com.baldev.airline.payment.model.Payment;
 import com.razorpay.PaymentLink;
 import com.razorpay.RazorpayClient;
 import com.razorpay.RazorpayException;
+import com.razorpay.Refund;
 import com.razorpay.Utils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -17,6 +18,7 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 import java.time.Clock;
+import java.util.List;
 
 /**
  * Adapter over the Razorpay SDK. Translates SDK exceptions into {@link DownstreamServiceException} and keeps
@@ -136,6 +138,54 @@ public class RazorpayGateway implements PaymentProvider {
             log.warn("Razorpay payment link fetch failed for {}", paymentLinkId, e);
             throw new DownstreamServiceException("Could not check payment status with the provider", e);
         }
+    }
+
+    @Override
+    public RefundResult refund(String providerPaymentId, long amountMinor, String refundKey) {
+        try {
+            // Idempotency: Razorpay has no idempotency key for refunds, so look for an earlier attempt first.
+            List<Refund> existing = razorpay.payments.fetchAllRefunds(providerPaymentId);
+            for (Refund refund : existing) {
+                JSONObject json = refund.toJson();
+                JSONObject notes = json.optJSONObject("notes");
+                if (notes != null && refundKey.equals(notes.optString("refund_key", null))) {
+                    log.info("Refund {} already exists at Razorpay as {}", refundKey, json.optString("id"));
+                    return new RefundResult(json.optString("id"), json.optString("status"));
+                }
+            }
+
+            JSONObject request = new JSONObject();
+            request.put("amount", amountMinor);
+            request.put("speed", "normal");
+            request.put("receipt", refundKey.length() > 40 ? refundKey.substring(0, 40) : refundKey);
+            JSONObject notes = new JSONObject();
+            notes.put("refund_key", refundKey);
+            request.put("notes", notes);
+            JSONObject created = razorpay.payments.refund(providerPaymentId, request).toJson();
+            return new RefundResult(created.optString("id"), created.optString("status"));
+        } catch (RazorpayException e) {
+            if (isBadRequest(e)) {
+                log.warn("Razorpay rejected refund {} for {}: {}", refundKey, providerPaymentId, e.getMessage());
+                throw new RefundRejectedException(e.getMessage(), e);
+            }
+            log.warn("Razorpay refund {} for {} failed, will retry", refundKey, providerPaymentId, e);
+            throw new DownstreamServiceException("Payment provider is unavailable, refund will be retried", e);
+        }
+    }
+
+    @Override
+    public RefundResult fetchRefund(String providerPaymentId, String providerRefundId) {
+        try {
+            JSONObject json = razorpay.payments.fetchRefund(providerPaymentId, providerRefundId).toJson();
+            return new RefundResult(json.optString("id"), json.optString("status"));
+        } catch (RazorpayException e) {
+            throw new DownstreamServiceException("Could not check refund status with the provider", e);
+        }
+    }
+
+    /** The SDK reports API errors as "<CODE>:<description>"; BAD_REQUEST_ERROR means the request itself is wrong. */
+    private static boolean isBadRequest(RazorpayException e) {
+        return e.getMessage() != null && e.getMessage().contains("BAD_REQUEST_ERROR");
     }
 
     @Override

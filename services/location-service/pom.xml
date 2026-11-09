@@ -13,4 +13,18 @@
     <artifactId>location-service</artifactId>
     <name>location-service</name>
     <description>Cities and airports reference data.</description>
+    <!-- Common dependencies (incl. Redis cache) are inherited from services/pom.xml -->
+    <dependencies>
+        <!-- Cache integration test against real MySQL and Redis; skipped when Docker is not available -->
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>testcontainers-junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>testcontainers-mysql</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
 </project>

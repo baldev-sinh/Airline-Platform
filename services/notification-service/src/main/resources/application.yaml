@@ -1,0 +1,26 @@
+# Bootstrap configuration only. Everything else is served by config-server from config-repo/
+# (application.yaml for platform-wide settings, notification-service.yaml for this service, plus <name>-<profile>.yaml).
+# Secrets are never stored there: they come from this service's environment (see README, Configuration).
+server:
+  port: ${SERVER_PORT:5012}
+
+spring:
+  application:
+    name: notification-service
+  config:
+    # Required, not optional: without its central configuration the service must not start half-configured.
+    import: ${CONFIG_IMPORT:configserver:}
+  cloud:
+    config:
+      uri: ${CONFIG_SERVER_URL:http://localhost:8888}
+      username: ${CONFIG_SERVER_USERNAME:config}
+      password: ${CONFIG_SERVER_PASSWORD}
+      fail-fast: true
+      # The config server may still be starting (Compose, Kubernetes rollouts): retry for about a minute.
+      retry:
+        initial-interval: 1000
+        multiplier: 1.5
+        max-interval: 10000
+        max-attempts: 12
+      request-connect-timeout: 3000
+      request-read-timeout: 5000

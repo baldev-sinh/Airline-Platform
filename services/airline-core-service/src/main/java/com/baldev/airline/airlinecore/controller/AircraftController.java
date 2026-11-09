@@ -1,8 +1,8 @@
 package com.baldev.airline.airlinecore.controller;
 
 
-import com.baldev.airline.common.payload.request.AircraftRequest;
-import com.baldev.airline.common.payload.response.AircraftResponse;
+import com.baldev.airline.airlinecore.payload.request.AircraftRequest;
+import com.baldev.airline.airlinecore.payload.response.AircraftResponse;
 import com.baldev.airline.airlinecore.service.AircraftService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;

@@ -1,3 +1,6 @@
 com.baldev.airline.common.web.WebAutoConfiguration
 com.baldev.airline.common.feign.FeignAutoConfiguration
 com.baldev.airline.common.kafka.KafkaErrorHandlingAutoConfiguration
+com.baldev.airline.common.cache.RedisCachingAutoConfiguration
+com.baldev.airline.common.outbox.OutboxAutoConfiguration
+com.baldev.airline.common.security.TokenSecurityAutoConfiguration

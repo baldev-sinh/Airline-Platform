@@ -73,8 +73,7 @@ public class KafkaErrorHandlingAutoConfiguration {
             @Value("${airline.kafka.topics.partitions:3}") int partitions,
             @Value("${airline.kafka.topics.replication-factor:1}") short replicationFactor) {
         List<NewTopic> topics = new ArrayList<>();
-        for (String name : List.of(KafkaTopics.FLIGHT_INSTANCE_CREATED, KafkaTopics.PAYMENT_COMPLETED,
-                KafkaTopics.PAYMENT_FAILED, KafkaTopics.BOOKING_CONFIRMED, KafkaTopics.BOOKING_CANCELLED)) {
+        for (String name : KafkaTopics.ALL) {
             topics.add(TopicBuilder.name(name).partitions(partitions).replicas(replicationFactor).build());
             topics.add(TopicBuilder.name(name + "-dlt").partitions(partitions).replicas(replicationFactor).build());
         }

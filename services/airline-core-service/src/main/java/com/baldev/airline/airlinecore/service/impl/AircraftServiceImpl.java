@@ -6,11 +6,15 @@ import com.baldev.airline.common.exception.ResourceNotFoundException;
 import com.baldev.airline.airlinecore.mapper.AircraftMapper;
 import com.baldev.airline.airlinecore.model.Aircraft;
 import com.baldev.airline.airlinecore.model.Airline;
-import com.baldev.airline.common.payload.request.AircraftRequest;
-import com.baldev.airline.common.payload.response.AircraftResponse;
+import com.baldev.airline.airlinecore.payload.request.AircraftRequest;
+import com.baldev.airline.airlinecore.payload.response.AircraftResponse;
 import com.baldev.airline.airlinecore.repository.AircraftRepository;
 import com.baldev.airline.airlinecore.repository.AirlineRepository;
 import com.baldev.airline.airlinecore.service.AircraftService;
+import com.baldev.airline.airlinecore.config.AirlineCoreCacheConfig;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -48,6 +52,7 @@ public class AircraftServiceImpl implements AircraftService {
     }
 
     @Override
+    @Cacheable(cacheNames = AirlineCoreCacheConfig.AIRCRAFT, key = "#id")
     public AircraftResponse getAircraftById(Long id) {
         Aircraft aircraft= aircraftRepository.findById(id)
                 .orElseThrow(
@@ -69,6 +74,7 @@ public class AircraftServiceImpl implements AircraftService {
     }
 
     @Override
+    @CacheEvict(cacheNames = AirlineCoreCacheConfig.AIRCRAFT, key = "#id")
     public AircraftResponse updateAircraft(Long id, AircraftRequest request, Long ownerId) {
         Airline airline=airlineRepository.findByOwnerId(ownerId)
                 .orElseThrow(
@@ -90,6 +96,7 @@ public class AircraftServiceImpl implements AircraftService {
     }
 
     @Override
+    @CacheEvict(cacheNames = AirlineCoreCacheConfig.AIRCRAFT, key = "#id")
     public void deleteAircraft(Long id, Long ownerId) {
         Airline airline=airlineRepository.findByOwnerId(ownerId)
                 .orElseThrow(

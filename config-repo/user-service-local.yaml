@@ -1,0 +1,14 @@
+# user-service, local profile. Database from docker-compose/docker-compose.yml.
+spring:
+  datasource:
+    url: ${DB_URL:jdbc:mysql://localhost:3302/airline_user_db}
+
+airline:
+  security:
+    signing:
+      # Local only: without JWT_PRIVATE_KEY a key is generated at startup (restarting logs everyone out).
+      private-key: ${JWT_PRIVATE_KEY:}
+      generate-ephemeral-key: true
+  bootstrap-admin:
+    email: ${BOOTSTRAP_ADMIN_EMAIL:admin@airline.local}
+    password: ${BOOTSTRAP_ADMIN_PASSWORD:ChangeMe!Local123}

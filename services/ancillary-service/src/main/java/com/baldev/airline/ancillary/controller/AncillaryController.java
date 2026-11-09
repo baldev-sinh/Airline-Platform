@@ -1,8 +1,10 @@
 package com.baldev.airline.ancillary.controller;
 
 
-import com.baldev.airline.common.payload.request.AncillaryRequest;
-import com.baldev.airline.common.payload.response.AncillaryResponse;
+import com.baldev.airline.common.web.CurrentUser;
+import com.baldev.airline.ancillary.service.support.AncillaryOwnership;
+import com.baldev.airline.ancillary.payload.request.AncillaryRequest;
+import com.baldev.airline.ancillary.payload.response.AncillaryResponse;
 import com.baldev.airline.ancillary.service.AncillaryService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -18,6 +20,7 @@ import java.util.List;
 public class AncillaryController {
 
     private final AncillaryService ancillaryService;
+    private final AncillaryOwnership ownership;
 
 
     @PostMapping
@@ -42,12 +45,14 @@ public class AncillaryController {
     @PutMapping("/{id}")
     public ResponseEntity<AncillaryResponse> update(
             @PathVariable Long id,
-            @RequestBody AncillaryRequest request) {
+            @RequestBody AncillaryRequest request, CurrentUser user) {
+        ownership.requireAirline(user, ancillaryService.getById(id).getAirlineId(), "Ancillary", id);
         return ResponseEntity.ok(ancillaryService.updateAncillary(id, request));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable Long id) {
+    public ResponseEntity<Void> delete(@PathVariable Long id, CurrentUser user) {
+        ownership.requireAirline(user, ancillaryService.getById(id).getAirlineId(), "Ancillary", id);
         ancillaryService.deleteAncillary(id);
         return ResponseEntity.noContent().build();
     }

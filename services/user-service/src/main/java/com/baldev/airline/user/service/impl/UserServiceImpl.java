@@ -1,7 +1,7 @@
 package com.baldev.airline.user.service.impl;
 
 import com.baldev.airline.common.exception.ResourceNotFoundException;
-import com.baldev.airline.common.payload.dto.UserDTO;
+import com.baldev.airline.user.payload.dto.UserDTO;
 import com.baldev.airline.user.mapper.UserMapper;
 import com.baldev.airline.user.repository.UserRepository;
 import com.baldev.airline.user.service.UserService;

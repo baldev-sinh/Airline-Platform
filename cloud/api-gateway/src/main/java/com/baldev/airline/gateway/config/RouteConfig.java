@@ -75,6 +75,11 @@ public class RouteConfig {
         return route("payment-service", "/api/payments", "/api/payments/**");
     }
 
+    @Bean
+    public RouterFunction<ServerResponse> notificationRoutes() {
+        return route("notification-service", "/api/notifications", "/api/notifications/**");
+    }
+
     private RouterFunction<ServerResponse> route(String serviceId, String... paths) {
         var builder = GatewayRouterFunctions.route(serviceId + "-routes");
         for (String path : paths) {

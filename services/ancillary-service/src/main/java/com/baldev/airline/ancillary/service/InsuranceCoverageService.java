@@ -1,8 +1,7 @@
 package com.baldev.airline.ancillary.service;
 
-import com.baldev.airline.common.payload.request.InsuranceCoverageRequest;
-import com.baldev.airline.common.payload.response.InsuranceCoverageResponse;
-
+import com.baldev.airline.ancillary.payload.request.InsuranceCoverageRequest;
+import com.baldev.airline.ancillary.payload.response.InsuranceCoverageResponse;
 import java.util.List;
 
 public interface InsuranceCoverageService {

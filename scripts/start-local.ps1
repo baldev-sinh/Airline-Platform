@@ -1,12 +1,14 @@
 <#
 .SYNOPSIS
-  Starts the registry, every business service and the gateway on this machine with the `local` profile.
+  Starts the config server, the registry, every business service and the gateway on this machine with the
+  `local` profile.
 
 .DESCRIPTION
   Prerequisites:
     1. Databases and Kafka running:
          docker compose -f docker-compose/docker-compose.yml --env-file docker-compose/.env `
-           up -d userdb airlinecoredb flightopsdb locationdb pricingdb ancillarydb bookingdb paymentdb seatdb kafka kafka-ui prometheus grafana
+           up -d userdb airlinecoredb flightopsdb locationdb pricingdb ancillarydb bookingdb paymentdb seatdb notificationdb `
+           kafka kafka-ui redis mailpit prometheus grafana
     2. Jars built:  ./mvnw -B -DskipTests package
 
   By default payment-service runs with the offline `payment-stub` profile, so no Razorpay account is needed.
@@ -15,6 +17,9 @@
   Pass -Tunnel as well to start an ngrok tunnel on your permanent ngrok address, so Razorpay webhooks reach
   this machine at the same URL every time (NGROK_AUTHTOKEN and NGROK_DOMAIN in docker-compose/.env).
   See docs/RAZORPAY_TEST_MODE.md.
+
+  Configuration comes from config-repo/ through config-server (started first). REDIS_PASSWORD is read from
+  docker-compose/.env. E-mails land in Mailpit: http://localhost:8025.
 
   Logs go to .local-run/<service>.log. Stop everything with scripts/stop-local.ps1.
 
@@ -52,6 +57,13 @@ if (Test-Path $pidFile) {
 # and a placeholder would otherwise only fail later, when someone tries to pay.
 $dotEnv = Read-DotEnv (Join-Path $root 'docker-compose/.env')
 
+# Every service reads its configuration from config-server and uses Redis (cache, token revocations).
+$env:CONFIG_REPO_LOCATION = 'file:' + ((Join-Path $root 'config-repo') -replace '\\', '/') + '/'
+if ([string]::IsNullOrWhiteSpace((Resolve-Setting 'REDIS_PASSWORD' $dotEnv))) {
+    throw 'Set REDIS_PASSWORD in docker-compose/.env (the redis container requires it).'
+}
+$null = Resolve-Setting 'CONFIG_SERVER_PASSWORD' $dotEnv   # optional locally: the local profile has a default
+
 if ($RealPayments) {
     foreach ($name in 'RAZORPAY_KEY_ID', 'RAZORPAY_KEY_SECRET', 'RAZORPAY_WEBHOOK_SECRET') {
         $value = Resolve-Setting $name $dotEnv   # also exported, so the services started below inherit it
@@ -75,6 +87,7 @@ if ($Tunnel) {
 
 # name, jar folder, port, extra profiles
 $services = @(
+    @{ Name = 'config-server';        Dir = 'cloud/config-server';            Port = 8888; Profiles = 'local' },
     @{ Name = 'service-registry';     Dir = 'cloud/service-registry';         Port = 8761; Profiles = '' },
     @{ Name = 'user-service';         Dir = 'services/user-service';          Port = 5001; Profiles = 'local' },
     @{ Name = 'airline-core-service'; Dir = 'services/airline-core-service';  Port = 5002; Profiles = 'local' },
@@ -85,6 +98,7 @@ $services = @(
     @{ Name = 'booking-service';      Dir = 'services/booking-service';       Port = 5009; Profiles = 'local' },
     @{ Name = 'payment-service';      Dir = 'services/payment-service';       Port = 5010; Profiles = $(if ($RealPayments) { 'local' } else { 'local,payment-stub' }) },
     @{ Name = 'flight-ops-service';   Dir = 'services/flight-ops-service';    Port = 5011; Profiles = 'local' },
+    @{ Name = 'notification-service'; Dir = 'services/notification-service';  Port = 5012; Profiles = 'local' },
     @{ Name = 'api-gateway';          Dir = 'cloud/api-gateway';              Port = 5100; Profiles = 'local' }  # 5100 = management port; API on 5000
 )
 
@@ -92,7 +106,8 @@ function Wait-Ready($name, $port) {
     $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
     while ((Get-Date) -lt $deadline) {
         try {
-            $r = Invoke-WebRequest -UseBasicParsing -TimeoutSec 3 "http://localhost:$port/actuator/health"
+            # Readiness, not overall health: a Redis or SMTP hiccup must not count as "not started".
+            $r = Invoke-WebRequest -UseBasicParsing -TimeoutSec 3 "http://localhost:$port/actuator/health/readiness"
             if ($r.StatusCode -eq 200) { return }
         } catch { }
         Start-Sleep -Seconds 2
@@ -113,13 +128,15 @@ function Start-One($svc) {
     Write-Host ("  started {0,-22} pid {1,-6} port {2}  profiles: {3}" -f $svc.Name, $p.Id, $svc.Port, $svc.Profiles)
 }
 
-Write-Host 'Starting service registry...'
+Write-Host 'Starting config server and service registry...'
 Start-One $services[0]
+Start-One $services[1]
 Wait-Ready $services[0].Name $services[0].Port
+Wait-Ready $services[1].Name $services[1].Port
 
 # Start in small batches: nine JVMs booting at once can starve the CPU and time out database connections.
 Write-Host 'Starting business services...'
-$business = $services[1..($services.Count - 2)]
+$business = $services[2..($services.Count - 2)]
 for ($i = 0; $i -lt $business.Count; $i += $BatchSize) {
     $batch = $business[$i..([Math]::Min($i + $BatchSize, $business.Count) - 1)]
     foreach ($svc in $batch) { Start-One $svc }
@@ -147,6 +164,7 @@ if ($Tunnel) {
 
 Write-Host ''
 Write-Host 'All services are up. API gateway: http://localhost:5000   Eureka: http://localhost:8761' -ForegroundColor Green
+Write-Host 'Config server: http://localhost:8888 (user config)   E-mails: http://localhost:8025 (Mailpit)' -ForegroundColor Green
 if (-not $RealPayments) {
     Write-Host 'Payments: OFFLINE STUB (no money moves). Webhook secret: local-stub-webhook-secret' -ForegroundColor Yellow
 } else {

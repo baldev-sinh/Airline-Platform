@@ -1,8 +1,7 @@
 package com.baldev.airline.location.service;
 
-import com.baldev.airline.common.payload.request.AirportRequest;
-import com.baldev.airline.common.payload.response.AirportResponse;
-
+import com.baldev.airline.location.payload.request.AirportRequest;
+import com.baldev.airline.location.payload.response.AirportResponse;
 import java.util.List;
 
 public interface AirportService {

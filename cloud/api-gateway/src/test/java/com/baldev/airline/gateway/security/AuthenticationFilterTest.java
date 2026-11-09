@@ -1,5 +1,8 @@
 package com.baldev.airline.gateway.security;
 
+import com.baldev.airline.common.security.AccessTokenVerifier;
+import com.baldev.airline.common.security.JwksKeyResolver;
+import com.baldev.airline.common.security.TokenRevocations;
 import com.baldev.airline.common.web.RequestHeaders;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
@@ -9,22 +12,28 @@ import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.function.ServerRequest;
 
-import java.nio.charset.StandardCharsets;
+import java.security.GeneralSecurityException;
+import java.security.KeyPair;
+import java.security.KeyPairGenerator;
+import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class AuthenticationFilterTest {
 
-    private static final String SECRET = "test-secret-test-secret-test-secret-0123456789";
     private static final String ISSUER = "airline-user-service";
+    private static final String AUDIENCE = "airline-api";
+    private static final KeyPair KEYS = rsa();
 
-    private final JwtProperties properties = new JwtProperties(SECRET, ISSUER);
-    private final AuthenticationFilter filter = new AuthenticationFilter(new AccessPolicy(), new JwtVerifier(properties));
+    private final AuthenticationFilter filter = filter(TokenRevocations.NONE);
 
     @Test
     void stripsSpoofedIdentityHeadersOnPublicRoutes() {
@@ -71,6 +80,40 @@ class AuthenticationFilterTest {
     }
 
     @Test
+    void rejectsHmacTokenEvenWithAValidLookingPayload() {
+        String hmac = Jwts.builder().header().keyId("k1").and().issuer(ISSUER).audience().add(AUDIENCE).and()
+                .subject("1").claim("roles", List.of("ROLE_SYSTEM_ADMIN"))
+                .expiration(Date.from(Instant.now().plusSeconds(600)))
+                .signWith(Keys.hmacShaKeyFor(new byte[32])).compact();
+        MockHttpServletRequest raw = new MockHttpServletRequest("GET", "/api/bookings/9");
+        raw.addHeader("Authorization", "Bearer " + hmac);
+        assertStatus(raw, HttpStatus.UNAUTHORIZED);
+    }
+
+    @Test
+    void rejectsRevokedToken() {
+        AuthenticationFilter revoking = filter(new TokenRevocations() {
+            @Override
+            public boolean isRevoked(AccessTokenVerifier.VerifiedToken token) {
+                return true;
+            }
+
+            @Override
+            public void revokeToken(String tokenId, Instant expiresAt) {
+            }
+
+            @Override
+            public void revokeAllIssuedBefore(Long userId, Instant before, Duration ttl) {
+            }
+        });
+        MockHttpServletRequest raw = new MockHttpServletRequest("GET", "/api/bookings/9");
+        raw.addHeader("Authorization", "Bearer " + token(42L, List.of("ROLE_USER"), ISSUER, 3600));
+        assertThatThrownBy(() -> revoking.apply(request(raw)))
+                .isInstanceOfSatisfying(ResponseStatusException.class,
+                        e -> assertThat(e.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED));
+    }
+
+    @Test
     void forbidsCustomerOnAdminRoute() {
         MockHttpServletRequest raw = new MockHttpServletRequest("POST", "/api/airlines/7/approve");
         raw.addHeader("Authorization", "Bearer " + token(42L, List.of("ROLE_USER"), ISSUER, 3600));
@@ -109,12 +152,30 @@ class AuthenticationFilterTest {
     private static String token(Long userId, List<String> roles, String issuer, long ttlSeconds) {
         Instant now = Instant.now();
         return Jwts.builder()
+                .header().keyId("k1").and()
+                .id(UUID.randomUUID().toString())
+                .audience().add(AUDIENCE).and()
                 .issuer(issuer)
                 .subject(String.valueOf(userId))
                 .issuedAt(Date.from(now.minus(1, ChronoUnit.MINUTES)))
                 .expiration(Date.from(now.plusSeconds(ttlSeconds)))
                 .claim("roles", roles)
-                .signWith(Keys.hmacShaKeyFor(SECRET.getBytes(StandardCharsets.UTF_8)))
+                .signWith(KEYS.getPrivate(), Jwts.SIG.RS256)
                 .compact();
+    }
+
+    private static AuthenticationFilter filter(TokenRevocations revocations) {
+        return new AuthenticationFilter(new AccessPolicy(), new AccessTokenVerifier(
+                JwksKeyResolver.fixed(Map.of("k1", KEYS.getPublic())), revocations, ISSUER, AUDIENCE, Clock.systemUTC()));
+    }
+
+    private static KeyPair rsa() {
+        try {
+            KeyPairGenerator generator = KeyPairGenerator.getInstance("RSA");
+            generator.initialize(2048);
+            return generator.generateKeyPair();
+        } catch (GeneralSecurityException e) {
+            throw new IllegalStateException(e);
+        }
     }
 }

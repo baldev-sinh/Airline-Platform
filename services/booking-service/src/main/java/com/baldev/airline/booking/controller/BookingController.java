@@ -2,9 +2,9 @@ package com.baldev.airline.booking.controller;
 
 import com.baldev.airline.booking.service.BookingService;
 import com.baldev.airline.common.enums.BookingStatus;
-import com.baldev.airline.common.payload.request.BookingRequest;
-import com.baldev.airline.common.payload.response.BookingResponse;
-import com.baldev.airline.common.payload.response.PaymentInitiateResponse;
+import com.baldev.airline.booking.payload.request.BookingRequest;
+import com.baldev.airline.booking.payload.response.BookingResponse;
+import com.baldev.airline.booking.client.dto.PaymentInitiateResponse;
 import com.baldev.airline.common.web.CurrentUser;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;

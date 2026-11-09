@@ -6,8 +6,8 @@ import com.baldev.airline.common.exception.ResourceNotFoundException;
 import com.baldev.airline.pricing.mapper.BaggagePolicyMapper;
 import com.baldev.airline.pricing.model.BaggagePolicy;
 import com.baldev.airline.pricing.model.Fare;
-import com.baldev.airline.common.payload.request.BaggagePolicyRequest;
-import com.baldev.airline.common.payload.response.BaggagePolicyResponse;
+import com.baldev.airline.pricing.payload.request.BaggagePolicyRequest;
+import com.baldev.airline.pricing.payload.response.BaggagePolicyResponse;
 import com.baldev.airline.pricing.repository.BaggagePolicyRepository;
 import com.baldev.airline.pricing.repository.FareRepository;
 import com.baldev.airline.pricing.service.BaggagePolicyService;
@@ -28,7 +28,7 @@ public class BaggagePolicyServiceImpl implements BaggagePolicyService {
     private final BaggagePolicyRepository baggagePolicyRepository;
 
     @Override
-    public BaggagePolicyResponse createBaggagePolicy(BaggagePolicyRequest request) {
+    public BaggagePolicyResponse createBaggagePolicy(BaggagePolicyRequest request, Long airlineId) {
         Fare fare=fareRepository.findById(request.getFareId())
                 .orElseThrow(
                         ()-> new ResourceNotFoundException("baggage policy not found")
@@ -37,6 +37,8 @@ public class BaggagePolicyServiceImpl implements BaggagePolicyService {
             throw new ConflictException("baggage policy already exists");
         }
         BaggagePolicy baggagePolicy= BaggagePolicyMapper.toEntity(request,fare);
+        // Previously never set, so listing an airline's policies always came back empty.
+        baggagePolicy.setAirlineId(airlineId);
         BaggagePolicy saved=baggagePolicyRepository.save(baggagePolicy);
         return BaggagePolicyMapper.toResponse(saved);
     }

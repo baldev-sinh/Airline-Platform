@@ -1,7 +1,9 @@
 package com.baldev.airline.ancillary.controller;
 
-import com.baldev.airline.common.payload.request.MealRequest;
-import com.baldev.airline.common.payload.response.MealResponse;
+import com.baldev.airline.common.web.CurrentUser;
+import com.baldev.airline.ancillary.service.support.AncillaryOwnership;
+import com.baldev.airline.ancillary.payload.request.MealRequest;
+import com.baldev.airline.ancillary.payload.response.MealResponse;
 import com.baldev.airline.ancillary.service.MealService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -16,6 +18,7 @@ import java.util.List;
 @RequestMapping("/api/meals")
 public class MealController {
     private final MealService mealService;
+    private final AncillaryOwnership ownership;
 
     @PostMapping
     public ResponseEntity<MealResponse> createMeal(
@@ -42,20 +45,22 @@ public class MealController {
     @PatchMapping("/{id}/availability")
     public ResponseEntity<MealResponse> updateMealAvailability(
             @PathVariable Long id,
-            @RequestParam Boolean available) {
+            @RequestParam Boolean available, CurrentUser user) {
+        ownership.requireAirline(user, mealService.getMealById(id).getAirlineId(), "Meal", id);
         return ResponseEntity.ok(mealService.updateAvailability(id, available));
     }
 
     @PutMapping("/{id}")
     public ResponseEntity<MealResponse> updateMeal(
             @PathVariable Long id,
-            @RequestBody MealRequest request,
-            @RequestHeader("X-User-Id") Long userId) {
-        return ResponseEntity.ok(mealService.updateMeal(userId, id, request));
+            @RequestBody MealRequest request, CurrentUser user) {
+        ownership.requireAirline(user, mealService.getMealById(id).getAirlineId(), "Meal", id);
+        return ResponseEntity.ok(mealService.updateMeal(user.id(), id, request));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteMeal(@PathVariable Long id) {
+    public ResponseEntity<Void> deleteMeal(@PathVariable Long id, CurrentUser user) {
+        ownership.requireAirline(user, mealService.getMealById(id).getAirlineId(), "Meal", id);
         mealService.deleteMeal(id);
         return ResponseEntity.noContent().build();
     }

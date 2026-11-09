@@ -1,8 +1,10 @@
 package com.baldev.airline.pricing.controller;
 
 
-import com.baldev.airline.common.payload.request.FareRulesRequest;
-import com.baldev.airline.common.payload.response.FareRulesResponse;
+import com.baldev.airline.common.web.CurrentUser;
+import com.baldev.airline.pricing.service.support.FlightOwnershipVerifier;
+import com.baldev.airline.pricing.payload.request.FareRulesRequest;
+import com.baldev.airline.pricing.payload.response.FareRulesResponse;
 import com.baldev.airline.pricing.service.FareRulesService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -18,12 +20,15 @@ import java.util.List;
 public class FareRuleController {
 
     private final FareRulesService fareRulesService;
+    private final FlightOwnershipVerifier ownership;
 
 
     @PostMapping
     public ResponseEntity<FareRulesResponse> createFareRule(
-            @Valid @RequestBody FareRulesRequest request
+            @Valid @RequestBody FareRulesRequest request, CurrentUser user
     ) {
+        // The owning airline comes from the verified fare, never from the request body.
+        request.setAirlineId(ownership.requireOwnedFare(user, request.getFareId()));
         return ResponseEntity.status(HttpStatus.CREATED)
 
                 .body(fareRulesService.createFareRules(request));
@@ -51,12 +56,15 @@ public class FareRuleController {
     @PutMapping("/{id}")
     public ResponseEntity<FareRulesResponse> updateFareRules(
             @PathVariable Long id,
-            @Valid @RequestBody FareRulesRequest request) {
+            @Valid @RequestBody FareRulesRequest request, CurrentUser user) {
+        ownership.requireOwnedFare(user, fareRulesService.getFareRulesById(id).getFareId());
+        request.setAirlineId(ownership.requireOwnedFare(user, request.getFareId()));
         return ResponseEntity.ok(fareRulesService.updateFareRules(id, request));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteFareRules(@PathVariable Long id) {
+    public ResponseEntity<Void> deleteFareRules(@PathVariable Long id, CurrentUser user) {
+        ownership.requireOwnedFare(user, fareRulesService.getFareRulesById(id).getFareId());
         fareRulesService.deleteFareRules(id);
         return ResponseEntity.noContent().build();
     }

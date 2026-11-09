@@ -4,6 +4,8 @@
 #   mvn -B -DskipTests package jib:dockerBuild            # build images into the local Docker daemon
 #   docker compose -f docker-compose/docker-compose.yml --env-file docker-compose/.env up -d
 #
+# Start order: databases, Kafka, Redis -> config-server -> service-registry -> services -> gateway -> web.
+#
 # Production does not run on Compose: use managed MySQL/Kafka and an orchestrator (e.g. Kubernetes), injecting
 # the same environment variables from a secret store. Only the gateway (and, for debugging, the registry UI and
 # database ports bound to 127.0.0.1) are published.
@@ -48,8 +50,13 @@ x-service: &service
 
 x-service-env: &service-env
   JAVA_TOOL_OPTIONS: "-XX:MaxRAMPercentage=75 -XX:+UseG1GC"
+  # Central configuration (config-repo/ served by config-server); secrets stay in this environment.
+  CONFIG_SERVER_URL: http://config-server:8888
+  CONFIG_SERVER_PASSWORD: ${CONFIG_SERVER_PASSWORD:?set CONFIG_SERVER_PASSWORD in .env}
   EUREKA_URL: http://service-registry:8761/eureka/
   KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+  REDIS_HOST: redis
+  REDIS_PASSWORD: ${REDIS_PASSWORD:?set REDIS_PASSWORD in .env}
   DB_USERNAME: airline
   DB_PASSWORD: ${DB_PASSWORD}
   LOGGING_STRUCTURED_FORMAT_CONSOLE: ecs
@@ -103,6 +110,43 @@ services:
     environment: { <<: *mysql-env, MYSQL_DATABASE: airline_seat_db }
     ports: [ "127.0.0.1:3311:3306" ]
     volumes: [ seatdb-data:/var/lib/mysql ]
+  notificationdb:
+    <<: *mysql
+    environment: { <<: *mysql-env, MYSQL_DATABASE: airline_notification_db }
+    ports: [ "127.0.0.1:3312:3306" ]
+    volumes: [ notificationdb-data:/var/lib/mysql ]
+
+  # Shared cache, gateway rate limits and access-token revocations. Password protected; keys expire on their own.
+  # noeviction: under memory pressure writes fail (caches then fall back to the database) instead of silently
+  # dropping revocation entries. Append-only file so revocations survive a restart.
+  redis:
+    image: redis:8.2-alpine
+    restart: unless-stopped
+    logging: *logging
+    mem_limit: 320m
+    networks: [ backend ]
+    ports: [ "127.0.0.1:6379:6379" ]
+    command: [ "redis-server", "--requirepass", "${REDIS_PASSWORD:?set REDIS_PASSWORD in .env}",
+               "--maxmemory", "256mb", "--maxmemory-policy", "noeviction",
+               "--appendonly", "yes", "--appendfsync", "everysec" ]
+    volumes: [ redis-data:/data ]
+    healthcheck:
+      test: [ "CMD-SHELL", "redis-cli -a \"$$REDIS_PASSWORD\" --no-auth-warning ping | grep -q PONG" ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+
+  # Local SMTP server that catches every e-mail notification-service sends: inbox at http://localhost:8025.
+  # Not used in production (docker-compose.prod.yml points notification-service at a real SMTP provider).
+  mailpit:
+    image: axllent/mailpit:v1.27
+    restart: unless-stopped
+    logging: *logging
+    mem_limit: 128m
+    networks: [ backend ]
+    ports: [ "127.0.0.1:8025:8025", "127.0.0.1:1025:1025" ]
 
   kafka:
     image: apache/kafka:4.2.0
@@ -198,6 +242,23 @@ services:
     depends_on: [ prometheus ]
 
   # ---------------------------------------------------------------- platform
+  # Configuration for every service, from config-repo/ (mounted here so edits apply on restart or
+  # POST /actuator/refresh; the image also contains a copy). Set SPRING_PROFILES_ACTIVE=git and CONFIG_GIT_URI
+  # to serve it from a Git repository instead.
+  config-server:
+    <<: *service
+    image: ${IMAGE_REGISTRY:-baldevsinh}/airline-config-server:${IMAGE_TAG:-0.0.1-SNAPSHOT}
+    mem_limit: 384m
+    ports: [ "127.0.0.1:8888:8888" ]
+    environment:
+      SERVER_PORT: 8888
+      JAVA_TOOL_OPTIONS: "-XX:MaxRAMPercentage=75 -XX:+UseG1GC"
+      CONFIG_SERVER_PASSWORD: ${CONFIG_SERVER_PASSWORD:?set CONFIG_SERVER_PASSWORD in .env}
+      CONFIG_REPO_LOCATION: file:/config-repo/
+      LOGGING_STRUCTURED_FORMAT_CONSOLE: ecs
+    volumes:
+      - ../config-repo:/config-repo:ro
+
   service-registry:
     <<: *service
     image: ${IMAGE_REGISTRY:-baldevsinh}/airline-service-registry:${IMAGE_TAG:-0.0.1-SNAPSHOT}
@@ -221,12 +282,13 @@ services:
       retries: 10
       start_period: 60s
     depends_on:
+      config-server: { condition: service_healthy }
       service-registry: { condition: service_healthy }
+      redis: { condition: service_healthy }
     environment:
       <<: *service-env
       SERVER_PORT: 5000
       MANAGEMENT_PORT: 5100
-      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in .env}
       CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-${PUBLIC_BASE_URL:-http://localhost:5173}}
 
   # ---------------------------------------------------------------- business services (internal only)
@@ -234,13 +296,17 @@ services:
     <<: *service
     image: ${IMAGE_REGISTRY:-baldevsinh}/airline-user-service:${IMAGE_TAG:-0.0.1-SNAPSHOT}
     depends_on:
+      config-server: { condition: service_healthy }
+      redis: { condition: service_healthy }
       service-registry: { condition: service_healthy }
       userdb: { condition: service_healthy }
     environment:
       <<: *service-env
       SERVER_PORT: 5001
       DB_URL: jdbc:mysql://userdb:3306/airline_user_db
-      JWT_SECRET: ${JWT_SECRET}
+      # RS256 private key (PKCS#8 PEM, "\n" escapes allowed) that signs access tokens; only user-service has it.
+      # Required in docker-compose.prod.yml; user-service also refuses to start without it outside the local profile.
+      JWT_PRIVATE_KEY: ${JWT_PRIVATE_KEY:-}
       BOOTSTRAP_ADMIN_EMAIL: ${BOOTSTRAP_ADMIN_EMAIL:-}
       BOOTSTRAP_ADMIN_PASSWORD: ${BOOTSTRAP_ADMIN_PASSWORD:-}
 
@@ -248,6 +314,8 @@ services:
     <<: *service
     image: ${IMAGE_REGISTRY:-baldevsinh}/airline-airline-core-service:${IMAGE_TAG:-0.0.1-SNAPSHOT}
     depends_on:
+      config-server: { condition: service_healthy }
+      redis: { condition: service_healthy }
       service-registry: { condition: service_healthy }
       airlinecoredb: { condition: service_healthy }
     environment:
@@ -259,6 +327,8 @@ services:
     <<: *service
     image: ${IMAGE_REGISTRY:-baldevsinh}/airline-location-service:${IMAGE_TAG:-0.0.1-SNAPSHOT}
     depends_on:
+      config-server: { condition: service_healthy }
+      redis: { condition: service_healthy }
       service-registry: { condition: service_healthy }
       locationdb: { condition: service_healthy }
     environment:
@@ -270,6 +340,8 @@ services:
     <<: *service
     image: ${IMAGE_REGISTRY:-baldevsinh}/airline-pricing-service:${IMAGE_TAG:-0.0.1-SNAPSHOT}
     depends_on:
+      config-server: { condition: service_healthy }
+      redis: { condition: service_healthy }
       service-registry: { condition: service_healthy }
       pricingdb: { condition: service_healthy }
     environment:
@@ -281,6 +353,8 @@ services:
     <<: *service
     image: ${IMAGE_REGISTRY:-baldevsinh}/airline-seat-service:${IMAGE_TAG:-0.0.1-SNAPSHOT}
     depends_on:
+      config-server: { condition: service_healthy }
+      redis: { condition: service_healthy }
       service-registry: { condition: service_healthy }
       seatdb: { condition: service_healthy }
       kafka: { condition: service_healthy }
@@ -293,6 +367,8 @@ services:
     <<: *service
     image: ${IMAGE_REGISTRY:-baldevsinh}/airline-ancillary-service:${IMAGE_TAG:-0.0.1-SNAPSHOT}
     depends_on:
+      config-server: { condition: service_healthy }
+      redis: { condition: service_healthy }
       service-registry: { condition: service_healthy }
       ancillarydb: { condition: service_healthy }
     environment:
@@ -304,6 +380,8 @@ services:
     <<: *service
     image: ${IMAGE_REGISTRY:-baldevsinh}/airline-booking-service:${IMAGE_TAG:-0.0.1-SNAPSHOT}
     depends_on:
+      config-server: { condition: service_healthy }
+      redis: { condition: service_healthy }
       service-registry: { condition: service_healthy }
       bookingdb: { condition: service_healthy }
       kafka: { condition: service_healthy }
@@ -316,6 +394,8 @@ services:
     <<: *service
     image: ${IMAGE_REGISTRY:-baldevsinh}/airline-payment-service:${IMAGE_TAG:-0.0.1-SNAPSHOT}
     depends_on:
+      config-server: { condition: service_healthy }
+      redis: { condition: service_healthy }
       service-registry: { condition: service_healthy }
       paymentdb: { condition: service_healthy }
       kafka: { condition: service_healthy }
@@ -335,6 +415,8 @@ services:
     <<: *service
     image: ${IMAGE_REGISTRY:-baldevsinh}/airline-flight-ops-service:${IMAGE_TAG:-0.0.1-SNAPSHOT}
     depends_on:
+      config-server: { condition: service_healthy }
+      redis: { condition: service_healthy }
       service-registry: { condition: service_healthy }
       flightopsdb: { condition: service_healthy }
       kafka: { condition: service_healthy }
@@ -342,6 +424,27 @@ services:
       <<: *service-env
       SERVER_PORT: 5011
       DB_URL: jdbc:mysql://flightopsdb:3306/airline_flight_db
+
+  notification-service:
+    <<: *service
+    image: ${IMAGE_REGISTRY:-baldevsinh}/airline-notification-service:${IMAGE_TAG:-0.0.1-SNAPSHOT}
+    depends_on:
+      config-server: { condition: service_healthy }
+      service-registry: { condition: service_healthy }
+      notificationdb: { condition: service_healthy }
+      kafka: { condition: service_healthy }
+    environment:
+      <<: *service-env
+      SERVER_PORT: 5012
+      DB_URL: jdbc:mysql://notificationdb:3306/airline_notification_db
+      SMTP_HOST: ${SMTP_HOST:-mailpit}
+      SMTP_PORT: ${SMTP_PORT:-1025}
+      SMTP_USERNAME: ${SMTP_USERNAME:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_AUTH: ${SMTP_AUTH:-false}
+      SMTP_STARTTLS: ${SMTP_STARTTLS:-false}
+      NOTIFICATION_FROM: ${NOTIFICATION_FROM:-no-reply@airline.local}
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost:5173}
 
   # ---------------------------------------------------------------- web app
   # The Angular site, served by nginx, which also forwards /api and /auth to the gateway (same origin, so
@@ -375,6 +478,8 @@ volumes:
   bookingdb-data:
   paymentdb-data:
   seatdb-data:
+  notificationdb-data:
+  redis-data:
   kafka-data:
   prometheus-data:
   grafana-data:

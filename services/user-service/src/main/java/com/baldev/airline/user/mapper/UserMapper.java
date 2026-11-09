@@ -1,6 +1,6 @@
 package com.baldev.airline.user.mapper;
 
-import com.baldev.airline.common.payload.dto.UserDTO;
+import com.baldev.airline.user.payload.dto.UserDTO;
 import com.baldev.airline.user.model.User;
 
 public final class UserMapper {

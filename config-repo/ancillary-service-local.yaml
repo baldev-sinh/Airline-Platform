@@ -1,0 +1,4 @@
+# ancillary-service, local profile. Database from docker-compose/docker-compose.yml.
+spring:
+  datasource:
+    url: ${DB_URL:jdbc:mysql://localhost:3308/airline_ancillary_db}

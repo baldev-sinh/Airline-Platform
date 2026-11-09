@@ -1,6 +1,7 @@
 import { HttpClient, provideHttpClient, withInterceptors } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
+import { of, throwError } from 'rxjs';
 import { Router, provideRouter } from '@angular/router';
 import { AuthStore } from '../auth/auth-store';
 import { ApiError } from './api-error';
@@ -23,18 +24,25 @@ describe('HTTP interceptors', () => {
   let http: HttpClient;
   let backend: HttpTestingController;
   let token: string | null;
+  let refreshable: boolean;
   const expire = vi.fn();
+  const refresh = vi.fn();
 
   beforeEach(() => {
     token = 'test-token';
+    refreshable = false;
     expire.mockReset();
+    refresh.mockReset();
     TestBed.configureTestingModule({
       providers: [
         provideRouter([]),
         provideHttpClient(withInterceptors([errorInterceptor, authInterceptor])),
         provideHttpClientTesting(),
         // A fake AuthStore: the test controls the token and watches expire().
-        { provide: AuthStore, useValue: { token: () => token, expire } },
+        {
+          provide: AuthStore,
+          useValue: { token: () => token, expire, refresh, canRefresh: () => refreshable },
+        },
       ],
     });
     http = TestBed.inject(HttpClient);
@@ -80,6 +88,36 @@ describe('HTTP interceptors', () => {
       ['/login'],
       expect.objectContaining({ queryParams: expect.objectContaining({ reason: 'expired' }) }),
     );
+  });
+
+  it('renews the session once and repeats the request after a 401', () => {
+    refreshable = true;
+    refresh.mockImplementation(() => {
+      token = 'new-token';
+      return of(undefined);
+    });
+    let received: unknown;
+    http.get('/api/bookings/1').subscribe((body) => (received = body));
+
+    backend.expectOne('/api/bookings/1').flush({}, { status: 401, statusText: 'Unauthorized' });
+    const retried = backend.expectOne('/api/bookings/1');
+    expect(retried.request.headers.get('Authorization')).toBe('Bearer new-token');
+    retried.flush({ id: 1 });
+
+    expect(received).toEqual({ id: 1 });
+    expect(refresh).toHaveBeenCalledOnce();
+    expect(expire).not.toHaveBeenCalled();
+  });
+
+  it('signs out when the session cannot be renewed', () => {
+    refreshable = true;
+    refresh.mockReturnValue(throwError(() => new Error('revoked')));
+    vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+    http.get('/api/bookings/1').subscribe({ error: () => undefined });
+
+    backend.expectOne('/api/bookings/1').flush({}, { status: 401, statusText: 'Unauthorized' });
+
+    expect(expire).toHaveBeenCalledOnce();
   });
 
   it('leaves a wrong-password 401 to the login form', () => {

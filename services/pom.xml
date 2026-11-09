@@ -27,6 +27,7 @@
         <module>ancillary-service</module>
         <module>booking-service</module>
         <module>payment-service</module>
+        <module>notification-service</module>
     </modules>
 
     <!--
@@ -64,6 +65,26 @@
             <groupId>com.mysql</groupId>
             <artifactId>mysql-connector-j</artifactId>
             <scope>runtime</scope>
+        </dependency>
+
+        <!-- Centralized configuration (config-server); retry lets a service wait for the server at startup -->
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-config</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.retry</groupId>
+            <artifactId>spring-retry</artifactId>
+        </dependency>
+
+        <!-- Distributed cache (RedisCachingAutoConfiguration) and access-token revocation checks (common-lib) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-redis</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-cache</artifactId>
         </dependency>
 
         <!-- Discovery -->

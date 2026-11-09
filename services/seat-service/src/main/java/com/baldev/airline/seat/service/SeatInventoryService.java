@@ -1,8 +1,7 @@
 package com.baldev.airline.seat.service;
 
-import com.baldev.airline.common.payload.request.SeatHoldRequest;
-import com.baldev.airline.common.payload.response.SeatHoldResponse;
-
+import com.baldev.airline.seat.payload.request.SeatHoldRequest;
+import com.baldev.airline.seat.payload.response.SeatHoldResponse;
 /**
  * Seat inventory per flight instance and its lifecycle: create, hold during checkout, book on confirmation,
  * release on cancellation or hold expiry. All transitions are idempotent so Kafka redelivery is safe.

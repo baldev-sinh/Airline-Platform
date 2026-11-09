@@ -1,6 +1,6 @@
 package com.baldev.airline.payment.service.gateway;
 
-import com.baldev.airline.common.payload.dto.UserDTO;
+import com.baldev.airline.payment.client.dto.UserDTO;
 import com.baldev.airline.common.util.Money;
 import com.baldev.airline.payment.config.PaymentProperties;
 import com.baldev.airline.payment.model.Payment;
@@ -31,6 +31,8 @@ import java.util.regex.Pattern;
  *       <li>{@code pay_STUBWAIT<paymentId>}: authorized, not yet captured</li>
  *     </ul>
  *   </li>
+ *   <li>Refunds are processed immediately with id {@code rfnd_STUB<hash of refundKey>}; a refund of a stub
+ *       payment that was never captured is rejected like Razorpay would.</li>
  *   <li>Webhook signatures are verified for real (HMAC-SHA256 with {@code RAZORPAY_WEBHOOK_SECRET}), so a
  *       webhook test must sign its body exactly as Razorpay does.</li>
  * </ul>
@@ -109,6 +111,23 @@ public class StubPaymentGateway implements PaymentProvider {
         }
         boolean expired = payment.getCreatedAt().plus(properties.linkExpiry()).isBefore(clock.instant());
         return new PaymentLinkState(expired ? "expired" : "created", null);
+    }
+
+    @Override
+    public RefundResult refund(String providerPaymentId, long amountMinor, String refundKey) {
+        GatewayPayment payment = fetchPayment(providerPaymentId);
+        if (!payment.isCaptured() || amountMinor <= 0 || amountMinor > payment.amountMinor()) {
+            throw new RefundRejectedException("BAD_REQUEST_ERROR:stub cannot refund " + amountMinor
+                    + " of payment " + providerPaymentId, null);
+        }
+        String id = "rfnd_STUB" + Integer.toHexString(refundKey.hashCode());
+        log.info("Stub refund {} of {} (minor units) for {}", id, amountMinor, providerPaymentId);
+        return new RefundResult(id, "processed");
+    }
+
+    @Override
+    public RefundResult fetchRefund(String providerPaymentId, String providerRefundId) {
+        return new RefundResult(providerRefundId, "processed");
     }
 
     @Override

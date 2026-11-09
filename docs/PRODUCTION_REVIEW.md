@@ -45,42 +45,70 @@ Each phase is a separate commit, so any change can be reviewed or reverted on it
   unreachable from containers, "localhost only" DB ports bound to all interfaces, and no CI, health probes,
   metrics, tracing or tests.
 
-## Remaining gaps (recommended next steps)
+## Second phase: remaining gaps closed
 
-These need decisions or infrastructure beyond the codebase:
+The gaps left open by the first phase, plus centralized configuration, a distributed cache and an event-driven
+notification service. All of it has tests; the Testcontainers tests run against real MySQL, Kafka and Redis.
 
-1. **Rotate the leaked credentials now.** The Razorpay test key and secret, the DB password and the JWT key were
-   in source control. Treat them as compromised even though they are gone from the current tree. They are still in
-   the first commit of this repository (`Baseline snapshot before production hardening`). Before pushing it
-   anywhere, rotate them, and either start from a fresh history or remove that commit's secrets
-   (e.g. `git filter-repo`).
-2. **Transactional outbox.** Events are published after commit; a crash in between loses one (the Razorpay
-   webhook and idempotent consumers limit the damage). Add an outbox table plus relay (or Debezium) in
-   payment-service and booking-service.
-3. **Refunds and cancellation of ticketed bookings.** Cancelling a `CONFIRMED` booking is currently rejected
-   (`REFUND_REQUIRED`); paid-after-expiry cases are logged as `ACTION REQUIRED`. Both need a refund workflow
-   (Razorpay refunds API, `TicketStatus.REFUNDED`, seat release).
-4. **Service-to-service trust.** Services trust gateway headers because they are network-isolated. In
-   production, add mTLS (service mesh) or have services verify the JWT themselves (RS256 + JWKS from
-   user-service), and use refresh tokens with revocation.
-5. **Resilience.** Feign has strict timeouts but no circuit breakers. Global breakers were removed deliberately:
-   without fallbacks they wrap every client error and hide 404/409 from callers. Add Resilience4j per client
-   where a degraded answer exists (for example, search without enrichment).
-6. **Rate limiting and WAF** on `/auth/login`, `/auth/signup` and search, at the ingress or with the gateway's
-   Bucket4j filter.
-7. **Remaining cross-tenant writes.** Ownership is enforced for flights, schedules, instances, fares, airlines and
-   aircraft. Cabin classes, seat maps, meals, ancillaries, fare rules and baggage policies are restricted to airline
-   owners at the gateway but should also verify the owning airline in-service.
-8. **Shared DTO module.** `common-lib` holds every service's API DTOs, which couples deployments. Move each API's
-   DTOs into the owning service (consumers keep their own client models) and keep only event contracts shared,
-   ideally with a schema registry.
-9. **Integration tests** with Testcontainers (MySQL + Kafka) for the booking -> payment -> seat saga. Unit tests
-   cover the critical rules; the Flyway/validate boot was verified manually for all nine services.
-10. **Data migration.** The schema baseline is new. Existing development databases created by
-    `ddl-auto: update` must be recreated, or baselined with `flyway baseline` after manually aligning them.
-11. **API changes for the frontend:**
-    - `GET /api/bookings/airline` and `GET /api/users` are now paged.
-    - Payment verify accepts only `razorpayPaymentId`.
-    - Signup takes the new validated fields (password at least 10 characters).
-    - Seat-instance price and `/price/total` endpoints moved to `/internal`.
-    - Error bodies are problem details.
+| # | Gap | What was built | Where |
+|---|---|---|---|
+| 2 | Events lost between commit and send | **Transactional outbox** in common-lib: events are inserted in the business transaction and relayed to Kafka after commit (ordered per key, `SELECT ... FOR UPDATE` at READ COMMITTED, permanent failures parked as `FAILED`, metrics `outbox_events{state}`, trace context carried over). Used by booking, payment, flight-ops and user-service | `common/outbox`, `V*__transactional_outbox.sql` |
+| 3 | No refunds | **Refund workflow.** Cancelling a ticketed booking applies the fare's rules (`RefundPolicy`: departed, non-refundable, deadline, fee per passenger), voids tickets, releases seats and publishes `refund.requested`; payments that arrive after cancellation or with the wrong amount are refunded too. payment-service refunds through Razorpay, idempotent per refund key (unique key, atomic claim, key stored in the provider's notes), finished by webhook (`refund.processed/failed`) or reconciliation, and publishes `payment.refunded` / `payment.refund-failed`. Tickets become `REFUNDED`; the customer is told | booking `RefundPolicy`, payment `RefundService`, `refund` table |
+| 4 | Services trusted gateway headers; no refresh or revocation | **RS256 tokens with JWKS** (`/.well-known/jwks.json`, key rotation by `kid`), verified by the gateway **and every service** (`JwtAuthenticationFilter`: forged `X-User-*` headers are replaced by the token's identity), token relay on Feign calls. **Refresh tokens**: opaque, hashed at rest, single-use, rotated per family; reuse of a spent token revokes the family and all access tokens. **Revocation** in Redis (logout, "sign out everywhere"). Access tokens now live 15 minutes; the web app refreshes silently (shared within a tab, serialized across tabs) | `common/security`, user `SigningKeys`, `RefreshTokenService` |
+| 5 | No circuit breakers | **Resilience4j** where a degraded answer exists: airline/aircraft/airport enrichment in flight-ops. An outage yields `partial: true` responses (never cached) instead of 500s; 4xx answers do not open the breaker. Runs on the caller's thread so token relay and tracing keep working | flight-ops `ReferenceData` |
+| 6 | No rate limiting | **Distributed rate limits** at the gateway: Redis token buckets (atomic Lua, Redis clock) per client IP, with `X-Forwarded-For` believed only from trusted proxies. Policies for login, signup, token refresh, search and everything else; webhooks exempt; 429 with `Retry-After` | gateway `ratelimit`, `config-repo/api-gateway.yaml` |
+| 7 | Cross-tenant writes | **Ownership checks in-service** for cabin classes, seat maps, flight-instance cabins, meals, ancillaries, flight meals, flight-cabin ancillaries, insurance coverages, fare rules and baggage policies (404 for foreign resources). The owning airline is stamped server-side instead of read from the request | `SeatOwnership`, `AncillaryOwnership`, `FlightOwnershipVerifier` |
+| 8 | common-lib held every API's DTOs | **API models moved to their owners** (`<service>.payload.*`); consumers keep their own copies (`<service>.client.dto`). common-lib keeps only event contracts, enums, embeddables and cross-cutting infrastructure | all services |
+| 9 | No integration tests | **Testcontainers** saga tests: booking (create, `payment.completed`, cancel, `refund.requested`, `payment.refunded`), payment (verify once, refund once), seat (held, booked, released), notification (Kafka to e-mail and inbox), cache (location), rate limiter (Redis). They run in CI | `*IntegrationTest`, `RateLimitTest` |
+| 10 | Databases created by `ddl-auto` | One-off `FLYWAY_BASELINE_ON_MIGRATE=true` (see below) | `config-repo/application.yaml` |
+| - | Config scattered in 11 jars | **Spring Cloud Config server** (`cloud/config-server`, port 8888, HTTP basic auth). `config-repo/` holds platform-wide, per-service and per-profile files; jars only carry bootstrap settings. Native backend by default (baked into the image, mounted in Compose), Git backend with `SPRING_PROFILES_ACTIVE=git`. A test fails the build if a plaintext secret is committed to `config-repo/` | `config-repo/`, `cloud/config-server` |
+| - | No cache | **Redis distributed cache** (`RedisCachingAutoConfiguration`): typed caches declared with `CacheSpec` (no polymorphic deserialization), per-service key namespace and version, TTL per cache, eviction after commit, fails open when Redis is down. Airlines (by id and by owner, used by every service), aircraft, airports, cities, fares and flights | `common/cache`, `*CacheConfig` |
+| - | No customer notifications | **notification-service** (port 5012): consumes `user.registered`, `booking.confirmed`, `booking.cancelled`, `booking.refunded`; idempotent per event and channel; HTML e-mails (Thymeleaf) over SMTP with retries and backoff (an SMTP outage never blocks Kafka); in-app inbox `GET /api/notifications`; personal data purged after 180 days. Mailpit catches mail locally | `services/notification-service` |
+
+Fixed along the way: location `updateCity` rejected keeping a city's own code; `createAirport` never evicted the
+airport lists; fare rules lookup returned 500 instead of 404 when a fare had none; baggage policies never stored
+their airline, so listing an airline's policies always came back empty.
+
+## What still needs action outside the code
+
+1. **Rotate the leaked credentials.** The Razorpay test key and secret, the DB password and the old JWT secret
+   were committed in the first commit (`Baseline snapshot before production hardening`). The JWT secret is no
+   longer used (tokens are now RS256), but the other values must be rotated at the provider and in every `.env`.
+   Before pushing the history anywhere public, remove them:
+   ```bash
+   pip install git-filter-repo
+   # replacements.txt: one "<old secret>==>REDACTED" line per leaked value
+   git filter-repo --replace-text replacements.txt
+   ```
+   CI now runs a gitleaks secret scan on every push and pull request, so a new leak fails the build.
+2. **mTLS between services.** Services now verify the caller's JWT themselves, so identity cannot be forged even
+   from inside the network. Service-to-service endpoints (`/internal/**`) and Kafka are still protected by network
+   isolation only. In Kubernetes, enable a mesh with strict mTLS (Istio `PeerAuthentication: STRICT`, Linkerd)
+   and SASL/TLS on Kafka; nothing in the code needs to change.
+3. **WAF.** Rate limits are in the gateway; put a WAF (Cloudflare, AWS WAF, or Coraza in front of Caddy) at the
+   edge for OWASP rules and bot management. Per-account login throttling (across IPs) would also belong there or
+   in user-service.
+4. **Schema registry.** Event contracts are shared Java classes in common-lib, versioned with the code and
+   backward compatible by convention (only additive fields; consumers ignore unknown ones). A schema registry
+   (Confluent, Apicurio) with compatibility checks in CI is the next step once teams deploy independently.
+5. **Redis and SMTP in production.** Use a managed Redis with TLS (`REDIS_SSL_ENABLED=true`) and a real SMTP
+   provider (SES, Postmark, SendGrid) with SPF/DKIM/DMARC for the sender domain.
+6. **Data migration of old databases.** Databases created by Flyway V1 upgrade automatically (V2+ only add tables
+   and columns). A database created by the old `ddl-auto: update` must be recreated, or, if its schema matches
+   V1 exactly (compare with `src/main/resources/db/migration/V1__baseline_schema.sql`), started once with
+   `FLYWAY_BASELINE_ON_MIGRATE=true` and then without it.
+
+## API changes for the frontend and other clients
+
+- Login, signup and `POST /auth/refresh` return `refreshToken`, `accessTokenExpiresAt` and
+  `refreshTokenExpiresAt`; the access token (`jwt`) lives 15 minutes. `POST /auth/logout` ends the session;
+  `POST /api/users/me/logout-all` ends all of them. The web app handles all of this.
+- `PATCH /api/bookings/{id}/cancel` now also cancels **confirmed** bookings (before departure) with a refund
+  under the fare's rules. Bookings carry `refundStatus`, `refundAmount` and `refundedAt`.
+- New: `GET /api/notifications`, `GET /api/notifications/unread-count`, `POST /api/notifications/{id}/read`,
+  `POST /api/notifications/read-all`.
+- Flight and flight-instance responses may carry `partial: true` when airline/airport details are temporarily
+  unavailable.
+- Too many requests answer `429` with `Retry-After`; an unreachable token issuer answers `503`, not `401`.
+- From the first phase: paged `GET /api/bookings/airline` and `GET /api/users`; payment verify takes only
+  `razorpayPaymentId`; validated signup; seat price and `/price/total` moved to `/internal`; problem-details errors.

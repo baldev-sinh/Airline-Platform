@@ -1,7 +1,7 @@
 package com.baldev.airline.seat.controller.internal;
 
-import com.baldev.airline.common.payload.request.SeatHoldRequest;
-import com.baldev.airline.common.payload.response.SeatHoldResponse;
+import com.baldev.airline.seat.payload.request.SeatHoldRequest;
+import com.baldev.airline.seat.payload.response.SeatHoldResponse;
 import com.baldev.airline.seat.service.SeatInventoryService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;

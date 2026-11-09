@@ -1,16 +1,6 @@
-# Local development profile (SPRING_PROFILES_ACTIVE=local).
-# Points at the databases started by docker-compose/docker-compose.yml. Never use this profile in production.
+# Local development profile (SPRING_PROFILES_ACTIVE=local). Never use in production.
+# The rest of the local settings are served by config-server (config-repo/*-local.yaml).
 spring:
-  datasource:
-    url: ${DB_URL:jdbc:mysql://localhost:3307/airline_pricing_db}
-    username: ${DB_USERNAME:airline}
-    password: ${DB_PASSWORD:airline}
-
-management:
-  tracing:
-    sampling:
-      probability: 1.0
-
-logging:
-  level:
-    com.baldev.airline: DEBUG
+  cloud:
+    config:
+      password: ${CONFIG_SERVER_PASSWORD:local-config-password}

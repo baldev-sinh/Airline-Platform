@@ -24,7 +24,7 @@
         @if (b.status === 'CONFIRMED') {
           <button type="button" class="btn btn--outline" (click)="print()">Print itinerary</button>
         }
-        @if (b.status === 'PENDING') {
+        @if (canCancel()) {
           <button type="button" class="btn btn--danger" (click)="openCancel()">
             Cancel booking
           </button>
@@ -44,6 +44,34 @@
       <div class="alert alert--danger block">
         <p>Cancelled: {{ b.cancellationReason }}</p>
       </div>
+    }
+    @switch (b.refundStatus) {
+      @case ('PENDING') {
+        <div class="alert alert--warning block" role="status">
+          <p>
+            A refund of {{ b.refundAmount | money: b.currency }} is being processed. We'll
+            e-mail you when it has gone back to your payment method.
+          </p>
+        </div>
+      }
+      @case ('REFUNDED') {
+        <div class="alert alert--success block" role="status">
+          <p>
+            Refunded {{ b.refundAmount | money: b.currency }}
+            @if (b.refundedAt) {
+              on {{ b.refundedAt | date: 'mediumDate' }}
+            }. Banks usually show it within 5 to 7 working days.
+          </p>
+        </div>
+      }
+      @case ('FAILED') {
+        <div class="alert alert--danger block" role="alert">
+          <p>
+            We could not complete your refund automatically. Our team has been alerted and will
+            contact you; you don't need to do anything.
+          </p>
+        </div>
+      }
     }
 
     <div class="layout">
@@ -171,10 +199,17 @@
     <!-- Native <dialog>: showModal() gives a real modal (focus trapped, Esc closes, background inert). -->
     <dialog #cancelDialog class="dialog" aria-labelledby="cancel-title">
       <h2 id="cancel-title">Cancel this booking?</h2>
-      <p>
-        The held seats will be released and the payment link will stop working. This can't be
-        undone.
-      </p>
+      @if (b.status === 'CONFIRMED') {
+        <p>
+          Your e-tickets will be cancelled and the seats released. Any refund follows the rules of
+          your fare and goes back to your original payment method. This can't be undone.
+        </p>
+      } @else {
+        <p>
+          The held seats will be released and the payment link will stop working. This can't be
+          undone.
+        </p>
+      }
       @if (actionError(); as message) {
         <div class="alert alert--danger" role="alert">
           <p>{{ message }}</p>

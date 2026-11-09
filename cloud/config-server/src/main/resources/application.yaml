@@ -1,0 +1,65 @@
+# Spring Cloud Config server. Clients: every business service and the API gateway
+# (spring.config.import=configserver:). The registry stays standalone so it can start first.
+#
+# Backends:
+#   native (default) - files in CONFIG_REPO_LOCATION (the image ships this repository's config-repo/ at /config-repo)
+#   git              - SPRING_PROFILES_ACTIVE=git with CONFIG_GIT_URI (+ CONFIG_GIT_USERNAME/PASSWORD): configuration
+#                      is then versioned, reviewed and rolled back independently of the code.
+#
+# Lookup order for application "booking-service" with profile "local" (later wins):
+#   application.yaml -> application-local.yaml -> booking-service.yaml -> booking-service-local.yaml
+#
+# Secrets never live in config-repo. Values there reference environment variables (${DB_PASSWORD}), which each
+# client resolves itself. If a value must be stored centrally, encrypt it ({cipher}...) with ENCRYPT_KEY set here.
+server:
+  port: ${SERVER_PORT:8888}
+  shutdown: graceful
+
+spring:
+  application:
+    name: config-server
+  profiles:
+    # In Spring Cloud Config the native backend is a profile; "git" replaces it.
+    default: native
+    # Activating "local" replaces the default profile, so the local profile brings the native backend along.
+    group:
+      local: native
+  lifecycle:
+    timeout-per-shutdown-phase: 20s
+  threads:
+    virtual:
+      enabled: true
+  security:
+    user:
+      name: ${CONFIG_SERVER_USERNAME:config}
+      # No default outside the local profile: a misconfigured server must not start without a password.
+      password: ${CONFIG_SERVER_PASSWORD}
+      roles: CONFIG_CLIENT
+  cloud:
+    config:
+      server:
+        native:
+          search-locations: ${CONFIG_REPO_LOCATION:file:/config-repo/}
+        health:
+          repositories:
+            platform:
+              name: application
+              profiles: default
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: never
+  observations:
+    key-values:
+      application: ${spring.application.name}
+
+logging:
+  level:
+    root: INFO

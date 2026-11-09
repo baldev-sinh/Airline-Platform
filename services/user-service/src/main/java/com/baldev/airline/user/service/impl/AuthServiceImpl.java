@@ -1,18 +1,25 @@
 package com.baldev.airline.user.service.impl;
 
 import com.baldev.airline.common.enums.UserRole;
+import com.baldev.airline.common.event.UserRegisteredEvent;
 import com.baldev.airline.common.exception.BusinessRuleException;
 import com.baldev.airline.common.exception.ConflictException;
 import com.baldev.airline.common.exception.UnauthorizedException;
-import com.baldev.airline.common.payload.request.LoginRequest;
-import com.baldev.airline.common.payload.request.SignupRequest;
-import com.baldev.airline.common.payload.response.AuthResponse;
+import com.baldev.airline.user.payload.request.LoginRequest;
+import com.baldev.airline.user.payload.request.SignupRequest;
+import com.baldev.airline.user.payload.response.AuthResponse;
+import com.baldev.airline.common.security.AccessTokenVerifier;
+import com.baldev.airline.common.security.AccessTokenVerifier.VerifiedToken;
+import com.baldev.airline.common.security.TokenRevocations;
 import com.baldev.airline.user.config.JwtProvider;
+import com.baldev.airline.user.config.JwtProvider.AccessToken;
 import com.baldev.airline.user.mapper.UserMapper;
 import com.baldev.airline.user.model.User;
 import com.baldev.airline.user.repository.UserRepository;
 import com.baldev.airline.user.service.AuthService;
+import com.baldev.airline.user.service.impl.RefreshTokenService.Rotation;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -33,22 +40,31 @@ public class AuthServiceImpl implements AuthService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtProvider jwtProvider;
+    private final RefreshTokenService refreshTokens;
+    private final AccessTokenVerifier accessTokenVerifier;
+    private final TokenRevocations revocations;
+    private final ApplicationEventPublisher eventPublisher;
     private final Clock clock;
     /** Hash checked when the email is unknown, so response time does not reveal whether an account exists. */
     private final String dummyHash;
 
     public AuthServiceImpl(UserRepository userRepository, PasswordEncoder passwordEncoder, JwtProvider jwtProvider,
-                           Clock clock) {
+                           RefreshTokenService refreshTokens, AccessTokenVerifier accessTokenVerifier,
+                           TokenRevocations revocations, ApplicationEventPublisher eventPublisher, Clock clock) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtProvider = jwtProvider;
+        this.refreshTokens = refreshTokens;
+        this.accessTokenVerifier = accessTokenVerifier;
+        this.revocations = revocations;
+        this.eventPublisher = eventPublisher;
         this.clock = clock;
         this.dummyHash = passwordEncoder.encode("dummy-password-for-timing-equalization");
     }
 
     @Override
     @Transactional
-    public AuthResponse signup(SignupRequest request) {
+    public AuthResponse signup(SignupRequest request, String userAgent) {
         String email = normalize(request.getEmail());
         UserRole role = request.getRole() != null ? request.getRole() : UserRole.ROLE_USER;
         if (!SELF_REGISTRABLE.contains(role)) {
@@ -67,13 +83,22 @@ public class AuthServiceImpl implements AuthService {
                 .lastLogin(LocalDateTime.now(clock))
                 .build());
         log.info("User registered id={} role={}", user.getId(), role);
+        // Recorded in the outbox in this transaction; notification-service sends the welcome e-mail.
+        eventPublisher.publishEvent(UserRegisteredEvent.builder()
+                .userId(user.getId())
+                .email(user.getEmail())
+                .fullName(user.getFullName())
+                .role(role.name())
+                .registeredAt(clock.instant())
+                .build());
 
-        return authResponse(user, "Welcome " + user.getFullName(), "Registered Successfully!");
+        return authResponse(user, refreshTokens.issue(user.getId(), userAgent),
+                "Welcome " + user.getFullName(), "Registered Successfully!");
     }
 
     @Override
     @Transactional
-    public AuthResponse login(LoginRequest request) {
+    public AuthResponse login(LoginRequest request, String userAgent) {
         Optional<User> found = userRepository.findByEmail(normalize(request.getEmail()));
         String hash = found.map(User::getPassword).orElse(dummyHash);
         boolean passwordMatches = passwordEncoder.matches(request.getPassword(), hash);
@@ -84,12 +109,53 @@ public class AuthServiceImpl implements AuthService {
         }
         User user = found.get();
         user.setLastLogin(LocalDateTime.now(clock));
-        return authResponse(user, "Welcome Back " + user.getFullName(), "Login Successfully!");
+        return authResponse(user, refreshTokens.issue(user.getId(), userAgent),
+                "Welcome Back " + user.getFullName(), "Login Successfully!");
     }
 
-    private AuthResponse authResponse(User user, String title, String message) {
+    @Override
+    @Transactional(noRollbackFor = UnauthorizedException.class)
+    public AuthResponse refresh(String refreshToken, String userAgent) {
+        Rotation rotation = refreshTokens.rotate(refreshToken, userAgent);
+        User user = userRepository.findById(rotation.userId())
+                .filter(User::isEnabled)
+                .orElseThrow(() -> {
+                    refreshTokens.revokeAll(rotation.userId());
+                    return new UnauthorizedException("Invalid or expired refresh token");
+                });
+        return authResponse(user, rotation, "Session refreshed", "Token refreshed");
+    }
+
+    @Override
+    @Transactional
+    public void logout(String refreshToken, String bearerToken) {
+        if (refreshToken != null && !refreshToken.isBlank()) {
+            refreshTokens.revokeFamily(refreshToken);
+        }
+        if (bearerToken != null && !bearerToken.isBlank()) {
+            try {
+                VerifiedToken token = accessTokenVerifier.verify(bearerToken);
+                revocations.revokeToken(token.tokenId(), token.expiresAt());
+            } catch (AccessTokenVerifier.Rejected e) {
+                // Already invalid: nothing to revoke.
+            }
+        }
+    }
+
+    @Override
+    @Transactional
+    public void logoutEverywhere(Long userId) {
+        int revoked = refreshTokens.revokeAll(userId);
+        log.info("Signed out userId={} everywhere ({} refresh tokens revoked)", userId, revoked);
+    }
+
+    private AuthResponse authResponse(User user, Rotation refresh, String title, String message) {
+        AccessToken access = jwtProvider.issue(user);
         AuthResponse response = new AuthResponse();
-        response.setJwt(jwtProvider.generateToken(user));
+        response.setJwt(access.value());
+        response.setAccessTokenExpiresAt(access.expiresAt());
+        response.setRefreshToken(refresh.refreshToken());
+        response.setRefreshTokenExpiresAt(refresh.expiresAt());
         response.setUser(UserMapper.toDTO(user));
         response.setTitle(title);
         response.setMessage(message);

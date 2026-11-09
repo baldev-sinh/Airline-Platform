@@ -1,0 +1,47 @@
+# flight-ops-service: flights, schedules, dated flight instances and search.
+airline:
+  # Transactional outbox: events commit with the state change and are relayed to Kafka (common-lib OutboxRelay).
+  outbox:
+    enabled: true
+  flight-ops:
+    max-schedule-days: 366
+  cache:
+    ttl:
+      flights: 15m
+
+spring:
+  cloud:
+    circuitbreaker:
+      resilience4j:
+        # Run on the caller's thread: keeps the Feign token relay and tracing context; Feign timeouts bound calls.
+        disable-thread-pool: true
+        disable-time-limiter: true
+
+# Circuit breakers around airline/aircraft/airport enrichment (ReferenceData). Open after half of the last
+# 20 calls failed or were slow; then serve partial responses for 30 s before probing again.
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        sliding-window-type: COUNT_BASED
+        sliding-window-size: 20
+        minimum-number-of-calls: 10
+        failure-rate-threshold: 50
+        slow-call-duration-threshold: 2s
+        slow-call-rate-threshold: 80
+        wait-duration-in-open-state: 30s
+        permitted-number-of-calls-in-half-open-state: 3
+        automatic-transition-from-open-to-half-open-enabled: true
+        # Answers such as 404 are not outages.
+        ignore-exceptions:
+          - com.baldev.airline.common.exception.ResourceNotFoundException
+          - com.baldev.airline.common.exception.BadRequestException
+          - com.baldev.airline.common.exception.BusinessRuleException
+          - com.baldev.airline.common.exception.ConflictException
+          - com.baldev.airline.common.exception.ForbiddenException
+          - com.baldev.airline.common.exception.UnauthorizedException
+    instances:
+      airline-core-service:
+        base-config: default
+      location-service:
+        base-config: default

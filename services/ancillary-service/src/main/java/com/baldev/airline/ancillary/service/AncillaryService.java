@@ -1,8 +1,7 @@
 package com.baldev.airline.ancillary.service;
 
-import com.baldev.airline.common.payload.request.AncillaryRequest;
-import com.baldev.airline.common.payload.response.AncillaryResponse;
-
+import com.baldev.airline.ancillary.payload.request.AncillaryRequest;
+import com.baldev.airline.ancillary.payload.response.AncillaryResponse;
 import java.util.List;
 
 public interface AncillaryService {

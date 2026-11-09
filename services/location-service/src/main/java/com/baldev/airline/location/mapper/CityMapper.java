@@ -1,9 +1,8 @@
 package com.baldev.airline.location.mapper;
 
 import com.baldev.airline.location.model.City;
-import com.baldev.airline.common.payload.request.CityRequest;
-import com.baldev.airline.common.payload.response.CityResponse;
-
+import com.baldev.airline.location.payload.request.CityRequest;
+import com.baldev.airline.location.payload.response.CityResponse;
 public class CityMapper {
 
     public static City toEntity(CityRequest request){

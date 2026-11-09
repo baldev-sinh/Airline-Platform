@@ -1,11 +1,10 @@
 package com.baldev.airline.ancillary.service;
 
-import com.baldev.airline.common.payload.request.PriceQuoteRequest;
+import com.baldev.airline.ancillary.payload.request.PriceQuoteRequest;
 import java.math.BigDecimal;
 import com.baldev.airline.common.enums.AncillaryType;
-import com.baldev.airline.common.payload.request.FlightCabinAncillaryRequest;
-import com.baldev.airline.common.payload.response.FlightCabinAncillaryResponse;
-
+import com.baldev.airline.ancillary.payload.request.FlightCabinAncillaryRequest;
+import com.baldev.airline.ancillary.payload.response.FlightCabinAncillaryResponse;
 import java.util.List;
 
 public interface FlightCabinAncillaryService {

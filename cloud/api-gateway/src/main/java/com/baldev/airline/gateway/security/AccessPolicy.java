@@ -64,6 +64,9 @@ public class AccessPolicy {
         // ---- Public ----
         rule(POST, "/auth/login", Access.PUBLIC);
         rule(POST, "/auth/signup", Access.PUBLIC);
+        // Authenticated by the refresh token in the body (single-use, rotated), not by an access token.
+        rule(POST, "/auth/refresh", Access.PUBLIC);
+        rule(POST, "/auth/logout", Access.PUBLIC);
         rule(GET, "/api/flights/search", Access.PUBLIC);
         rule(GET, "/api/cities/**", Access.PUBLIC);
         rule(GET, "/api/airports/**", Access.PUBLIC);
@@ -79,6 +82,7 @@ public class AccessPolicy {
         rule(POST, "/api/airlines/{id}/suspend", Access.ADMIN);
         rule(POST, "/api/airlines/{id}/ban", Access.ADMIN);
         rule(GET, "/api/users/profile", Access.AUTHENTICATED);
+        rule(POST, "/api/users/me/logout-all", Access.AUTHENTICATED);
         rule(ANY, "/api/users/**", Access.ADMIN);
         rule(GET, "/api/payments", Access.ADMIN);
         rule(Set.of(HttpMethod.DELETE), "/api/bookings/{id}", Access.ADMIN);

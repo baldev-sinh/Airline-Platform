@@ -3,9 +3,9 @@ package com.baldev.airline.flightops.mapper;
 
 import com.baldev.airline.flightops.model.Flight;
 import com.baldev.airline.flightops.model.FlightSchedule;
-import com.baldev.airline.common.payload.request.FlightScheduleRequest;
-import com.baldev.airline.common.payload.response.*;
-
+import com.baldev.airline.flightops.payload.request.FlightScheduleRequest;
+import com.baldev.airline.flightops.client.dto.AirportResponse;
+import com.baldev.airline.flightops.payload.response.FlightScheduleResponse;
 import java.util.List;
 
 public class FlightScheduleMapper {

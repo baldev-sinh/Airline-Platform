@@ -1,8 +1,7 @@
 package com.baldev.airline.flightops.service;
 
-import com.baldev.airline.common.payload.request.FlightScheduleRequest;
-import com.baldev.airline.common.payload.response.FlightScheduleResponse;
-
+import com.baldev.airline.flightops.payload.request.FlightScheduleRequest;
+import com.baldev.airline.flightops.payload.response.FlightScheduleResponse;
 import java.util.List;
 
 public interface FlightScheduleService {

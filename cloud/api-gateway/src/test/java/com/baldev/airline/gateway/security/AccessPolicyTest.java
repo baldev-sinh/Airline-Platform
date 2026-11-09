@@ -24,6 +24,13 @@ class AccessPolicyTest {
             // public
             "POST,   /auth/login,                           PUBLIC",
             "POST,   /auth/signup,                          PUBLIC",
+            "POST,   /auth/refresh,                         PUBLIC",
+            "POST,   /auth/logout,                          PUBLIC",
+            "GET,    /.well-known/jwks.json,                DENY",
+            "POST,   /api/users/me/logout-all,              AUTHENTICATED",
+            "GET,    /api/users/7,                          ADMIN",
+            "GET,    /api/notifications,                    AUTHENTICATED",
+            "POST,   /api/notifications/3/read,             AUTHENTICATED",
             "GET,    /api/flights/search,                   PUBLIC",
             "GET,    /api/airports/12,                      PUBLIC",
             "GET,    /api/airlines/dropdown,                PUBLIC",

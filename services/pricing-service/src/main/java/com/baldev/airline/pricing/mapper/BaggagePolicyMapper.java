@@ -3,9 +3,8 @@ package com.baldev.airline.pricing.mapper;
 
 import com.baldev.airline.pricing.model.BaggagePolicy;
 import com.baldev.airline.pricing.model.Fare;
-import com.baldev.airline.common.payload.request.BaggagePolicyRequest;
-import com.baldev.airline.common.payload.response.BaggagePolicyResponse;
-
+import com.baldev.airline.pricing.payload.request.BaggagePolicyRequest;
+import com.baldev.airline.pricing.payload.response.BaggagePolicyResponse;
 public class BaggagePolicyMapper {
 
     public static BaggagePolicy toEntity(BaggagePolicyRequest request, Fare fare){

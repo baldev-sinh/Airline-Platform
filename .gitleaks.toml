@@ -1,0 +1,22 @@
+# gitleaks configuration (CI "Secret scan" job). Extends the default rules.
+# Only values that are documented as local-development or test defaults are allowed; anything else that looks
+# like a secret fails the build. Real secrets belong in the environment / a secret store, never in git.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Local-development and test placeholders"
+paths = [
+    '''config-repo/.*-local\.yaml''',
+    '''config-repo/payment-service-payment-stub\.yaml''',
+    '''services/.*/src/main/resources/application-local\.yaml''',
+    '''cloud/.*/src/main/resources/application-local\.yaml''',
+    '''.*/src/test/.*''',
+    '''frontend/.*\.spec\.ts''',
+]
+regexes = [
+    '''local-config-password''',
+    '''local-stub-webhook-secret''',
+    '''local-dev-only-jwt-secret-change-me-0123456789abcdef''',
+    '''ChangeMe!Local123''',
+]

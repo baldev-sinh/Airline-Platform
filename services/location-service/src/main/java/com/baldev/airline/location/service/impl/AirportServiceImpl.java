@@ -2,11 +2,12 @@ package com.baldev.airline.location.service.impl;
 
 import com.baldev.airline.common.exception.ConflictException;
 import com.baldev.airline.common.exception.ResourceNotFoundException;
+import com.baldev.airline.location.config.LocationCacheConfig;
 import com.baldev.airline.location.mapper.AirportMapper;
 import com.baldev.airline.location.model.Airport;
 import com.baldev.airline.location.model.City;
-import com.baldev.airline.common.payload.request.AirportRequest;
-import com.baldev.airline.common.payload.response.AirportResponse;
+import com.baldev.airline.location.payload.request.AirportRequest;
+import com.baldev.airline.location.payload.response.AirportResponse;
 import com.baldev.airline.location.repository.AirportRepository;
 import com.baldev.airline.location.repository.CityRepository;
 import com.baldev.airline.location.service.AirportService;
@@ -31,6 +32,10 @@ public class AirportServiceImpl implements AirportService {
     private final CityRepository cityRepository;
 
     @Override
+    @Caching(evict = {
+            @CacheEvict(cacheNames = LocationCacheConfig.ALL_AIRPORTS, allEntries = true),
+            @CacheEvict(cacheNames = LocationCacheConfig.AIRPORTS_BY_CITY, allEntries = true)
+    })
     public AirportResponse createAirport(AirportRequest request) {
 
         if(airportRepository.findByIataCode(request.getIataCode()).isPresent()){
@@ -48,7 +53,7 @@ public class AirportServiceImpl implements AirportService {
     }
 
     @Override
-    @Cacheable(cacheNames = "airports", key = "#id")
+    @Cacheable(cacheNames = LocationCacheConfig.AIRPORTS, key = "#id")
     public AirportResponse getAirportById(Long id) {
         Airport airport= airportRepository.findById(id).orElseThrow(
                 ()-> new ResourceNotFoundException("airport not exist with provided id")
@@ -57,7 +62,7 @@ public class AirportServiceImpl implements AirportService {
     }
 
     @Override
-    @Cacheable(cacheNames = "allAirports")
+    @Cacheable(cacheNames = LocationCacheConfig.ALL_AIRPORTS)
     public List<AirportResponse> getAllAirports() {
         return airportRepository.findAll().stream()
                 .map(AirportMapper::toResponse)
@@ -66,9 +71,9 @@ public class AirportServiceImpl implements AirportService {
 
     @Override
     @Caching(evict={
-            @CacheEvict(cacheNames = "airports",key = "#id"),
-            @CacheEvict(cacheNames = "allAirports", allEntries = true),
-            @CacheEvict(cacheNames = "airportsByCity", allEntries = true)
+            @CacheEvict(cacheNames = LocationCacheConfig.AIRPORTS,key = "#id"),
+            @CacheEvict(cacheNames = LocationCacheConfig.ALL_AIRPORTS, allEntries = true),
+            @CacheEvict(cacheNames = LocationCacheConfig.AIRPORTS_BY_CITY, allEntries = true)
     })
     public AirportResponse updateAirport(Long id, AirportRequest request) {
         Airport existingAirport = airportRepository.findById(id).orElseThrow(
@@ -87,9 +92,9 @@ public class AirportServiceImpl implements AirportService {
 
     @Override
     @Caching(evict={
-            @CacheEvict(cacheNames = "airports",key = "#id"),
-            @CacheEvict(cacheNames = "allAirports", allEntries = true),
-            @CacheEvict(cacheNames = "airportsByCity", allEntries = true)
+            @CacheEvict(cacheNames = LocationCacheConfig.AIRPORTS,key = "#id"),
+            @CacheEvict(cacheNames = LocationCacheConfig.ALL_AIRPORTS, allEntries = true),
+            @CacheEvict(cacheNames = LocationCacheConfig.AIRPORTS_BY_CITY, allEntries = true)
     })
     public void deleteAirport(Long id) {
         Airport airport= airportRepository.findById(id).orElseThrow(
@@ -99,7 +104,7 @@ public class AirportServiceImpl implements AirportService {
     }
 
     @Override
-    @Cacheable(cacheNames = "airportsByCity", key="#cityId")
+    @Cacheable(cacheNames = LocationCacheConfig.AIRPORTS_BY_CITY, key="#cityId")
     public List<AirportResponse> getAirportByCityId(Long cityId) {
         return airportRepository.findByCityId(cityId).stream()
                 .map(AirportMapper::toResponse)

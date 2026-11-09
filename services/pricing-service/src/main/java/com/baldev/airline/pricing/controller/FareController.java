@@ -2,8 +2,8 @@ package com.baldev.airline.pricing.controller;
 
 import com.baldev.airline.common.web.CurrentUser;
 import com.baldev.airline.pricing.service.support.FlightOwnershipVerifier;
-import com.baldev.airline.common.payload.request.FareRequest;
-import com.baldev.airline.common.payload.response.FareResponse;
+import com.baldev.airline.pricing.payload.request.FareRequest;
+import com.baldev.airline.pricing.payload.response.FareResponse;
 import com.baldev.airline.pricing.service.FareService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;

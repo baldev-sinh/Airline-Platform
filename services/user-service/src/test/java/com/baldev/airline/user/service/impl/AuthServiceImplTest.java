@@ -4,25 +4,38 @@ import com.baldev.airline.common.enums.UserRole;
 import com.baldev.airline.common.exception.BusinessRuleException;
 import com.baldev.airline.common.exception.ConflictException;
 import com.baldev.airline.common.exception.UnauthorizedException;
-import com.baldev.airline.common.payload.request.LoginRequest;
-import com.baldev.airline.common.payload.request.SignupRequest;
-import com.baldev.airline.common.payload.response.AuthResponse;
+import com.baldev.airline.user.payload.request.LoginRequest;
+import com.baldev.airline.user.payload.request.SignupRequest;
+import com.baldev.airline.user.payload.response.AuthResponse;
+import com.baldev.airline.common.event.UserRegisteredEvent;
+import com.baldev.airline.common.security.AccessTokenVerifier;
+import com.baldev.airline.common.security.AccessTokenVerifier.VerifiedToken;
+import com.baldev.airline.common.security.TokenRevocations;
 import com.baldev.airline.user.config.JwtProvider;
 import com.baldev.airline.user.config.SecurityProperties;
+import com.baldev.airline.user.config.SigningKeys;
+import com.baldev.airline.user.config.UserServiceConfig;
+import com.baldev.airline.user.service.impl.RefreshTokenService.Rotation;
 import com.baldev.airline.user.model.User;
 import com.baldev.airline.user.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.time.Clock;
 import java.time.Duration;
+import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.isA;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -30,16 +43,27 @@ class AuthServiceImplTest {
 
     private final UserRepository userRepository = mock(UserRepository.class);
     private final PasswordEncoder encoder = new BCryptPasswordEncoder(4);
+    private final RefreshTokenService refreshTokens = mock(RefreshTokenService.class);
+    private final ApplicationEventPublisher events = mock(ApplicationEventPublisher.class);
     private AuthServiceImpl authService;
+    private AccessTokenVerifier verifier;
 
     @BeforeEach
     void setUp() {
         SecurityProperties properties = new SecurityProperties(
-                new SecurityProperties.Security(new SecurityProperties.Jwt(
-                        "test-secret-test-secret-test-secret-0123456789", "airline-user-service", Duration.ofHours(1))),
+                new SecurityProperties.Security(
+                        new SecurityProperties.Jwt("airline-user-service", "airline-api"),
+                        new SecurityProperties.Signing(null, null, List.of(), true),
+                        new SecurityProperties.Tokens(Duration.ofMinutes(15), Duration.ofDays(14))),
                 null);
         Clock clock = Clock.systemUTC();
-        authService = new AuthServiceImpl(userRepository, encoder, new JwtProvider(properties, clock), clock);
+        SigningKeys keys = new SigningKeys(properties);
+        verifier = new AccessTokenVerifier(new UserServiceConfig().jwksKeyResolver(keys, clock), TokenRevocations.NONE,
+                "airline-user-service", "airline-api", clock);
+        when(refreshTokens.issue(anyLong(), any())).thenAnswer(inv ->
+                new Rotation(inv.getArgument(0), "refresh-" + inv.getArgument(0), Instant.now().plusSeconds(3600)));
+        authService = new AuthServiceImpl(userRepository, encoder, new JwtProvider(keys, properties, clock),
+                refreshTokens, verifier, TokenRevocations.NONE, events, clock);
         when(userRepository.save(any(User.class))).thenAnswer(inv -> {
             User u = inv.getArgument(0);
             u.setId(7L);
@@ -49,23 +73,37 @@ class AuthServiceImplTest {
 
     @Test
     void cannotSelfRegisterAsSystemAdmin() {
-        assertThatThrownBy(() -> authService.signup(signup("a@b.com", UserRole.ROLE_SYSTEM_ADMIN)))
+        assertThatThrownBy(() -> authService.signup(signup("a@b.com", UserRole.ROLE_SYSTEM_ADMIN), "test"))
                 .isInstanceOf(BusinessRuleException.class);
     }
 
     @Test
     void signupDefaultsToCustomerRoleAndNormalizesEmail() {
-        AuthResponse response = authService.signup(signup("  Mixed@Case.COM ", null));
+        AuthResponse response = authService.signup(signup("  Mixed@Case.COM ", null), "test");
 
         assertThat(response.getUser().getRole()).isEqualTo(UserRole.ROLE_USER);
         assertThat(response.getUser().getEmail()).isEqualTo("mixed@case.com");
         assertThat(response.getJwt()).isNotBlank();
+        assertThat(response.getRefreshToken()).isEqualTo("refresh-7");
+        verify(events).publishEvent(isA(UserRegisteredEvent.class));
+    }
+
+    @Test
+    void issuedTokensVerifyAgainstThePublishedKeys() throws Exception {
+        AuthResponse response = authService.signup(signup("v@b.com", UserRole.ROLE_AIRLINE_OWNER), "test");
+
+        VerifiedToken token = verifier.verify(response.getJwt());
+
+        assertThat(token.userId()).isEqualTo(7L);
+        assertThat(token.roles()).containsExactly("ROLE_AIRLINE_OWNER");
+        assertThat(token.tokenId()).isNotBlank();
+        assertThat(response.getAccessTokenExpiresAt()).isAfter(Instant.now().plusSeconds(14 * 60));
     }
 
     @Test
     void duplicateEmailIsAConflict() {
         when(userRepository.existsByEmail("a@b.com")).thenReturn(true);
-        assertThatThrownBy(() -> authService.signup(signup("a@b.com", null))).isInstanceOf(ConflictException.class);
+        assertThatThrownBy(() -> authService.signup(signup("a@b.com", null), "test")).isInstanceOf(ConflictException.class);
     }
 
     @Test
@@ -94,7 +132,7 @@ class AuthServiceImplTest {
         request.setEmail(email);
         request.setPassword(password);
         try {
-            authService.login(request);
+            authService.login(request, "test");
             return null;
         } catch (RuntimeException e) {
             return e;

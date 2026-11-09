@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title th:text="${subject}">Booking cancelled</title>
+</head>
+<body style="margin:0;background:#f3f4f6;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+    <tr>
+        <td align="center" style="padding:24px 12px;">
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0"
+                   style="max-width:600px;background:#ffffff;border-radius:8px;overflow:hidden;">
+                <tr><td th:insert="~{email/fragments :: header}"></td></tr>
+                <tr>
+                    <td style="padding:24px;font-family:Arial,Helvetica,sans-serif;color:#111827;font-size:15px;line-height:1.5;">
+                        <th:block th:if="${paymentFailed}">
+                            <p style="margin:0 0 12px;">The payment for booking <strong th:text="${reference}">ABC123</strong>
+                                (<span th:text="${flightNumber + ', ' + route}">BA101, BOM to DEL</span>) did not go through,
+                                so the booking and its seats were released.</p>
+                            <p style="margin:0 0 12px;">No money was taken. You can book again at any time.</p>
+                        </th:block>
+                        <th:block th:unless="${paymentFailed}">
+                            <p style="margin:0 0 12px;">Booking <strong th:text="${reference}">ABC123</strong>
+                                (<span th:text="${flightNumber + ', ' + route}">BA101, BOM to DEL</span>,
+                                <span th:text="${departure}">Mon 9 Nov 2026, 10:00 UTC</span>) is cancelled and its
+                                e-tickets are no longer valid.</p>
+                            <p th:if="${refund != null}" style="margin:0 0 12px;">A refund of
+                                <strong th:text="${refund}">INR 4999.00</strong> is on its way to your original payment
+                                method. We will e-mail you again when it has been processed.</p>
+                            <p th:if="${refund == null}" style="margin:0 0 12px;">Under the rules of your fare this
+                                cancellation has no refund.</p>
+                        </th:block>
+                        <p style="margin:24px 0 0;">
+                            <a th:href="${searchUrl}"
+                               style="background:#0b3d91;color:#ffffff;padding:12px 20px;border-radius:6px;text-decoration:none;">Search flights</a>
+                        </p>
+                    </td>
+                </tr>
+                <tr><td th:insert="~{email/fragments :: footer}"></td></tr>
+            </table>
+        </td>
+    </tr>
+</table>
+</body>
+</html>

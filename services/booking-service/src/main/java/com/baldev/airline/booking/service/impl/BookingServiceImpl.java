@@ -15,31 +15,39 @@ import com.baldev.airline.booking.repository.BookingRepository;
 import com.baldev.airline.booking.service.BookingService;
 import com.baldev.airline.booking.service.pricing.BookingPriceCalculator;
 import com.baldev.airline.booking.service.pricing.BookingPriceCalculator.PriceBreakdown;
+import com.baldev.airline.booking.service.pricing.RefundPolicy;
+import com.baldev.airline.booking.service.pricing.RefundPolicy.RefundQuote;
 import com.baldev.airline.booking.service.support.ReferenceGenerator;
 import com.baldev.airline.common.enums.BookingStatus;
 import com.baldev.airline.common.enums.FlightStatus;
 import com.baldev.airline.common.enums.PaymentGateway;
+import com.baldev.airline.common.enums.RefundStatus;
 import com.baldev.airline.common.enums.TicketStatus;
 import com.baldev.airline.common.enums.UserRole;
 import com.baldev.airline.common.event.BookingCancelledEvent;
 import com.baldev.airline.common.event.BookingConfirmedEvent;
+import com.baldev.airline.common.event.BookingRefundedEvent;
 import com.baldev.airline.common.event.PassengerNotificationData;
 import com.baldev.airline.common.event.PaymentCompletedEvent;
 import com.baldev.airline.common.event.PaymentFailedEvent;
+import com.baldev.airline.common.event.PaymentRefundedEvent;
+import com.baldev.airline.common.event.RefundFailedEvent;
+import com.baldev.airline.common.event.RefundRequestedEvent;
 import com.baldev.airline.common.exception.BusinessRuleException;
 import com.baldev.airline.common.exception.ForbiddenException;
 import com.baldev.airline.common.exception.ResourceNotFoundException;
-import com.baldev.airline.common.payload.request.BookingRequest;
-import com.baldev.airline.common.payload.request.PassengerRequest;
-import com.baldev.airline.common.payload.request.PaymentInitiateRequest;
-import com.baldev.airline.common.payload.request.PriceQuoteRequest;
-import com.baldev.airline.common.payload.request.SeatHoldRequest;
-import com.baldev.airline.common.payload.response.AirportResponse;
-import com.baldev.airline.common.payload.response.BookingResponse;
-import com.baldev.airline.common.payload.response.FareResponse;
-import com.baldev.airline.common.payload.response.FlightInstanceResponse;
-import com.baldev.airline.common.payload.response.PaymentInitiateResponse;
-import com.baldev.airline.common.payload.response.SeatHoldResponse;
+import com.baldev.airline.booking.payload.request.BookingRequest;
+import com.baldev.airline.booking.payload.request.PassengerRequest;
+import com.baldev.airline.booking.client.dto.PaymentInitiateRequest;
+import com.baldev.airline.booking.client.dto.PriceQuoteRequest;
+import com.baldev.airline.booking.client.dto.SeatHoldRequest;
+import com.baldev.airline.booking.client.dto.AirportResponse;
+import com.baldev.airline.booking.payload.response.BookingResponse;
+import com.baldev.airline.booking.client.dto.FareResponse;
+import com.baldev.airline.booking.client.dto.FareRulesResponse;
+import com.baldev.airline.booking.client.dto.FlightInstanceResponse;
+import com.baldev.airline.booking.client.dto.PaymentInitiateResponse;
+import com.baldev.airline.booking.client.dto.SeatHoldResponse;
 import com.baldev.airline.common.util.Money;
 import com.baldev.airline.common.web.CurrentUser;
 import lombok.RequiredArgsConstructor;
@@ -196,23 +204,33 @@ public class BookingServiceImpl implements BookingService {
                 .toList();
     }
 
+    /**
+     * Cancels a booking. A pending one is simply cancelled. A ticketed one is cancelled under its fare's refund
+     * rules: tickets are voided, the seats go back on sale (booking.cancelled) and the refundable amount is
+     * requested from payment-service (refund.requested), all in one transaction through the outbox.
+     * The fare rules are fetched before that transaction, so no remote call runs while the booking row is locked.
+     */
     @Override
-    @Transactional
     public BookingResponse cancelBooking(CurrentUser user, Long id) {
-        Booking booking = bookingRepository.findByIdForUpdate(id)
+        Booking current = transactionTemplate.execute(status -> bookingRepository.findById(id)
                 .filter(b -> b.getUserId().equals(user.id()) || user.isSystemAdmin())
-                .orElseThrow(() -> ResourceNotFoundException.of("Booking", id));
-        switch (booking.getStatus()) {
-            case CANCELLED -> {
-                return BookingMapper.toResponse(booking);
+                .orElseThrow(() -> ResourceNotFoundException.of("Booking", id)));
+        FareRulesResponse rules = current.getStatus() == BookingStatus.CONFIRMED ? fareRulesOf(current.getFareId()) : null;
+
+        return transactionTemplate.execute(status -> {
+            Booking booking = bookingRepository.findByIdForUpdate(id)
+                    .orElseThrow(() -> ResourceNotFoundException.of("Booking", id));
+            switch (booking.getStatus()) {
+                case CANCELLED -> {
+                    return BookingMapper.toResponse(booking);
+                }
+                case PENDING -> markCancelled(booking, "Cancelled by customer", false);
+                case CONFIRMED -> cancelTicketed(booking, rules);
+                default -> throw new BusinessRuleException("NOT_CANCELLABLE",
+                        "A booking in status " + booking.getStatus() + " cannot be cancelled");
             }
-            case PENDING -> markCancelled(booking, "Cancelled by customer", false);
-            case CONFIRMED -> throw new BusinessRuleException("REFUND_REQUIRED",
-                    "Ticketed bookings must be cancelled through the refund process");
-            default -> throw new BusinessRuleException("NOT_CANCELLABLE",
-                    "A booking in status " + booking.getStatus() + " cannot be cancelled");
-        }
-        return BookingMapper.toResponse(booking);
+            return BookingMapper.toResponse(booking);
+        });
     }
 
     @Override
@@ -235,20 +253,27 @@ public class BookingServiceImpl implements BookingService {
         if (booking == null) {
             throw ResourceNotFoundException.of("Booking", event.getBookingId());
         }
-        if (booking.getStatus() == BookingStatus.CONFIRMED) {
-            log.info("Duplicate PaymentCompleted for bookingId={}, already confirmed", booking.getId());
+        if (booking.isTicketIssued() && Objects.equals(booking.getPaymentId(), event.getPaymentId())) {
+            log.info("Duplicate PaymentCompleted for bookingId={}, already ticketed", booking.getId());
             return;
         }
+        String refundKey = "booking-" + booking.getId() + "-payment-" + event.getPaymentId();
         if (booking.getStatus() != BookingStatus.PENDING) {
-            // Paid after the booking was cancelled (e.g. hold expired). Needs a refund; never silently confirm.
-            log.error("ACTION REQUIRED: payment {} captured for booking {} in status {}; refund required",
+            // Paid after the booking was cancelled (e.g. the seat hold expired first): never confirm silently,
+            // give the money back.
+            log.warn("Payment {} captured for booking {} in status {}; refunding it",
                     event.getPaymentId(), booking.getId(), booking.getStatus());
+            requestRefund(booking, event.getPaymentId(), event.getAmount(), refundKey,
+                    "Payment received after the booking was " + booking.getStatus().name().toLowerCase());
             return;
         }
         if (booking.getTotalAmount() == null || event.getAmount() == null
                 || booking.getTotalAmount().compareTo(event.getAmount()) != 0) {
-            log.error("ACTION REQUIRED: paid amount {} does not match booking {} total {}",
+            log.error("Paid amount {} does not match booking {} total {}; cancelling and refunding",
                     event.getAmount(), booking.getId(), booking.getTotalAmount());
+            booking.setPaymentId(event.getPaymentId());
+            markCancelled(booking, "Paid amount did not match the booking total", false);
+            requestRefund(booking, event.getPaymentId(), event.getAmount(), refundKey, "Paid amount mismatch");
             return;
         }
 
@@ -265,6 +290,52 @@ public class BookingServiceImpl implements BookingService {
         bookingRepository.findByIdForUpdate(event.getBookingId())
                 .filter(b -> b.getStatus() == BookingStatus.PENDING)
                 .ifPresent(b -> markCancelled(b, "Payment failed: " + event.getFailureReason(), false));
+    }
+
+    @Override
+    @Transactional
+    public void onPaymentRefunded(PaymentRefundedEvent event) {
+        Booking booking = bookingRepository.findByIdForUpdate(event.getBookingId())
+                .orElseThrow(() -> ResourceNotFoundException.of("Booking", event.getBookingId()));
+        if (booking.getRefundStatus() == RefundStatus.REFUNDED
+                && Objects.equals(booking.getRefundReference(), event.getProviderRefundId())) {
+            log.info("Duplicate PaymentRefunded for bookingId={}", booking.getId());
+            return;
+        }
+        booking.setRefundStatus(RefundStatus.REFUNDED);
+        booking.setRefundAmount(event.getAmount());
+        booking.setRefundReference(event.getProviderRefundId());
+        booking.setRefundedAt(event.getRefundedAt() != null ? event.getRefundedAt() : clock.instant());
+        booking.getTickets().forEach(t -> t.setStatus(TicketStatus.REFUNDED));
+        eventPublisher.publishEvent(BookingRefundedEvent.builder()
+                .bookingId(booking.getId())
+                .bookingReference(booking.getBookingReference())
+                .userId(booking.getUserId())
+                .contactEmail(booking.getContactInfo() != null ? booking.getContactInfo().getEmail() : null)
+                .flightNumber(booking.getFlightNumber())
+                .departureAirportCode(booking.getDepartureAirportCode())
+                .arrivalAirportCode(booking.getArrivalAirportCode())
+                .departureDateTime(booking.getDepartureDateTime())
+                .amount(event.getAmount())
+                .currency(event.getCurrency())
+                .providerRefundId(event.getProviderRefundId())
+                .refundedAt(booking.getRefundedAt())
+                .build());
+        log.info("Booking {} refunded {} {} ({})", booking.getId(), event.getAmount(), event.getCurrency(),
+                event.getProviderRefundId());
+    }
+
+    @Override
+    @Transactional
+    public void onRefundFailed(RefundFailedEvent event) {
+        bookingRepository.findByIdForUpdate(event.getBookingId()).ifPresent(booking -> {
+            if (booking.getRefundStatus() == RefundStatus.REFUNDED) {
+                return;
+            }
+            booking.setRefundStatus(RefundStatus.FAILED);
+            log.error("ACTION REQUIRED: refund {} for booking {} failed at the provider: {}",
+                    event.getRefundKey(), booking.getId(), event.getReason());
+        });
     }
 
     // ------------------------------------------------------------------------------------------------------
@@ -357,9 +428,53 @@ public class BookingServiceImpl implements BookingService {
         booking.setTicketIssued(true);
     }
 
+    private void cancelTicketed(Booking booking, FareRulesResponse rules) {
+        RefundQuote quote = RefundPolicy.quote(booking.getTotalAmount(), booking.getPassengers().size(), rules,
+                booking.getDepartureDateTime(), LocalDateTime.now(clock.withZone(ZoneOffset.UTC)));
+        booking.getTickets().forEach(t -> t.setStatus(TicketStatus.CANCELLED));
+        boolean refund = quote.isRefundable() && booking.getPaymentId() != null;
+        if (refund) {
+            booking.setRefundAmount(quote.amount());
+        }
+        markCancelled(booking, "Cancelled by customer: " + quote.reason(), true);
+        if (refund) {
+            requestRefund(booking, booking.getPaymentId(), quote.amount(), "booking-" + booking.getId() + "-cancel",
+                    "Customer cancellation: " + quote.reason());
+        }
+    }
+
+    /** Records the refund on the booking and asks payment-service for it (idempotent per refund key). */
+    private void requestRefund(Booking booking, Long paymentId, BigDecimal amount, String refundKey, String reason) {
+        if (amount == null || amount.signum() <= 0 || paymentId == null) {
+            return;
+        }
+        booking.setRefundStatus(RefundStatus.PENDING);
+        booking.setRefundAmount(Money.normalize(amount));
+        eventPublisher.publishEvent(RefundRequestedEvent.builder()
+                .refundKey(refundKey)
+                .bookingId(booking.getId())
+                .bookingReference(booking.getBookingReference())
+                .paymentId(paymentId)
+                .userId(booking.getUserId())
+                .amount(Money.normalize(amount))
+                .currency(booking.getCurrency())
+                .reason(reason)
+                .requestedAt(clock.instant())
+                .build());
+        log.info("Refund {} requested for booking {}: {} {}", refundKey, booking.getId(), amount, booking.getCurrency());
+    }
+
+    private FareRulesResponse fareRulesOf(Long fareId) {
+        try {
+            return pricingClient.getFareRulesByFareId(fareId);
+        } catch (ResourceNotFoundException e) {
+            return null; // the fare has no rules: default policy
+        }
+    }
+
     private void markCancelled(Booking booking, String reason, boolean wasConfirmed) {
         booking.setStatus(BookingStatus.CANCELLED);
-        booking.setCancellationReason(reason);
+        booking.setCancellationReason(reason.length() > 255 ? reason.substring(0, 255) : reason);
         booking.setCancelledAt(clock.instant());
         eventPublisher.publishEvent(BookingCancelledEvent.builder()
                 .bookingId(booking.getId())
@@ -369,6 +484,14 @@ public class BookingServiceImpl implements BookingService {
                 .wasConfirmed(wasConfirmed)
                 .reason(reason)
                 .cancelledAt(booking.getCancelledAt())
+                .userId(booking.getUserId())
+                .contactEmail(booking.getContactInfo() != null ? booking.getContactInfo().getEmail() : null)
+                .flightNumber(booking.getFlightNumber())
+                .departureAirportCode(booking.getDepartureAirportCode())
+                .arrivalAirportCode(booking.getArrivalAirportCode())
+                .departureDateTime(booking.getDepartureDateTime())
+                .refundAmount(booking.getRefundAmount())
+                .currency(booking.getCurrency())
                 .build());
         log.info("Booking cancelled id={} reason={}", booking.getId(), reason);
     }

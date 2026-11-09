@@ -1,0 +1,13 @@
+# payment-service, local profile. Database from docker-compose/docker-compose.yml.
+spring:
+  datasource:
+    url: ${DB_URL:jdbc:mysql://localhost:3310/airline_payment_db}
+
+airline:
+  payment:
+    razorpay:
+      # Use your own Razorpay TEST-mode keys via environment variables; nothing is committed.
+      key-id: ${RAZORPAY_KEY_ID:rzp_test_placeholder}
+      key-secret: ${RAZORPAY_KEY_SECRET:placeholder}
+      webhook-secret: ${RAZORPAY_WEBHOOK_SECRET:placeholder}
+      callback-base-url: ${PAYMENT_CALLBACK_BASE_URL:http://localhost:5173}

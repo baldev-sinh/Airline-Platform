@@ -33,5 +33,21 @@
             <groupId>com.razorpay</groupId>
             <artifactId>razorpay-java</artifactId>
         </dependency>
+        <!-- Saga integration tests against real MySQL and Kafka; skipped when Docker is not available -->
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>testcontainers-junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>testcontainers-mysql</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>testcontainers-kafka</artifactId>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 </project>

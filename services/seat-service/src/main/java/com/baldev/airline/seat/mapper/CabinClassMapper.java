@@ -3,9 +3,8 @@ package com.baldev.airline.seat.mapper;
 
 import com.baldev.airline.seat.model.CabinClass;
 import com.baldev.airline.seat.model.SeatMap;
-import com.baldev.airline.common.payload.request.CabinClassRequest;
-import com.baldev.airline.common.payload.response.CabinClassResponse;
-
+import com.baldev.airline.seat.payload.request.CabinClassRequest;
+import com.baldev.airline.seat.payload.response.CabinClassResponse;
 public class CabinClassMapper {
 
     public static CabinClass toEntity(CabinClassRequest request) {

@@ -1,9 +1,8 @@
 package com.baldev.airline.ancillary.mapper;
 
 import com.baldev.airline.ancillary.model.Ancillary;
-import com.baldev.airline.common.payload.response.AncillaryResponse;
-import com.baldev.airline.common.payload.response.InsuranceCoverageResponse;
-
+import com.baldev.airline.ancillary.payload.response.AncillaryResponse;
+import com.baldev.airline.ancillary.payload.response.InsuranceCoverageResponse;
 import java.util.List;
 
 public class AncillaryMapper {

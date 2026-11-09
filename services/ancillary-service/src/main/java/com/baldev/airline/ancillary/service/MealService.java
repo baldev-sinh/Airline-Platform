@@ -1,8 +1,7 @@
 package com.baldev.airline.ancillary.service;
 
-import com.baldev.airline.common.payload.request.MealRequest;
-import com.baldev.airline.common.payload.response.MealResponse;
-
+import com.baldev.airline.ancillary.payload.request.MealRequest;
+import com.baldev.airline.ancillary.payload.response.MealResponse;
 import java.util.List;
 
 public interface MealService {

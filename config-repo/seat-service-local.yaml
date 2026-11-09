@@ -1,0 +1,4 @@
+# seat-service, local profile. Database from docker-compose/docker-compose.yml.
+spring:
+  datasource:
+    url: ${DB_URL:jdbc:mysql://localhost:3311/airline_seat_db}

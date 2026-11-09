@@ -2,9 +2,8 @@ package com.baldev.airline.seat.service;
 
 
 import com.baldev.airline.common.enums.CabinClassType;
-import com.baldev.airline.common.payload.request.CabinClassRequest;
-import com.baldev.airline.common.payload.response.CabinClassResponse;
-
+import com.baldev.airline.seat.payload.request.CabinClassRequest;
+import com.baldev.airline.seat.payload.response.CabinClassResponse;
 import java.util.List;
 
 public interface CabinClassService {
