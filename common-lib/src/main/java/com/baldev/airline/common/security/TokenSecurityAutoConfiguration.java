@@ -6,15 +6,11 @@ import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
-import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.cloud.client.loadbalancer.LoadBalancerClient;
 import org.springframework.cloud.client.loadbalancer.LoadBalancerInterceptor;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.core.Ordered;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.web.client.RestClient;
 
@@ -24,7 +20,7 @@ import java.util.List;
 
 /**
  * Access-token verification for the gateway and every service: JWKS keys from user-service, the verifier,
- * revocation checks in Redis, and (in services) the {@link JwtAuthenticationFilter}.
+ * and revocation checks in Redis.
  */
 @AutoConfiguration(afterName = {
         "org.springframework.boot.data.redis.autoconfigure.DataRedisAutoConfiguration",
@@ -69,23 +65,5 @@ public class TokenSecurityAutoConfiguration {
                                                    TokenSecurityProperties properties, ObjectProvider<Clock> clock) {
         return new AccessTokenVerifier(keys, revocations, properties.jwt().issuer(), properties.jwt().audience(),
                 clock.getIfAvailable(Clock::systemUTC));
-    }
-
-    /** Services verify tokens themselves; the gateway disables this ({@code service-auth.enabled=false}). */
-    @Configuration(proxyBeanMethods = false)
-    @ConditionalOnProperty(prefix = "airline.security.service-auth", name = "mode", havingValue = "jwt", matchIfMissing = true)
-    static class ServiceAuthentication {
-
-        @Bean
-        @ConditionalOnProperty(prefix = "airline.security.service-auth", name = "enabled", havingValue = "true", matchIfMissing = true)
-        FilterRegistrationBean<JwtAuthenticationFilter> jwtAuthenticationFilter(AccessTokenVerifier verifier) {
-            FilterRegistrationBean<JwtAuthenticationFilter> registration =
-                    new FilterRegistrationBean<>(new JwtAuthenticationFilter(verifier));
-            registration.addUrlPatterns("/api/*");
-            // Early, but after the observation/tracing filter so rejected requests are still traced.
-            registration.setOrder(Ordered.HIGHEST_PRECEDENCE + 20);
-            registration.setName("jwtAuthenticationFilter");
-            return registration;
-        }
     }
 }

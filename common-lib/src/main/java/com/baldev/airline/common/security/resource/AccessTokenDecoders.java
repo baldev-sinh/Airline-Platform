@@ -1,12 +1,14 @@
 package com.baldev.airline.common.security.resource;
 
 import com.nimbusds.jose.JWSAlgorithm;
+import com.nimbusds.jose.KeySourceException;
 import com.nimbusds.jose.jwk.JWK;
 import com.nimbusds.jose.jwk.JWKSet;
 import com.nimbusds.jose.jwk.RSAKey;
 import com.nimbusds.jose.jwk.source.ImmutableJWKSet;
 import com.nimbusds.jose.jwk.source.JWKSource;
 import com.nimbusds.jose.jwk.source.JWKSourceBuilder;
+import com.nimbusds.jose.jwk.source.RateLimitReachedException;
 import com.nimbusds.jose.proc.JWSKeySelector;
 import com.nimbusds.jose.proc.JWSVerificationKeySelector;
 import com.nimbusds.jose.proc.SecurityContext;
@@ -30,6 +32,7 @@ import java.security.interfaces.RSAPublicKey;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.UnaryOperator;
 
 /**
@@ -66,14 +69,42 @@ public final class AccessTokenDecoders {
         } catch (MalformedURLException | IllegalArgumentException e) {
             throw new IllegalStateException("Invalid airline.security.jwt.jwks-uri: " + jwksUri, e);
         }
-        JWKSource<SecurityContext> keys = JWKSourceBuilder.create(url, retriever(client))
+        AtomicBoolean fetched = new AtomicBoolean();
+        JWKSource<SecurityContext> keys = JWKSourceBuilder.create(url, retriever(client, fetched))
                 .cache(maxAge.toMillis(), JWKSourceBuilder.DEFAULT_CACHE_REFRESH_TIMEOUT)
                 .refreshAheadCache(false)
                 .rateLimited(MIN_REFRESH_INTERVAL.toMillis())
                 .retrying(false)
                 .outageTolerantForever()
                 .build();
-        return decoder(keys, validator);
+        return decoder(unknownKeyIsNotAnOutage(keys, fetched), validator);
+    }
+
+    /**
+     * A token naming a key we do not have makes Nimbus refetch the key set; inside the rate limit it refuses with
+     * {@link RateLimitReachedException}. Once keys have been fetched that simply means "no such key" (a bad token,
+     * 401). Only before the first successful fetch is it an outage (503).
+     */
+    private static JWKSource<SecurityContext> unknownKeyIsNotAnOutage(JWKSource<SecurityContext> keys, AtomicBoolean fetched) {
+        return (selector, context) -> {
+            try {
+                return keys.get(selector, context);
+            } catch (KeySourceException e) {
+                if (fetched.get() && isRateLimited(e)) {
+                    return List.of();
+                }
+                throw e;
+            }
+        };
+    }
+
+    private static boolean isRateLimited(Throwable e) {
+        for (Throwable cause = e; cause != null; cause = cause.getCause()) {
+            if (cause instanceof RateLimitReachedException) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /** A fixed set of public keys by key id (the issuer verifying its own tokens, or tests). */
@@ -110,7 +141,7 @@ public final class AccessTokenDecoders {
                 : delegate.selectJWSKeys(header, context);
     }
 
-    private static ResourceRetriever retriever(RestClient client) {
+    private static ResourceRetriever retriever(RestClient client, AtomicBoolean fetched) {
         return url -> {
             try {
                 ResponseEntity<String> response = client.get().uri(url.toURI())
@@ -118,6 +149,7 @@ public final class AccessTokenDecoders {
                         .retrieve()
                         .toEntity(String.class);
                 MediaType type = response.getHeaders().getContentType();
+                fetched.set(true);
                 return new Resource(response.getBody(), type != null ? type.toString() : null);
             } catch (RuntimeException | java.net.URISyntaxException e) {
                 throw new IOException("Fetching the token signing keys from " + url + " failed: " + e.getMessage(), e);

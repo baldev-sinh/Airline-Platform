@@ -127,6 +127,31 @@ class AccessTokenDecodersTest {
     }
 
     @Test
+    void unknownKeyRightAfterAFetchIsABadTokenNotAnOutage() throws Exception {
+        HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        server.createContext("/jwks", exchange -> {
+            byte[] body = jwks().getBytes(StandardCharsets.UTF_8);
+            exchange.sendResponseHeaders(200, body.length);
+            try (OutputStream out = exchange.getResponseBody()) {
+                out.write(body);
+            }
+        });
+        server.start();
+        try {
+            JwtDecoder remote = AccessTokenDecoders.remote("http://127.0.0.1:" + server.getAddress().getPort() + "/jwks",
+                    Duration.ofMinutes(10), AccessTokenDecoders.jwksClient(UnaryOperator.identity()),
+                    AccessTokenValidators.of("airline-user-service", "airline-api", TokenRevocations.NONE, Clock.systemUTC()));
+            assertThat(remote.decode(token(b -> b))).isNotNull();
+            // Within the 30 s refetch limit: the key is simply unknown (401), the issuer is fine.
+            assertThatThrownBy(() -> remote.decode(signedBy(KEYS, "unknown"))).isInstanceOf(BadJwtException.class);
+            assertThatThrownBy(() -> remote.decode(signedBy(KEYS, "unknown-2"))).isInstanceOf(BadJwtException.class);
+            assertThat(remote.decode(token(b -> b))).as("known keys still work").isNotNull();
+        } finally {
+            server.stop(0);
+        }
+    }
+
+    @Test
     void cachedKeysSurviveAnIssuerOutage() throws Exception {
         boolean[] up = {true};
         HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);

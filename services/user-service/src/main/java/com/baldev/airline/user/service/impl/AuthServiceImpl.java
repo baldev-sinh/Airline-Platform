@@ -8,8 +8,6 @@ import com.baldev.airline.common.exception.UnauthorizedException;
 import com.baldev.airline.user.payload.request.LoginRequest;
 import com.baldev.airline.user.payload.request.SignupRequest;
 import com.baldev.airline.user.payload.response.AuthResponse;
-import com.baldev.airline.common.security.AccessTokenVerifier;
-import com.baldev.airline.common.security.AccessTokenVerifier.VerifiedToken;
 import com.baldev.airline.common.security.TokenRevocations;
 import com.baldev.airline.user.config.JwtProvider;
 import com.baldev.airline.user.config.JwtProvider.AccessToken;
@@ -21,6 +19,9 @@ import com.baldev.airline.user.service.impl.RefreshTokenService.Rotation;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.security.oauth2.jwt.JwtException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -41,7 +42,7 @@ public class AuthServiceImpl implements AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtProvider jwtProvider;
     private final RefreshTokenService refreshTokens;
-    private final AccessTokenVerifier accessTokenVerifier;
+    private final JwtDecoder accessTokenDecoder;
     private final TokenRevocations revocations;
     private final ApplicationEventPublisher eventPublisher;
     private final Clock clock;
@@ -49,13 +50,13 @@ public class AuthServiceImpl implements AuthService {
     private final String dummyHash;
 
     public AuthServiceImpl(UserRepository userRepository, PasswordEncoder passwordEncoder, JwtProvider jwtProvider,
-                           RefreshTokenService refreshTokens, AccessTokenVerifier accessTokenVerifier,
+                           RefreshTokenService refreshTokens, JwtDecoder accessTokenDecoder,
                            TokenRevocations revocations, ApplicationEventPublisher eventPublisher, Clock clock) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtProvider = jwtProvider;
         this.refreshTokens = refreshTokens;
-        this.accessTokenVerifier = accessTokenVerifier;
+        this.accessTokenDecoder = accessTokenDecoder;
         this.revocations = revocations;
         this.eventPublisher = eventPublisher;
         this.clock = clock;
@@ -134,10 +135,10 @@ public class AuthServiceImpl implements AuthService {
         }
         if (bearerToken != null && !bearerToken.isBlank()) {
             try {
-                VerifiedToken token = accessTokenVerifier.verify(bearerToken);
-                revocations.revokeToken(token.tokenId(), token.expiresAt());
-            } catch (AccessTokenVerifier.Rejected e) {
-                // Already invalid: nothing to revoke.
+                Jwt token = accessTokenDecoder.decode(bearerToken);
+                revocations.revokeToken(token.getId(), token.getExpiresAt());
+            } catch (JwtException e) {
+                // Already invalid, expired or revoked: nothing to revoke.
             }
         }
     }

@@ -123,9 +123,6 @@ airline:
       audience: ${JWT_AUDIENCE:airline-api}
       jwks-uri: ${JWT_JWKS_URI:http://user-service/.well-known/jwks.json}
       jwks-max-age: 10m
-    service-auth:
-      # jwt: verify the bearer token in this service too (defence in depth). headers: trust gateway headers.
-      mode: ${SERVICE_AUTH_MODE:jwt}
     revocation:
       enabled: true
       # Redis down: accept (true) or reject (false) tokens that cannot be checked; at most one access-token

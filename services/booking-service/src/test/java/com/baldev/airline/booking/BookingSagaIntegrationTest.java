@@ -90,7 +90,6 @@ import static org.mockito.Mockito.when;
         "spring.cloud.config.enabled=false",
         "CONFIG_IMPORT=optional:file:../../config-repo/application.yaml,optional:file:../../config-repo/booking-service.yaml",
         "eureka.client.enabled=false",
-        "airline.security.service-auth.mode=headers",
         "airline.outbox.poll-interval=100ms"
 })
 class BookingSagaIntegrationTest {

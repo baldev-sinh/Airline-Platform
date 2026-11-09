@@ -1,9 +1,10 @@
 package com.baldev.airline.user;
 
-import com.baldev.airline.common.security.AccessTokenVerifier;
-import com.baldev.airline.common.security.AccessTokenVerifier.VerifiedToken;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.security.oauth2.jwt.JwtValidationException;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
@@ -29,7 +30,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 /**
  * Sign-up to sign-out against real MySQL and Redis, with the real central configuration and the service verifying
- * its own tokens (service-auth mode jwt): JWKS, RS256 access tokens, refresh-token rotation, reuse detection and
+ * its own tokens with Spring Security: JWKS, RS256 access tokens, refresh-token rotation, reuse detection and
  * revocation. Kafka is not needed: user.registered stays in the outbox. Skipped when Docker is not available.
  */
 @Testcontainers(disabledWithoutDocker = true)
@@ -64,7 +65,7 @@ class AuthFlowIntegrationTest {
     @Autowired
     private MockMvc mvc;
     @Autowired
-    private AccessTokenVerifier verifier;
+    private JwtDecoder verifier;
     @Autowired
     private JdbcTemplate jdbc;
 
@@ -84,10 +85,10 @@ class AuthFlowIntegrationTest {
         // JWKS publishes the key that verifies our token; the service accepts it and ignores forged headers.
         mvc.perform(get("/.well-known/jwks.json")).andExpect(status().isOk())
                 .andExpect(jsonPath("$.keys[0].kty").value("RSA")).andExpect(jsonPath("$.keys[0].alg").value("RS256"));
-        VerifiedToken token = verifier.verify(access);
+        Jwt token = verifier.decode(access);
         mvc.perform(get("/api/users/profile").header("Authorization", "Bearer " + access).header("X-User-Id", "999"))
-                .andExpect(status().isOk()).andExpect(jsonPath("$.id").value(token.userId()));
-        mvc.perform(get("/api/users/profile").header("X-User-Id", String.valueOf(token.userId())))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.id").value(Long.parseLong(token.getSubject())));
+        mvc.perform(get("/api/users/profile").header("X-User-Id", token.getSubject()))
                 .andExpect(status().isUnauthorized());
 
         // Rotation: the refresh token is spent, a new pair is issued.
@@ -103,7 +104,7 @@ class AuthFlowIntegrationTest {
                 .content("{\"refreshToken\":\"" + rotated.get("refreshToken").asString() + "\"}"))
                 .andExpect(status().isUnauthorized());
         // Even though it was issued within the same second as the revocation (iat has one-second precision).
-        assertThatThrownBy(() -> verifier.verify(newAccess)).isInstanceOf(AccessTokenVerifier.Rejected.class);
+        assertThatThrownBy(() -> verifier.decode(newAccess)).isInstanceOf(JwtValidationException.class);
 
         // A new sign-in in a later second works again.
         Thread.sleep(1100);

@@ -8,8 +8,10 @@ import com.baldev.airline.user.payload.request.LoginRequest;
 import com.baldev.airline.user.payload.request.SignupRequest;
 import com.baldev.airline.user.payload.response.AuthResponse;
 import com.baldev.airline.common.event.UserRegisteredEvent;
-import com.baldev.airline.common.security.AccessTokenVerifier;
-import com.baldev.airline.common.security.AccessTokenVerifier.VerifiedToken;
+import com.baldev.airline.common.security.resource.AccessTokenDecoders;
+import com.baldev.airline.common.security.resource.AccessTokenValidators;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
 import com.baldev.airline.common.security.TokenRevocations;
 import com.baldev.airline.user.config.JwtProvider;
 import com.baldev.airline.user.config.SecurityProperties;
@@ -46,7 +48,7 @@ class AuthServiceImplTest {
     private final RefreshTokenService refreshTokens = mock(RefreshTokenService.class);
     private final ApplicationEventPublisher events = mock(ApplicationEventPublisher.class);
     private AuthServiceImpl authService;
-    private AccessTokenVerifier verifier;
+    private JwtDecoder verifier;
 
     @BeforeEach
     void setUp() {
@@ -58,8 +60,8 @@ class AuthServiceImplTest {
                 null);
         Clock clock = Clock.systemUTC();
         SigningKeys keys = new SigningKeys(properties);
-        verifier = new AccessTokenVerifier(new UserServiceConfig().jwksKeyResolver(keys, clock), TokenRevocations.NONE,
-                "airline-user-service", "airline-api", clock);
+        verifier = AccessTokenDecoders.fixed(keys.verificationKeys(),
+                AccessTokenValidators.of("airline-user-service", "airline-api", TokenRevocations.NONE, clock));
         when(refreshTokens.issue(anyLong(), any())).thenAnswer(inv ->
                 new Rotation(inv.getArgument(0), "refresh-" + inv.getArgument(0), Instant.now().plusSeconds(3600)));
         authService = new AuthServiceImpl(userRepository, encoder, new JwtProvider(keys, properties, clock),
@@ -92,11 +94,11 @@ class AuthServiceImplTest {
     void issuedTokensVerifyAgainstThePublishedKeys() throws Exception {
         AuthResponse response = authService.signup(signup("v@b.com", UserRole.ROLE_AIRLINE_OWNER), "test");
 
-        VerifiedToken token = verifier.verify(response.getJwt());
+        Jwt token = verifier.decode(response.getJwt());
 
-        assertThat(token.userId()).isEqualTo(7L);
-        assertThat(token.roles()).containsExactly("ROLE_AIRLINE_OWNER");
-        assertThat(token.tokenId()).isNotBlank();
+        assertThat(token.getSubject()).isEqualTo("7");
+        assertThat(token.getClaimAsStringList("roles")).containsExactly("ROLE_AIRLINE_OWNER");
+        assertThat(token.getId()).isNotBlank();
         assertThat(response.getAccessTokenExpiresAt()).isAfter(Instant.now().plusSeconds(14 * 60));
     }
 
