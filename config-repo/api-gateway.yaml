@@ -1,5 +1,5 @@
 # API gateway: the only component exposed to clients. Validates JWTs, enforces coarse-grained authorization
-# (see AccessPolicy), strips spoofable identity headers and routes to services discovered via Eureka.
+# (see GatewayAccessRules), strips spoofable identity headers and routes to services discovered via Eureka.
 spring:
   http:
     clients:

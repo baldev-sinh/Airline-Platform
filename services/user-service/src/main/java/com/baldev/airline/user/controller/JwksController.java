@@ -1,6 +1,6 @@
 package com.baldev.airline.user.controller;
 
-import com.baldev.airline.common.security.JwksKeyResolver.Jwk;
+import com.baldev.airline.user.config.Jwk;
 import com.baldev.airline.user.config.SigningKeys;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.CacheControl;

@@ -1,6 +1,5 @@
 package com.baldev.airline.user.config;
 
-import com.baldev.airline.common.security.JwksKeyResolver.Jwk;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
