@@ -83,6 +83,10 @@ final class ParityFixtures {
             return new Spec(kid, issuer, audience, value, roles, issuedAt, expiresAt, keys, jti);
         }
 
+        Spec issuedAt(Instant value) {
+            return new Spec(kid, issuer, audience, subject, roles, value, expiresAt, keys, jti);
+        }
+
         Spec expiresAt(Instant value) {
             return new Spec(kid, issuer, audience, subject, roles, issuedAt, value, keys, jti);
         }

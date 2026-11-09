@@ -239,8 +239,9 @@ class GatewaySecurityParityTest {
 
     @Test
     void acceptsTokenWithinClockSkew() throws Exception {
-        // Expired 10 s ago: inside the 30 s allowance.
-        String token = ParityFixtures.token(Spec.valid(42, "ROLE_USER").expiresAt(Instant.now().minusSeconds(10)));
+        // Issued 15 minutes ago, expired 10 s ago: inside the 30 s allowance.
+        String token = ParityFixtures.token(Spec.valid(42, "ROLE_USER")
+                .issuedAt(Instant.now().minusSeconds(900)).expiresAt(Instant.now().minusSeconds(10)));
         expectProxied(call(HttpMethod.GET, "/api/bookings/9", token));
     }
 
