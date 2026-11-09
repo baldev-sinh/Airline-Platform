@@ -45,7 +45,7 @@ flowchart LR
 
 | Service | Port | Database | Owns |
 |---|---|---|---|
-| `api-gateway` | 5000 | - | Routing, JWT validation, edge authorization ([AccessPolicy](cloud/api-gateway/src/main/java/com/baldev/airline/gateway/security/AccessPolicy.java)), CORS |
+| `api-gateway` | 5000 | - | Routing, token verification and edge authorization with Spring Security ([GatewayAccessRules](cloud/api-gateway/src/main/java/com/baldev/airline/gateway/security/GatewayAccessRules.java)), rate limits, CORS |
 | `service-registry` | 8761 | - | Eureka service discovery |
 | `config-server` | 8888 | - | Spring Cloud Config: serves `config-repo/` to every service (HTTP basic auth) |
 | `user-service` | 5001 | `airline_user_db` | Users, signup/login, RS256 access tokens + JWKS, refresh tokens |
@@ -103,8 +103,9 @@ pom.xml                    parent: versions, plugins, Jib, enforcer, JaCoCo
 config-repo/               central configuration served by config-server (no secrets: env placeholders only)
 common-lib/                event contracts + auto-configured cross-cutting concerns
   .../common/exception     typed exceptions -> RFC 9457 problem details
-  .../common/web           GlobalExceptionHandler, CurrentUser, identity headers
-  .../common/security      JWT verification (JWKS), revocation, per-service JwtAuthenticationFilter
+  .../common/web           GlobalExceptionHandler, CurrentUser (from the verified token)
+  .../common/security      Spring Security resource server for gateway and services (JWKS decoder, validators,
+                           revocation, problem-details 401/403/503)
   .../common/feign         error decoder (downstream 404/409/422 keep their meaning), token relay
   .../common/kafka         topics, retry + dead-letter handling
   .../common/outbox        transactional outbox (publisher + relay)
@@ -203,7 +204,6 @@ if one is missing.
 | `REDIS_HOST`, `REDIS_PORT`, `REDIS_PASSWORD`, `REDIS_SSL_ENABLED` | gateway, services | cache, rate limits, token revocation |
 | `JWT_PRIVATE_KEY`, `JWT_KEY_ID` | user-service | RS256 PKCS#8 PEM (one line with `\n`); see *Tokens* below |
 | `JWT_ISSUER`, `JWT_AUDIENCE`, `JWT_ACCESS_TOKEN_TTL`, `JWT_REFRESH_TOKEN_TTL` | all | defaults `airline-user-service`, `airline-api`, `15m`, `14d` |
-| `SERVICE_AUTH_MODE` | services | `jwt` (default): verify tokens in every service; `headers`: trust the gateway |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `NOTIFICATION_FROM`, `PUBLIC_BASE_URL` | notification-service | |
 | `RATE_LIMIT_ENABLED`, `RATE_LIMIT_TRUSTED_PROXIES` | gateway | policies in `config-repo/api-gateway.yaml` |
 | `CACHE_ENABLED` | services | `false` turns the Redis cache off |
@@ -233,11 +233,13 @@ Seat hold length (`airline.seat.hold-duration`, default 20 min) must stay longer
 
 ## API conventions
 
-- **Auth:** send the access token as `Authorization: Bearer <token>`. The gateway validates it, removes any
-  client-supplied `X-User-*` headers, and forwards the verified identity; each service verifies the token again
-  (token relay carries it on service-to-service calls). Which roles can call which
-  endpoints is defined in one table: [`AccessPolicy`](cloud/api-gateway/src/main/java/com/baldev/airline/gateway/security/AccessPolicy.java).
-  Anything not listed there is denied.
+- **Auth:** send the access token as `Authorization: Bearer <token>`. Every component is a Spring Security
+  OAuth2 resource server: the gateway verifies the token (RS256 against user-service's JWKS, issuer, audience,
+  expiry, revocation) and applies the access rules; each service verifies it again and builds `CurrentUser` from
+  it (Feign relays the token on service-to-service calls). Client-supplied `X-User-*` headers are removed and
+  never trusted. Which roles can call which endpoints is defined in one table:
+  [`GatewayAccessRules`](cloud/api-gateway/src/main/java/com/baldev/airline/gateway/security/GatewayAccessRules.java). Paths outside `/auth` and `/api` that it does
+  not list are hidden (404). See [SECURITY_MIGRATION_PLAN.md](SECURITY_MIGRATION_PLAN.md) for how it works.
 - **Ownership** (your booking, your airline's flight) is enforced inside each service.
 - **Errors** are [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) problem details with a stable `code`:
   ```json

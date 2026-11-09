@@ -235,3 +235,155 @@ start if the issuer, audience or JWKS URI is blank.
 - Final: the full build, `scripts/e2e-flow.py` against the local stack (`start-local.ps1`; per your notes I use
   `mvn test` and won't repackage while it runs), the frontend checks (silent refresh, expired token on public
   search), and a parity-results table in the PR.
+
+## Corrections found during implementation
+
+The plan above was written before any code changed. Implementing it showed three things it got wrong:
+
+- **Finding 8 / service verification.** The plan assumed every service ran `JwtAuthenticationFilter`. In fact only
+  user-service did: the filter's auto-configuration required jjwt on the classpath, and only user-service had it.
+  The other nine services trusted `X-User-*` headers. The migration closes this gap; it is not just a refactor.
+- **Finding 12 / security headers.** `EdgeWebConfig`'s filter did not run "before the rate limiter": an `@Order` on
+  a plain `Filter` bean method is not honoured by Spring Boot, so it ran last. It is now registered with an
+  explicit `FilterRegistrationBean` order and really runs first.
+- **Unknown paths.** The 404 body for paths no route serves now matches the one for hidden paths (see
+  `docs/PRODUCTION_REVIEW.md`, "Behaviour that changed on purpose").
+
+## What changed and why (a guide for new developers)
+
+### The big picture
+
+Every request that arrives with `Authorization: Bearer <token>` has to answer two questions:
+
+1. **Who is calling?** (authentication) The token is a JWT signed by user-service. Checking it means: is the
+   signature genuine, was it issued by us, for this API, and has it not expired or been revoked?
+2. **May they do this?** (authorization) A customer may book, only an airline owner may change a fare, only an
+   admin may approve an airline.
+
+We used to answer both with our own code. Now Spring Security answers them, and we only plug in the parts that
+are specific to us. Security code is easy to get subtly wrong, so it pays to use a framework that thousands of
+projects exercise and that security researchers review.
+
+Spring Security works as a **chain of filters** that every request passes through before it reaches a
+controller or, at the gateway, a route. Each filter does one job. The ones that matter here:
+
+```
+request
+  -> CorsFilter                      answers browser preflights, adds CORS headers
+  -> BearerTokenAuthenticationFilter finds the token, asks the JwtDecoder to verify it,
+                                     stores the caller in the SecurityContext
+  -> AuthorizationFilter             checks the rules: is this caller allowed here?
+  -> controller / gateway route
+```
+
+When something fails, the filter does not throw an error to the user. It calls an **entry point** (for "who
+are you?" problems: 401) or an **access-denied handler** (for "you may not": 403). We provide both, so that the
+answers are our usual problem-details JSON.
+
+### Each removed class and what replaced it
+
+**`AccessTokenVerifier` → `NimbusJwtDecoder` + `AccessTokenValidators`**
+
+The old class parsed the token with jjwt and checked every claim itself. Spring Security's `JwtDecoder` interface
+does the same job: give it a token string, get back a verified `Jwt` object or an exception. We use
+`NimbusJwtDecoder`, which is built on Nimbus JOSE+JWT, a widely used JWT library. We configure it to:
+
+- accept only RS256 signatures, so `alg: none` and HMAC tokens are rejected before anything else happens;
+- require a key id (`kid`) in the token header;
+- run validators after the signature check. Validators are small classes answering yes or no.
+  `JwtTimestampValidator` checks `exp` and `nbf` (30 s clock skew, `exp` required), `JwtIssuerValidator` checks
+  `iss`, `JwtAudienceValidator` checks `aud`, and two of ours check that `sub` is a user id and that the token
+  was not revoked.
+
+*Why this is better:* the decoder and the standard validators are maintained and tested by Spring. We wrote
+only the two validators that are about our domain.
+
+**`JwksKeyResolver` → a Nimbus `JWKSource` (`AccessTokenDecoders.remote`)**
+
+The decoder needs user-service's public keys, which user-service publishes at `/.well-known/jwks.json` (a JWK
+Set). The old class fetched and cached them by hand. Nimbus's `JWKSourceBuilder` builds a key source with the
+same behaviour from ready-made parts:
+
+- `cache(10 min)` keeps the keys, so we do not ask user-service for every request;
+- `rateLimited(30 s)`: when a token names an unknown key (after a key rotation), it refetches, but at most every
+  30 s, so made-up key ids cannot flood user-service;
+- `outageTolerantForever()`: if user-service is down, the last keys keep working.
+
+Two things are ours. The fetch goes through Spring Cloud's load balancer, so `http://user-service/...` is found
+via Eureka. And one small wrapper (`unknownKeyIsNotAnOutage`) makes sure that "I just refetched and still don't
+know this key" means *bad token* (401), not *outage* (503).
+
+**`JwtAuthenticationFilter` (services) → `BearerTokenAuthenticationFilter` + `CurrentUserArgumentResolver`**
+
+The old filter verified the token and then *rewrote request headers* (`X-User-Id` and so on), and controllers
+read the identity from those headers. That only works if nothing else can set those headers, and in nine
+services the filter was not even running. Now Spring's `BearerTokenAuthenticationFilter` verifies the token and
+puts a `JwtAuthenticationToken` (the caller plus their roles) in the `SecurityContext`, a per-request holder
+for "who is calling". `CurrentUserArgumentResolver` builds the familiar `CurrentUser` from it, so the 19
+controllers did not change. No code reads identity from headers any more, and CI fails if someone tries.
+
+Two plug-in points control *where* tokens are read:
+
+- `AccessTokenBearerTokenResolver` (a `BearerTokenResolver`) tells the filter which requests to look at. In
+  services that is only `/api/**`, so internal calls carrying an expired relayed token still work. At the gateway
+  it is everything except public endpoints, so an expired token never blocks a sign-in.
+- Services do **not** require a token (`permitAll`), because public flight search calls them anonymously. They
+  *authenticate when a token is present*. Authorization stays in code (`CurrentUser`, the ownership checks).
+
+**`AccessPolicy` → `GatewayAccessRules` + `authorizeHttpRequests`**
+
+The table of who may call what is the same list in the same order. Instead of our own loop, it is registered with
+Spring Security's `authorizeHttpRequests`. Each row becomes `requestMatchers(...)` plus an *authorization manager*:
+`permitAll`, `authenticated`, `hasAuthority("ROLE_SYSTEM_ADMIN")`, `hasAnyAuthority(admin, owner)` or `denyAll`.
+Like before, the first matching row wins and anything unmatched is denied.
+
+One subtlety: when Spring denies an *anonymous* caller it calls the entry point (401), not the access-denied
+handler. For hidden paths (`/internal/**`, `/actuator/**`, unknown paths) we want 404 either way, so as not to
+reveal what exists. Both our entry point and our access-denied handler therefore check
+`GatewayAccessRules.hiddenRequests()` first.
+
+**`AuthenticationFilter` (gateway) → the gateway's `SecurityFilterChain` (`GatewaySecurityConfig`)**
+
+The old gateway filter did everything in one place: strip headers, find the rule, verify the token, check the
+role, add identity headers. Each job now has its standard home:
+
+- verifying the token: the resource server (`oauth2ResourceServer().jwt()`);
+- checking the rule: `authorizeHttpRequests` with `GatewayAccessRules`;
+- stripping `X-User-*`: Spring Cloud Gateway's built-in `removeRequestHeader` route filter;
+- CORS: `http.cors()` with a `CorsConfigurationSource`, so preflights are answered before authentication and a
+  401 still carries the CORS headers the browser needs to read it;
+- error bodies: `ProblemDetailsAuthenticationEntryPoint` (401 and 503) and `ProblemDetailsAccessDeniedHandler`
+  (403), with the same JSON as before (`AuthErrorProfile` keeps the gateway's and the services' formats apart).
+
+A second, tiny chain covers the private management port (5100), so Prometheus can scrape the gateway without a
+token while `/actuator/**` on the public port stays hidden.
+
+### Things that look odd but are deliberate
+
+- **503 instead of 401 when user-service's keys cannot be fetched.** A 401 tells the web app "your token is bad",
+  and it signs the user out. A 503 says "try again". By default Spring Security turns this case into a 500; the
+  shared setup (`AirlineResourceServer`) installs a failure handler that answers 503.
+- **Revocation is checked last.** Spring's `DelegatingOAuth2TokenValidator` runs every validator, even after one
+  has failed. The revocation check calls Redis and needs a numeric `sub`, so it runs only after all other checks
+  passed.
+- **No CSRF protection.** CSRF attacks abuse cookies that a browser sends automatically. We use bearer tokens that
+  JavaScript adds explicitly, so there is nothing to forge, and CSRF protection would only break API clients.
+- **Stateless.** No HTTP session is created; every request proves who it is with its token.
+- **user-service verifies its own tokens with its own keys** (`AccessTokenDecoders.fixed`). It is the issuer, so
+  it does not need to download its own JWKS.
+
+### How we know nothing broke
+
+Before any production code changed, we wrote **parity tests** that only talk HTTP: what goes in, the status,
+the exact JSON body, the headers, and what reaches the backend. They ran green against the old code, then
+unchanged against the new code:
+
+- `GatewaySecurityParityTest`: every access rule for anonymous, customer, owner and admin callers; ten kinds of
+  bad tokens; spoofed headers; CORS; security headers;
+- `GatewayKeysUnavailableParityTest`, `GatewayKeysCachedParityTest`: the issuer is down (503), or down after keys
+  were cached (keeps working);
+- `GatewayRevocationParityTest`: logout and "sign out everywhere" against real Redis;
+- `GatewayManagementPortParityTest`: actuator only on the private port;
+- `ServiceSecurityParityTest`, `ServiceKeysUnavailableParityTest`: a service's view, built from common-lib alone.
+
+When you change security code, run these first. If one fails, the change altered behaviour someone relies on.

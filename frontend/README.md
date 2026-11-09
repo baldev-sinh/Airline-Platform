@@ -154,7 +154,7 @@ For a real deployment, set the backend's `PAYMENT_CALLBACK_BASE_URL` to the site
 ## Not built yet
 
 - Airline back office (fleet, schedules, fares) and system admin screens. The API supports them
-  (`AccessPolicy` in the gateway), and they would live under their own lazy-loaded routes and guards.
+  (`GatewayAccessRules` in the gateway), and they would live under their own lazy-loaded routes and guards.
 - Refunds or changes for paid bookings (the API only allows cancelling unpaid bookings online).
 - Translations. Text is English-only; Angular's i18n tooling can be added when needed.
 - End-to-end browser tests in CI (e.g. Playwright against the Compose stack).
