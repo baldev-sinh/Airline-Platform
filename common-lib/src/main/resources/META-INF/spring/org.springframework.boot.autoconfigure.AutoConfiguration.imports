@@ -4,4 +4,5 @@ com.baldev.airline.common.kafka.KafkaErrorHandlingAutoConfiguration
 com.baldev.airline.common.cache.RedisCachingAutoConfiguration
 com.baldev.airline.common.outbox.OutboxAutoConfiguration
 com.baldev.airline.common.security.TokenSecurityAutoConfiguration
+com.baldev.airline.common.security.resource.AccessTokenDecoderAutoConfiguration
 com.baldev.airline.common.security.resource.ServiceSecurityAutoConfiguration

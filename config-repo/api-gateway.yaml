@@ -10,7 +10,8 @@ spring:
 airline:
   security:
     service-auth:
-      # The gateway verifies tokens in its own AuthenticationFilter (all routes); the servlet filter is for services.
+      # The gateway declares its own Spring Security chain with the access rules (GatewaySecurityConfig); the
+      # default service chain (verify tokens, permit everything) is for the business services.
       enabled: false
   cache:
     enabled: false

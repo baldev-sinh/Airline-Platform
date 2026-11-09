@@ -1,6 +1,7 @@
 package com.baldev.airline.gateway.config;
 
-import com.baldev.airline.gateway.security.AuthenticationFilter;
+import com.baldev.airline.common.web.RequestHeaders;
+import org.springframework.cloud.gateway.server.mvc.filter.BeforeFilterFunctions;
 import org.springframework.cloud.gateway.server.mvc.filter.LoadBalancerFilterFunctions;
 import org.springframework.cloud.gateway.server.mvc.handler.GatewayRouterFunctions;
 import org.springframework.cloud.gateway.server.mvc.handler.HandlerFunctions;
@@ -11,18 +12,15 @@ import org.springframework.web.servlet.function.RouterFunction;
 import org.springframework.web.servlet.function.ServerResponse;
 
 /**
- * Path-to-service routing. Authorization is NOT expressed here: every route runs the same
- * {@link AuthenticationFilter}, which consults the central AccessPolicy. Only /auth and /api paths are routed;
- * /internal and /actuator on backend services are therefore unreachable from outside.
+ * Path-to-service routing. Authorization is NOT expressed here: Spring Security has already applied the access
+ * rules (GatewaySecurityConfig, GatewayAccessRules) before a request reaches a route. Only /auth and /api paths
+ * are routed; /internal and /actuator on backend services are therefore unreachable from outside.
+ *
+ * <p>Every route forwards the caller's {@code Authorization} header (services verify the token themselves) and
+ * removes any {@code X-User-*} identity headers the client sent, so nobody can claim an identity downstream.
  */
 @Configuration
 public class RouteConfig {
-
-    private final AuthenticationFilter authenticationFilter;
-
-    public RouteConfig(AuthenticationFilter authenticationFilter) {
-        this.authenticationFilter = authenticationFilter;
-    }
 
     @Bean
     public RouterFunction<ServerResponse> userServiceRoutes() {
@@ -86,7 +84,9 @@ public class RouteConfig {
             builder = builder.route(RequestPredicates.path(path), HandlerFunctions.http());
         }
         return builder
-                .before(authenticationFilter)
+                .before(BeforeFilterFunctions.removeRequestHeader(RequestHeaders.USER_ID))
+                .before(BeforeFilterFunctions.removeRequestHeader(RequestHeaders.USER_EMAIL))
+                .before(BeforeFilterFunctions.removeRequestHeader(RequestHeaders.USER_ROLES))
                 .filter(LoadBalancerFilterFunctions.lb(serviceId))
                 .build();
     }
