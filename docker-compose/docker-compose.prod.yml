@@ -39,12 +39,31 @@ services:
   api-gateway:
     ports: !reset []
 
+  user-service:
+    environment:
+      JWT_PRIVATE_KEY: ${JWT_PRIVATE_KEY:?set JWT_PRIVATE_KEY in .env (scripts/generate-prod-env.sh creates one)}
+
+  # Real SMTP provider in production (Mailpit is for local testing only).
+  notification-service:
+    environment:
+      SMTP_HOST: ${SMTP_HOST:?set SMTP_HOST in .env}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USERNAME: ${SMTP_USERNAME:?set SMTP_USERNAME in .env}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:?set SMTP_PASSWORD in .env}
+      SMTP_AUTH: "true"
+      SMTP_STARTTLS: "true"
+      NOTIFICATION_FROM: ${NOTIFICATION_FROM:?set NOTIFICATION_FROM in .env}
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:?set PUBLIC_BASE_URL in .env}
+  mailpit: { profiles: [ local-mail ] }
+
   payment-service:
     environment:
       # Fail at startup if the public address is missing: Razorpay would send customers to the wrong place.
       PAYMENT_CALLBACK_BASE_URL: ${PUBLIC_BASE_URL:?set PUBLIC_BASE_URL in .env, e.g. https://baldevairways.duckdns.org}
 
+  config-server: { ports: !reset [] }
   service-registry: { ports: !reset [] }
+  redis: { ports: !reset [] }
   kafka: { ports: !reset [] }
   userdb: { ports: !reset [] }
   airlinecoredb: { ports: !reset [] }
@@ -55,6 +74,7 @@ services:
   bookingdb: { ports: !reset [] }
   paymentdb: { ports: !reset [] }
   seatdb: { ports: !reset [] }
+  notificationdb: { ports: !reset [] }
 
   kafka-ui: { profiles: [ monitoring ] }
   prometheus: { profiles: [ monitoring ] }

@@ -1,8 +1,8 @@
 package com.baldev.airline.location.controller;
 
-import com.baldev.airline.common.payload.request.CityRequest;
-import com.baldev.airline.common.payload.response.ApiResponse;
-import com.baldev.airline.common.payload.response.CityResponse;
+import com.baldev.airline.location.payload.request.CityRequest;
+import com.baldev.airline.common.web.ApiResponse;
+import com.baldev.airline.location.payload.response.CityResponse;
 import com.baldev.airline.location.service.CityService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;

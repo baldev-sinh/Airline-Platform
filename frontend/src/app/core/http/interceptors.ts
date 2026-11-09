@@ -1,7 +1,7 @@
 import { HttpErrorResponse, HttpInterceptorFn } from '@angular/common/http';
 import { inject } from '@angular/core';
 import { Router } from '@angular/router';
-import { catchError, retry, throwError, timer } from 'rxjs';
+import { catchError, retry, switchMap, throwError, timer } from 'rxjs';
 import { AuthStore } from '../auth/auth-store';
 import { API_BASE_URL } from '../config/app-config';
 import { toApiError } from './api-error';
@@ -64,7 +64,8 @@ export const retryInterceptor: HttpInterceptorFn = (request, next) => {
 
 /**
  * Turns every HTTP failure into an ApiError (see api-error.ts) with a message that is safe to show.
- * If the server says our token is no longer valid (401), it signs out and opens the sign-in page,
+ * If the server says our token is no longer valid (401), it first renews the session with the refresh
+ * token and repeats the request once. Only if that fails does it sign out and open the sign-in page,
  * which brings the customer back to where they were afterwards.
  */
 export const errorInterceptor: HttpInterceptorFn = (request, next) => {
@@ -77,15 +78,30 @@ export const errorInterceptor: HttpInterceptorFn = (request, next) => {
   // A 401 from /auth/login just means "wrong password": the login form handles that itself.
   const isSignInCall = request.url.startsWith(`${apiBaseUrl}/auth/`);
 
+  const signOut = () => {
+    auth.expire();
+    const returnUrl = router.url.startsWith('/login') ? '/' : router.url;
+    void router.navigate(['/login'], { queryParams: { returnUrl, reason: 'expired' } });
+  };
+
   return next(request).pipe(
     catchError((error: unknown) => {
       const apiError = toApiError(error);
-      if (apiError.status === 401 && !isSignInCall && isApiRequest(request.url, apiBaseUrl)) {
-        auth.expire();
-        const returnUrl = router.url.startsWith('/login') ? '/' : router.url;
-        void router.navigate(['/login'], { queryParams: { returnUrl, reason: 'expired' } });
+      if (apiError.status !== 401 || isSignInCall || !isApiRequest(request.url, apiBaseUrl)) {
+        return throwError(() => apiError);
       }
-      return throwError(() => apiError);
+      if (!auth.canRefresh()) {
+        signOut();
+        return throwError(() => apiError);
+      }
+      // Renew once, then repeat the request (it passes authInterceptor again and picks up the new token).
+      return auth.refresh().pipe(
+        catchError(() => {
+          signOut();
+          return throwError(() => apiError);
+        }),
+        switchMap(() => next(request).pipe(catchError((retryError: unknown) => throwError(() => toApiError(retryError))))),
+      );
     }),
   );
 };

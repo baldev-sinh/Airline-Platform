@@ -1,12 +1,10 @@
 package com.baldev.airline.gateway.config;
 
-import com.baldev.airline.gateway.security.JwtProperties;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.Ordered;
@@ -20,7 +18,6 @@ import java.io.IOException;
 
 /** Browser-facing concerns that belong at the edge: CORS and security response headers. */
 @Configuration
-@EnableConfigurationProperties(JwtProperties.class)
 public class EdgeWebConfig {
 
     /** Explicit origin allow-list from configuration; no wildcard, so credentials can never leak cross-origin. */
@@ -37,7 +34,7 @@ public class EdgeWebConfig {
                         .allowedOrigins(origins)
                         .allowedMethods("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
                         .allowedHeaders("Authorization", "Content-Type", "Accept", "traceparent")
-                        .exposedHeaders("Location")
+                        .exposedHeaders("Location", "Retry-After", "X-RateLimit-Remaining")
                         .allowCredentials(false)
                         .maxAge(3600);
             }

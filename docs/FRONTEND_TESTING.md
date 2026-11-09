@@ -23,17 +23,22 @@ Make sure it contains these local values (see [postman/README.md](../postman/REA
 ```
 MYSQL_ROOT_PASSWORD=local-root-only
 DB_PASSWORD=airline
-JWT_SECRET=local-dev-only-jwt-secret-change-me-0123456789abcdef
+REDIS_PASSWORD=local-redis-only
+CONFIG_SERVER_PASSWORD=local-config-password
 PAYMENT_SPRING_PROFILES=payment-stub
 RAZORPAY_KEY_ID=rzp_test_stub
 RAZORPAY_KEY_SECRET=stub
 RAZORPAY_WEBHOOK_SECRET=local-stub-webhook-secret
 ```
 
-**3. Start databases and Kafka, build, and start the services:**
+No token signing key is needed locally: user-service generates one at startup (so restarting it signs everyone
+out). E-mails the app sends (welcome, booking confirmation, cancellation, refund) appear in Mailpit at
+http://localhost:8025.
+
+**3. Start databases, Kafka, Redis and Mailpit, build, and start the services:**
 
 ```powershell
-docker compose -f docker-compose/docker-compose.yml --env-file docker-compose/.env up -d userdb airlinecoredb flightopsdb locationdb pricingdb ancillarydb bookingdb paymentdb seatdb kafka kafka-ui prometheus grafana
+docker compose -f docker-compose/docker-compose.yml --env-file docker-compose/.env up -d userdb airlinecoredb flightopsdb locationdb pricingdb ancillarydb bookingdb paymentdb seatdb notificationdb kafka kafka-ui redis mailpit prometheus grafana
 .\mvnw.cmd -B -DskipTests package
 .\scripts\start-local.ps1
 ```

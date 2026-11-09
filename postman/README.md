@@ -27,7 +27,7 @@ the ids it creates (tokens, airline, flight, seats, bookings…) for the request
 ```powershell
 copy docker-compose\.env.example docker-compose\.env   # then fill it in (see below)
 docker compose -f docker-compose/docker-compose.yml --env-file docker-compose/.env `
-  up -d userdb airlinecoredb flightopsdb locationdb pricingdb ancillarydb bookingdb paymentdb seatdb kafka
+  up -d userdb airlinecoredb flightopsdb locationdb pricingdb ancillarydb bookingdb paymentdb seatdb notificationdb kafka redis mailpit
 ```
 
 For local testing, `docker-compose/.env` needs at least these values (they match the services' `local` profile):
@@ -35,12 +35,16 @@ For local testing, `docker-compose/.env` needs at least these values (they match
 ```
 MYSQL_ROOT_PASSWORD=local-root-only
 DB_PASSWORD=airline
-JWT_SECRET=local-dev-only-jwt-secret-change-me-0123456789abcdef
+REDIS_PASSWORD=local-redis-only
+CONFIG_SERVER_PASSWORD=local-config-password
 PAYMENT_SPRING_PROFILES=payment-stub
 RAZORPAY_KEY_ID=rzp_test_stub
 RAZORPAY_KEY_SECRET=stub
 RAZORPAY_WEBHOOK_SECRET=local-stub-webhook-secret
 ```
+
+Access tokens now expire after 15 minutes; log in again (or call `POST /auth/refresh` with the `refreshToken`
+from the login response) if a long run starts answering 401.
 
 ## 2. Build and start the services
 

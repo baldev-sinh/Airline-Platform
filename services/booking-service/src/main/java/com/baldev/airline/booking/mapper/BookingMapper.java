@@ -1,8 +1,7 @@
 package com.baldev.airline.booking.mapper;
 
 import com.baldev.airline.booking.model.Booking;
-import com.baldev.airline.common.payload.response.BookingResponse;
-
+import com.baldev.airline.booking.payload.response.BookingResponse;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.Comparator;
@@ -52,6 +51,9 @@ public final class BookingMapper {
                 .totalAmount(booking.getTotalAmount())
                 .paymentId(booking.getPaymentId())
                 .cancellationReason(booking.getCancellationReason())
+                .refundStatus(booking.getRefundStatus())
+                .refundAmount(booking.getRefundAmount())
+                .refundedAt(booking.getRefundedAt())
                 .isUpcoming(departure != null && departure.isAfter(now))
                 .isPast(departure != null && !departure.isAfter(now))
                 .contactInfo(booking.getContactInfo())

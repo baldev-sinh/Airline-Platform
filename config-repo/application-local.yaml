@@ -1,0 +1,15 @@
+# Local development (SPRING_PROFILES_ACTIVE=local), for every service. Never use this profile in production.
+# Points at the databases and Kafka started by docker-compose/docker-compose.yml.
+spring:
+  datasource:
+    username: ${DB_USERNAME:airline}
+    password: ${DB_PASSWORD:airline}
+
+management:
+  tracing:
+    sampling:
+      probability: 1.0
+
+logging:
+  level:
+    com.baldev.airline: DEBUG

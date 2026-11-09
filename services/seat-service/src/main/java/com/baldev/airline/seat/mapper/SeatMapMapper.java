@@ -4,9 +4,8 @@ package com.baldev.airline.seat.mapper;
 import com.baldev.airline.seat.model.CabinClass;
 import com.baldev.airline.seat.model.Seat;
 import com.baldev.airline.seat.model.SeatMap;
-import com.baldev.airline.common.payload.request.SeatMapRequest;
-import com.baldev.airline.common.payload.response.SeatMapResponse;
-
+import com.baldev.airline.seat.payload.request.SeatMapRequest;
+import com.baldev.airline.seat.payload.response.SeatMapResponse;
 import java.util.List;
 import java.util.stream.Collectors;
 

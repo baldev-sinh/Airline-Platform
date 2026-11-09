@@ -1,0 +1,6 @@
+# Local development profile (SPRING_PROFILES_ACTIVE=local). Never use in production.
+# The rest of the local settings are served by config-server (config-repo/*-local.yaml).
+spring:
+  cloud:
+    config:
+      password: ${CONFIG_SERVER_PASSWORD:local-config-password}

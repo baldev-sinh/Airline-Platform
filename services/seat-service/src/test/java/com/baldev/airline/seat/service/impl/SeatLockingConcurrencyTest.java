@@ -2,7 +2,7 @@ package com.baldev.airline.seat.service.impl;
 
 import com.baldev.airline.common.enums.SeatAvailabilityStatus;
 import com.baldev.airline.common.exception.ConflictException;
-import com.baldev.airline.common.payload.request.SeatHoldRequest;
+import com.baldev.airline.seat.payload.request.SeatHoldRequest;
 import com.baldev.airline.seat.model.FlightInstanceCabin;
 import com.baldev.airline.seat.model.SeatInstance;
 import com.baldev.airline.seat.repository.FlightInstanceCabinRepository;
@@ -45,6 +45,9 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 @SpringBootTest(
         webEnvironment = SpringBootTest.WebEnvironment.NONE,
         properties = {
+                // The real central configuration, read from the repository instead of a running config server.
+                "spring.cloud.config.enabled=false",
+                "CONFIG_IMPORT=optional:file:../../config-repo/application.yaml,optional:file:../../config-repo/seat-service.yaml",
                 "eureka.client.enabled=false",
                 "spring.kafka.listener.auto-startup=false",
                 "spring.kafka.admin.auto-create=false",

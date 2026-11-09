@@ -1,6 +1,6 @@
 package com.baldev.airline.user.service;
 
-import com.baldev.airline.common.payload.dto.UserDTO;
+import com.baldev.airline.user.payload.dto.UserDTO;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 

@@ -3,7 +3,7 @@ package com.baldev.airline.flightops.client;
 import java.math.BigDecimal;
 
 import com.baldev.airline.common.enums.CabinClassType;
-import com.baldev.airline.common.payload.response.CabinClassResponse;
+import com.baldev.airline.flightops.client.dto.CabinClassResponse;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;

@@ -1,10 +1,9 @@
 package com.baldev.airline.ancillary.service;
 
-import com.baldev.airline.common.payload.request.PriceQuoteRequest;
+import com.baldev.airline.ancillary.payload.request.PriceQuoteRequest;
 import java.math.BigDecimal;
-import com.baldev.airline.common.payload.request.FlightMealRequest;
-import com.baldev.airline.common.payload.response.FlightMealResponse;
-
+import com.baldev.airline.ancillary.payload.request.FlightMealRequest;
+import com.baldev.airline.ancillary.payload.response.FlightMealResponse;
 import java.util.List;
 
 public interface FlightMealService {

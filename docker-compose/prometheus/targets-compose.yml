@@ -22,3 +22,7 @@
   labels: { service: payment-service }
 - targets: [ flight-ops-service:5011 ]
   labels: { service: flight-ops-service }
+- targets: [ config-server:8888 ]
+  labels: { service: config-server }
+- targets: [ notification-service:5012 ]
+  labels: { service: notification-service }

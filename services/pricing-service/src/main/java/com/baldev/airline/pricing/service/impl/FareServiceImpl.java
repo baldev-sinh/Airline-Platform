@@ -5,10 +5,13 @@ import com.baldev.airline.common.exception.ResourceNotFoundException;
 
 import com.baldev.airline.pricing.mapper.FareMapper;
 import com.baldev.airline.pricing.model.Fare;
-import com.baldev.airline.common.payload.request.FareRequest;
-import com.baldev.airline.common.payload.response.FareResponse;
+import com.baldev.airline.pricing.payload.request.FareRequest;
+import com.baldev.airline.pricing.payload.response.FareResponse;
 import com.baldev.airline.pricing.repository.FareRepository;
 import com.baldev.airline.pricing.service.FareService;
+import com.baldev.airline.pricing.config.PricingCacheConfig;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -41,6 +44,7 @@ public class FareServiceImpl implements FareService {
     }
 
     @Override
+    @Cacheable(cacheNames = PricingCacheConfig.FARES, key = "#id")
     public FareResponse getFareById(Long id) {
         Fare fare = fareRepository.findById(id).orElseThrow(
                 ()-> new ResourceNotFoundException("Fare not found with given Id")
@@ -58,6 +62,7 @@ public class FareServiceImpl implements FareService {
     }
 
     @Override
+    @CacheEvict(cacheNames = PricingCacheConfig.FARES, key = "#id")
     public FareResponse updateFare(Long id, FareRequest request) {
         Fare fare = fareRepository.findById(id).orElseThrow(
                 ()-> new ResourceNotFoundException("Fare not found with given Id")
@@ -77,6 +82,7 @@ public class FareServiceImpl implements FareService {
     }
 
     @Override
+    @CacheEvict(cacheNames = PricingCacheConfig.FARES, key = "#id")
     public void deleteFare(Long id) {
         Fare fare = fareRepository.findById(id).orElseThrow(
                 ()-> new ResourceNotFoundException("Fare not found with given Id")

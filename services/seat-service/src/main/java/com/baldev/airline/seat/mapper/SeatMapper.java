@@ -2,8 +2,7 @@ package com.baldev.airline.seat.mapper;
 
 
 import com.baldev.airline.seat.model.Seat;
-import com.baldev.airline.common.payload.response.SeatResponse;
-
+import com.baldev.airline.seat.payload.response.SeatResponse;
 public class SeatMapper {
     public static SeatResponse toResponse(Seat seat) {
         return SeatResponse.builder()

@@ -1,7 +1,7 @@
 package com.baldev.airline.booking.client;
 
-import com.baldev.airline.common.payload.request.SeatHoldRequest;
-import com.baldev.airline.common.payload.response.SeatHoldResponse;
+import com.baldev.airline.booking.client.dto.SeatHoldRequest;
+import com.baldev.airline.booking.client.dto.SeatHoldResponse;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PathVariable;

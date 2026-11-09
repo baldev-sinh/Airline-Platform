@@ -2,7 +2,10 @@ package com.baldev.airline.gateway.security;
 
 import com.baldev.airline.common.web.RequestHeaders;
 import com.baldev.airline.gateway.security.AccessPolicy.Access;
-import com.baldev.airline.gateway.security.JwtVerifier.VerifiedToken;
+import com.baldev.airline.common.security.AccessTokenVerifier;
+import com.baldev.airline.common.security.AccessTokenVerifier.Reason;
+import com.baldev.airline.common.security.AccessTokenVerifier.Rejected;
+import com.baldev.airline.common.security.AccessTokenVerifier.VerifiedToken;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
@@ -19,7 +22,8 @@ import java.util.function.Function;
  * <ol>
  *   <li>Always removes client-supplied identity headers, so they can never be spoofed.</li>
  *   <li>Resolves the endpoint's access level from {@link AccessPolicy}.</li>
- *   <li>Validates the bearer token when required and enforces the role.</li>
+ *   <li>Validates the bearer token when required (RS256 against user-service's JWKS, issuer, audience, expiry,
+ *       revocation) and enforces the role.</li>
  *   <li>Forwards the verified identity to the service as {@link RequestHeaders} values.</li>
  * </ol>
  */
@@ -33,7 +37,7 @@ public class AuthenticationFilter implements Function<ServerRequest, ServerReque
     private static final String ROLE_AIRLINE_OWNER = "ROLE_AIRLINE_OWNER";
 
     private final AccessPolicy accessPolicy;
-    private final JwtVerifier jwtVerifier;
+    private final AccessTokenVerifier verifier;
 
     @Override
     public ServerRequest apply(ServerRequest request) {
@@ -46,9 +50,17 @@ public class AuthenticationFilter implements Function<ServerRequest, ServerReque
             return ServerRequest.from(request).headers(AuthenticationFilter::stripIdentity).build();
         }
 
-        VerifiedToken token = bearerToken(request)
-                .flatMap(jwtVerifier::verify)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Missing or invalid access token"));
+        VerifiedToken token;
+        try {
+            token = verifier.verify(bearerToken(request).orElse(null));
+        } catch (Rejected e) {
+            if (e.reason() == Reason.KEYS_UNAVAILABLE) {
+                // The issuer is down, not the client's token: ask for a retry instead of logging the user out.
+                throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "Authentication is temporarily unavailable");
+            }
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED,
+                    e.reason() == Reason.REVOKED ? "Access token has been revoked" : "Missing or invalid access token");
+        }
 
         boolean isAdmin = token.roles().contains(ROLE_ADMIN);
         boolean allowed = switch (access) {

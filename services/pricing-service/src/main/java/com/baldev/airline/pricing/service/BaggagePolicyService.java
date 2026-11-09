@@ -2,14 +2,14 @@ package com.baldev.airline.pricing.service;
 
 
 
-import com.baldev.airline.common.payload.request.BaggagePolicyRequest;
-import com.baldev.airline.common.payload.response.BaggagePolicyResponse;
-
+import com.baldev.airline.pricing.payload.request.BaggagePolicyRequest;
+import com.baldev.airline.pricing.payload.response.BaggagePolicyResponse;
 import java.util.List;
 
 public interface BaggagePolicyService {
 
-    BaggagePolicyResponse createBaggagePolicy(BaggagePolicyRequest request);
+    /** @param airlineId the airline that owns the fare (verified by the caller) */
+    BaggagePolicyResponse createBaggagePolicy(BaggagePolicyRequest request, Long airlineId);
     BaggagePolicyResponse getBaggagePolicyById(Long id);
     BaggagePolicyResponse getBaggagePolicyByFareId(Long fareId);
     List<BaggagePolicyResponse> getBaggagePoliciesByAirlineId(Long airlineId);

@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title th:text="${subject}">Booking confirmed</title>
+</head>
+<body style="margin:0;background:#f3f4f6;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+    <tr>
+        <td align="center" style="padding:24px 12px;">
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0"
+                   style="max-width:600px;background:#ffffff;border-radius:8px;overflow:hidden;">
+                <tr><td th:insert="~{email/fragments :: header}"></td></tr>
+                <tr>
+                    <td style="padding:24px;font-family:Arial,Helvetica,sans-serif;color:#111827;font-size:15px;line-height:1.5;">
+                        <p style="margin:0 0 4px;color:#6b7280;font-size:13px;">Booking reference</p>
+                        <p style="margin:0 0 20px;font-size:26px;font-weight:bold;letter-spacing:2px;" th:text="${reference}">ABC123</p>
+
+                        <table role="presentation" width="100%" cellpadding="0" cellspacing="0"
+                               style="border:1px solid #e5e7eb;border-radius:6px;margin-bottom:20px;">
+                            <tr>
+                                <td style="padding:12px 16px;">
+                                    <strong th:text="${airline + ' ' + flightNumber}">Baldev Airways BA101</strong>
+                                    <span th:if="${cabin != null}" th:text="${' · ' + cabin}" style="color:#6b7280;"> · Economy</span>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td style="padding:0 16px 12px;">
+                                    <div><span style="color:#6b7280;">From</span> <strong th:text="${from}">Mumbai (BOM)</strong></div>
+                                    <div th:text="${departure}">Mon 9 Nov 2026, 10:00 UTC</div>
+                                    <div style="margin-top:8px;"><span style="color:#6b7280;">To</span> <strong th:text="${to}">Delhi (DEL)</strong></div>
+                                    <div th:text="${arrival}">Mon 9 Nov 2026, 12:10 UTC</div>
+                                </td>
+                            </tr>
+                        </table>
+
+                        <p style="margin:0 0 8px;font-weight:bold;">Passengers and e-tickets</p>
+                        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:20px;">
+                            <tr th:each="p : ${passengers}">
+                                <td style="padding:6px 0;border-bottom:1px solid #f3f4f6;" th:text="${p.name}">Asha Rao</td>
+                                <td style="padding:6px 0;border-bottom:1px solid #f3f4f6;text-align:right;font-family:monospace;"
+                                    th:text="${p.ticket}">9990000000001</td>
+                            </tr>
+                        </table>
+
+                        <p style="margin:0 0 20px;">Total paid: <strong th:text="${total}">INR 4999.00</strong></p>
+                        <p style="margin:0 0 20px;">
+                            <a th:href="${tripUrl}"
+                               style="background:#0b3d91;color:#ffffff;padding:12px 20px;border-radius:6px;text-decoration:none;">View your trip</a>
+                        </p>
+                        <p style="margin:0;color:#6b7280;font-size:13px;">Times are in UTC. Please be at the airport
+                            at least two hours before departure with a valid photo ID.</p>
+                    </td>
+                </tr>
+                <tr><td th:insert="~{email/fragments :: footer}"></td></tr>
+            </table>
+        </td>
+    </tr>
+</table>
+</body>
+</html>

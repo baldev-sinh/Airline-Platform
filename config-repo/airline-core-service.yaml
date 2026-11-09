@@ -1,0 +1,9 @@
+# airline-core-service: airlines (admin-approved) and aircraft.
+airline:
+  cache:
+    ttl:
+      # Every write evicts after commit; the TTL only bounds staleness if an eviction is lost (Redis outage).
+      airlines: 30m
+      airlineByOwner: 10m
+      airlineDropdown: 10m
+      aircraft: 30m

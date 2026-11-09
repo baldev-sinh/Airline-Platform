@@ -1,0 +1,183 @@
+# Platform-wide configuration, served by config-server to every client (business services and api-gateway).
+#
+# Layout (later files win):
+#   application.yaml               this file: settings shared by every service
+#   application-<profile>.yaml     shared per environment (local, ...)
+#   <service>.yaml                 one service
+#   <service>-<profile>.yaml       one service in one environment
+#
+# Rules:
+#   - Never commit a secret here. Reference an environment variable (${DB_PASSWORD}) that the service resolves
+#     itself, or store an encrypted {cipher} value (needs ENCRYPT_KEY on config-server).
+#   - Secrets have no default outside the local profile, so a misconfigured deployment fails fast at startup.
+#   - Changes apply on restart, or live for @ConfigurationProperties beans via POST /actuator/refresh
+#     (management port only, never routed by the gateway).
+server:
+  shutdown: graceful
+
+spring:
+  lifecycle:
+    timeout-per-shutdown-phase: 30s
+  threads:
+    virtual:
+      enabled: true
+  web:
+    error:
+      include-stacktrace: never
+  mvc:
+    problemdetails:
+      enabled: true
+
+  # ------------------------------------------------------------------ persistence (services with a database)
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    hikari:
+      maximum-pool-size: ${DB_POOL_MAX_SIZE:10}
+      minimum-idle: 2
+      connection-timeout: 5000
+      max-lifetime: 1800000
+  jpa:
+    open-in-view: false
+    hibernate:
+      # Schema is owned by Flyway migrations (src/main/resources/db/migration); Hibernate only validates it.
+      ddl-auto: validate
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+          batch_size: 50
+        order_inserts: true
+        order_updates: true
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    # One-off, for a database created by the old `ddl-auto: update` whose schema already matches V1: start once
+    # with FLYWAY_BASELINE_ON_MIGRATE=true to mark it as V1 and apply V2+. Never leave it on (see docs).
+    baseline-on-migrate: ${FLYWAY_BASELINE_ON_MIGRATE:false}
+    baseline-version: 1
+
+  # ------------------------------------------------------------------ Kafka (services with spring-kafka)
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:29092}
+    producer:
+      # Durable, ordered, duplicate-free publishing per partition.
+      acks: all
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JacksonJsonSerializer
+      properties:
+        enable.idempotence: true
+        max.in.flight.requests.per.connection: 5
+        delivery.timeout.ms: 120000
+    consumer:
+      group-id: ${spring.application.name}
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      # ErrorHandlingDeserializer turns a malformed payload into a DLT record instead of a crash loop.
+      value-deserializer: org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
+      properties:
+        spring.deserializer.value.delegate.class: org.springframework.kafka.support.serializer.JacksonJsonDeserializer
+        spring.json.trusted.packages: com.baldev.airline.common.event
+        isolation.level: read_committed
+    listener:
+      ack-mode: record
+      observation-enabled: true
+    template:
+      observation-enabled: true
+
+  # ------------------------------------------------------------------ Redis (cache, rate limits, token revocation)
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      username: ${REDIS_USERNAME:}
+      password: ${REDIS_PASSWORD:}
+      ssl:
+        enabled: ${REDIS_SSL_ENABLED:false}
+      # Redis is an optimization: give up quickly and fall back to the database instead of queueing requests.
+      connect-timeout: 1s
+      timeout: 500ms
+      lettuce:
+        pool:
+          enabled: false
+
+  # ------------------------------------------------------------------ service-to-service HTTP
+  cloud:
+    openfeign:
+      client:
+        config:
+          default:
+            # Fail fast: a slow dependency must not exhaust this service's request threads.
+            connect-timeout: ${FEIGN_CONNECT_TIMEOUT_MS:2000}
+            read-timeout: ${FEIGN_READ_TIMEOUT_MS:5000}
+            logger-level: basic
+
+airline:
+  security:
+    # Access tokens are RS256 JWTs issued by user-service. The gateway AND every service verify them (signature
+    # with the issuer's published keys, issuer, audience, expiry, revocation) - identity headers alone are never
+    # trusted. Keys are fetched from user-service's JWKS document through Eureka and rotated by key id.
+    jwt:
+      issuer: ${JWT_ISSUER:airline-user-service}
+      audience: ${JWT_AUDIENCE:airline-api}
+      jwks-uri: ${JWT_JWKS_URI:http://user-service/.well-known/jwks.json}
+      jwks-max-age: 10m
+    service-auth:
+      # jwt: verify the bearer token in this service too (defence in depth). headers: trust gateway headers.
+      mode: ${SERVICE_AUTH_MODE:jwt}
+    revocation:
+      enabled: true
+      # Redis down: accept (true) or reject (false) tokens that cannot be checked; at most one access-token
+      # lifetime (15 min) of exposure versus logging every customer out.
+      fail-open: ${TOKEN_REVOCATION_FAIL_OPEN:true}
+  # Distributed cache defaults (services that declare CacheSpec beans). Per-cache TTLs in <service>.yaml.
+  cache:
+    enabled: ${CACHE_ENABLED:true}
+    default-ttl: 10m
+    # Bump after an incompatible change to a cached DTO; old entries are then ignored and expire.
+    key-version: "1"
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_URL:http://localhost:8761/eureka/}
+  instance:
+    prefer-ip-address: true
+    lease-renewal-interval-in-seconds: 10
+
+management:
+  endpoints:
+    web:
+      exposure:
+        # refresh re-binds @ConfigurationProperties after a config change. Actuator is never routed by the
+        # gateway (and lives on a private port there), so it is reachable only on the internal network.
+        include: health,info,prometheus,refresh
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: never
+  tracing:
+    sampling:
+      probability: ${TRACING_SAMPLING_PROBABILITY:0.1}
+    export:
+      enabled: ${TRACING_EXPORT_ENABLED:false}
+  opentelemetry:
+    tracing:
+      export:
+        otlp:
+          endpoint: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT:http://localhost:4318/v1/traces}
+  otlp:
+    metrics:
+      export:
+        enabled: false
+  observations:
+    key-values:
+      # Every metric is tagged with the service name so dashboards can tell services apart.
+      application: ${spring.application.name}
+
+logging:
+  level:
+    root: INFO
+    com.baldev.airline: INFO

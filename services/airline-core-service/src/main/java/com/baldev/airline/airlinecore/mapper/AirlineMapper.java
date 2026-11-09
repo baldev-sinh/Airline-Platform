@@ -3,9 +3,8 @@ package com.baldev.airline.airlinecore.mapper;
 
 import com.baldev.airline.common.embeddable.Support;
 import com.baldev.airline.airlinecore.model.Airline;
-import com.baldev.airline.common.payload.request.AirlineRequest;
-import com.baldev.airline.common.payload.response.AirlineResponse;
-
+import com.baldev.airline.airlinecore.payload.request.AirlineRequest;
+import com.baldev.airline.airlinecore.payload.response.AirlineResponse;
 public class AirlineMapper {
 
     public static Airline toEntity(AirlineRequest request, Long ownerId){

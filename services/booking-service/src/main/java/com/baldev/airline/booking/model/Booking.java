@@ -5,6 +5,7 @@ import org.hibernate.type.SqlTypes;
 import com.baldev.airline.common.embeddable.ContactInfo;
 import com.baldev.airline.common.enums.BookingStatus;
 import com.baldev.airline.common.enums.CabinClassType;
+import com.baldev.airline.common.enums.RefundStatus;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.UpdateTimestamp;
@@ -141,6 +142,19 @@ public class Booking {
     private Instant cancelledAt;
 
     private boolean ticketIssued;
+
+    // ---- Refund (cancelled ticketed bookings, or payments that arrived after cancellation) ----
+    @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.VARCHAR)
+    @Column(nullable = false, length = 20)
+    @Builder.Default
+    private RefundStatus refundStatus = RefundStatus.NONE;
+    @Column(precision = 12, scale = 2)
+    private BigDecimal refundAmount;
+    /** Provider refund id once processed (Razorpay rfnd_...). */
+    @Column(length = 64)
+    private String refundReference;
+    private Instant refundedAt;
 
     @Embedded
     private ContactInfo contactInfo;

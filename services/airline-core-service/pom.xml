@@ -13,4 +13,5 @@
     <artifactId>airline-core-service</artifactId>
     <name>airline-core-service</name>
     <description>Airline and aircraft master data.</description>
+    <!-- Common dependencies (incl. Redis cache) are inherited from services/pom.xml -->
 </project>

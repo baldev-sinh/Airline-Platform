@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.baldev</groupId>
+        <artifactId>cloud</artifactId>
+        <version>0.0.1-SNAPSHOT</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>config-server</artifactId>
+    <name>config-server</name>
+    <description>Spring Cloud Config server: centralized, versioned configuration for every service.</description>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-config-server</artifactId>
+        </dependency>
+        <dependency>
+            <!-- Clients authenticate with HTTP basic; configuration contains internal hostnames and tunables. -->
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-security</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-webmvc-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-security-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>com.google.cloud.tools</groupId>
+                <artifactId>jib-maven-plugin</artifactId>
+                <configuration>
+                    <!--
+                        config-repo/ from this repository is baked into the image at /config-repo, so the server works
+                        out of the box with the native backend. Production can point it at a Git repository instead
+                        (SPRING_PROFILES_ACTIVE=git, CONFIG_GIT_URI) to version configuration separately from code.
+                    -->
+                    <extraDirectories>
+                        <paths>
+                            <path>
+                                <from>${project.basedir}/../../config-repo</from>
+                                <into>/config-repo</into>
+                            </path>
+                        </paths>
+                    </extraDirectories>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>

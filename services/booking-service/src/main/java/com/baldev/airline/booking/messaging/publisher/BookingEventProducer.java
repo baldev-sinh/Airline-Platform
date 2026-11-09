@@ -2,43 +2,42 @@ package com.baldev.airline.booking.messaging.publisher;
 
 import com.baldev.airline.common.event.BookingCancelledEvent;
 import com.baldev.airline.common.event.BookingConfirmedEvent;
+import com.baldev.airline.common.event.BookingRefundedEvent;
+import com.baldev.airline.common.event.RefundRequestedEvent;
 import com.baldev.airline.common.kafka.KafkaTopics;
+import com.baldev.airline.common.outbox.OutboxPublisher;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.event.TransactionPhase;
-import org.springframework.transaction.event.TransactionalEventListener;
 
 /**
- * Publishes booking lifecycle events after the state change commits, keyed by booking id.
- * (Known gap shared with payment-service: a crash between commit and send loses the event; a transactional
- * outbox closes it. Consumers are idempotent, so adding one later is safe.)
+ * Records booking lifecycle events in the transactional outbox, keyed by booking id. Runs synchronously inside
+ * the transaction that changed the booking, so the event commits (or rolls back) with it; the outbox relay
+ * publishes it to Kafka after commit. Publishing outside a transaction fails loudly (OutboxPublisher).
  */
-@Slf4j
 @Component
 @RequiredArgsConstructor
 public class BookingEventProducer {
 
-    private final KafkaTemplate<String, Object> kafkaTemplate;
+    private final OutboxPublisher outbox;
 
-    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    @EventListener
     public void onBookingConfirmed(BookingConfirmedEvent event) {
-        send(KafkaTopics.BOOKING_CONFIRMED, event.getBookingId(), event);
+        outbox.publish(KafkaTopics.BOOKING_CONFIRMED, String.valueOf(event.getBookingId()), event);
     }
 
-    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    @EventListener
     public void onBookingCancelled(BookingCancelledEvent event) {
-        send(KafkaTopics.BOOKING_CANCELLED, event.getBookingId(), event);
+        outbox.publish(KafkaTopics.BOOKING_CANCELLED, String.valueOf(event.getBookingId()), event);
     }
 
-    private void send(String topic, Long bookingId, Object event) {
-        kafkaTemplate.send(topic, String.valueOf(bookingId), event).whenComplete((result, ex) -> {
-            if (ex != null) {
-                log.error("Failed to publish {} for bookingId={}", topic, bookingId, ex);
-            } else {
-                log.info("Published {} for bookingId={}", topic, bookingId);
-            }
-        });
+    @EventListener
+    public void onRefundRequested(RefundRequestedEvent event) {
+        outbox.publish(KafkaTopics.REFUND_REQUESTED, String.valueOf(event.getBookingId()), event);
+    }
+
+    @EventListener
+    public void onBookingRefunded(BookingRefundedEvent event) {
+        outbox.publish(KafkaTopics.BOOKING_REFUNDED, String.valueOf(event.getBookingId()), event);
     }
 }

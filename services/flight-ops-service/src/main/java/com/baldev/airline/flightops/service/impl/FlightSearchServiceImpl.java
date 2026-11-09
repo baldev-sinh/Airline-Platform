@@ -2,19 +2,18 @@ package com.baldev.airline.flightops.service.impl;
 
 import com.baldev.airline.common.exception.ResourceNotFoundException;
 import java.math.BigDecimal;
-import java.math.BigDecimal;
 
-import com.baldev.airline.flightops.client.AirlineClient;
-import com.baldev.airline.flightops.client.LocationClient;
 import com.baldev.airline.flightops.client.PricingClient;
 import com.baldev.airline.flightops.client.SeatClient;
-import com.baldev.airline.flightops.mapper.FlightInstanceMapper;
 import com.baldev.airline.flightops.model.FlightInstance;
-import com.baldev.airline.common.payload.request.FlightSearchRequest;
-import com.baldev.airline.common.payload.response.*;
+import com.baldev.airline.flightops.payload.request.FlightSearchRequest;
+import com.baldev.airline.flightops.client.dto.CabinClassResponse;
+import com.baldev.airline.flightops.client.dto.FareResponse;
+import com.baldev.airline.flightops.payload.response.FlightInstanceResponse;
 import com.baldev.airline.flightops.repository.FlightInstanceRepository;
 import com.baldev.airline.flightops.service.FlightSearchService;
 import com.baldev.airline.flightops.service.specification.FlightInstanceSpecification;
+import com.baldev.airline.flightops.service.support.FlightResponseAssembler;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.*;
 import org.springframework.data.jpa.domain.JpaSort;
@@ -30,8 +29,7 @@ public class FlightSearchServiceImpl implements FlightSearchService {
     private final FlightInstanceRepository flightInstanceRepository;
     private final PricingClient pricingClient;
     private final SeatClient seatClient;
-    private final AirlineClient airlineClient;
-    private final LocationClient locationClient;
+    private final FlightResponseAssembler assembler;
 
     @Override
     public Page<FlightInstanceResponse> searchFlights(
@@ -106,34 +104,12 @@ public class FlightSearchServiceImpl implements FlightSearchService {
     private List<FlightInstanceResponse> enrichWithExternalData(
             List<FlightInstance> instances,
             Map<Long, FareResponse> fareMap) {
-
-        Map<Long, AirlineResponse> airlineCache=new HashMap<>();
-        Map<Long, AirportResponse> airportCache= new HashMap<>();
-        Map<Long, AircraftResponse> aircraftCache= new HashMap<>();
-
-        List<FlightInstanceResponse> results=new ArrayList<>(instances.size());
-
-        for(FlightInstance fi:instances){
-            AircraftResponse aircraft=aircraftCache.computeIfAbsent(
-                    fi.getFlight().getAircraftId(),airlineClient::getAircraftById
-            );
-
-            AirlineResponse airline = airlineCache.computeIfAbsent(
-                    fi.getAirlineId(), airlineClient::getAirlineById);
-
-            AirportResponse depAirport = airportCache.computeIfAbsent(
-                    fi.getDepartureAirportId(), locationClient::getAirportById);
-
-            AirportResponse arrAirport = airportCache.computeIfAbsent(
-                    fi.getArrivalAirportId(), locationClient::getAirportById);
-
-            FlightInstanceResponse response= FlightInstanceMapper.toResponse(
-                    fi,aircraft,airline,depAirport,arrAirport
-            );
-            response.setFare(fareMap.get(fi.getFlight().getId()));
-            results.add(response);
+        // Airline/aircraft/airport details only decorate results: if those services are down the page is
+        // still served, marked partial (see ReferenceData). One lookup per distinct id for the whole page.
+        List<FlightInstanceResponse> results = assembler.toInstanceResponses(instances);
+        for (FlightInstanceResponse response : results) {
+            response.setFare(fareMap.get(response.getFlightId()));
         }
-
         return results;
     }
 

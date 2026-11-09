@@ -1,82 +1,26 @@
-# API gateway: the only component exposed to clients. Validates JWTs, enforces coarse-grained authorization
-# (see AccessPolicy), strips spoofable identity headers and routes to services discovered via Eureka.
+# Bootstrap configuration only. Everything else is served by config-server from config-repo/
+# (application.yaml for platform-wide settings, api-gateway.yaml for this service, plus <name>-<profile>.yaml).
+# Secrets are never stored there: they come from this service's environment (see README, Configuration).
 server:
   port: ${SERVER_PORT:5000}
-  shutdown: graceful
 
 spring:
   application:
     name: api-gateway
-  lifecycle:
-    timeout-per-shutdown-phase: 30s
-  threads:
-    virtual:
-      enabled: true
-  web:
-    error:
-      # Moved from server.error.* in Spring Boot 4; the old key is no longer read.
-      include-stacktrace: never
-  mvc:
-    problemdetails:
-      enabled: true
-  http:
-    clients:
-      # Timeouts for proxied calls to backend services.
-      connect-timeout: 2s
-      read-timeout: 15s
-
-airline:
-  security:
-    jwt:
-      # Must match user-service. At least 32 bytes. Inject from a secret store; there is no default.
-      secret: ${JWT_SECRET}
-      issuer: ${JWT_ISSUER:airline-user-service}
-  cors:
-    # Comma-separated list of browser origins allowed to call the API.
-    allowed-origins: ${CORS_ALLOWED_ORIGINS:}
-
-eureka:
-  client:
-    service-url:
-      defaultZone: ${EUREKA_URL:http://localhost:8761/eureka/}
-  instance:
-    prefer-ip-address: true
-    lease-renewal-interval-in-seconds: 10
-
-management:
-  # Probes and metrics on a separate port that is never published, so the public port 5000 serves only
-  # routed API traffic (otherwise /actuator/prometheus would expose request paths and timings to anyone).
-  server:
-    port: ${MANAGEMENT_PORT:5100}
-  endpoints:
-    web:
-      exposure:
-        include: health,info,prometheus
-  endpoint:
-    health:
-      probes:
-        enabled: true
-      show-details: never
-  tracing:
-    sampling:
-      probability: ${TRACING_SAMPLING_PROBABILITY:0.1}
-    export:
-      enabled: ${TRACING_EXPORT_ENABLED:false}
-  opentelemetry:
-    tracing:
-      export:
-        otlp:
-          endpoint: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT:http://localhost:4318/v1/traces}
-  otlp:
-    metrics:
-      export:
-        enabled: false
-  observations:
-    key-values:
-      # Every metric is tagged with the service name, like the business services, so dashboards can tell them apart.
-      application: ${spring.application.name}
-
-logging:
-  level:
-    root: INFO
-    com.baldev.airline: INFO
+  config:
+    # Required, not optional: without its central configuration the service must not start half-configured.
+    import: ${CONFIG_IMPORT:configserver:}
+  cloud:
+    config:
+      uri: ${CONFIG_SERVER_URL:http://localhost:8888}
+      username: ${CONFIG_SERVER_USERNAME:config}
+      password: ${CONFIG_SERVER_PASSWORD}
+      fail-fast: true
+      # The config server may still be starting (Compose, Kubernetes rollouts): retry for about a minute.
+      retry:
+        initial-interval: 1000
+        multiplier: 1.5
+        max-interval: 10000
+        max-attempts: 12
+      request-connect-timeout: 3000
+      request-read-timeout: 5000

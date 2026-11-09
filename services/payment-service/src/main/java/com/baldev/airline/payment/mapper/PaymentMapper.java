@@ -1,6 +1,6 @@
 package com.baldev.airline.payment.mapper;
 
-import com.baldev.airline.common.payload.dto.PaymentDTO;
+import com.baldev.airline.payment.payload.dto.PaymentDTO;
 import com.baldev.airline.payment.model.Payment;
 
 import java.time.Instant;

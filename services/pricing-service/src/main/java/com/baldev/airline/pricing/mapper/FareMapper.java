@@ -5,9 +5,8 @@ import com.baldev.airline.common.util.Money;
 
 import com.baldev.airline.common.embeddable.*;
 import com.baldev.airline.pricing.model.Fare;
-import com.baldev.airline.common.payload.request.FareRequest;
-import com.baldev.airline.common.payload.response.FareResponse;
-
+import com.baldev.airline.pricing.payload.request.FareRequest;
+import com.baldev.airline.pricing.payload.response.FareResponse;
 public class FareMapper {
 
     public static Fare toEntity(FareRequest request){

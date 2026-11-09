@@ -4,12 +4,11 @@ package com.baldev.airline.flightops.mapper;
 import com.baldev.airline.common.enums.FlightStatus;
 import com.baldev.airline.flightops.model.Flight;
 import com.baldev.airline.flightops.model.FlightInstance;
-import com.baldev.airline.common.payload.request.FlightInstanceRequest;
-import com.baldev.airline.common.payload.response.AircraftResponse;
-import com.baldev.airline.common.payload.response.AirlineResponse;
-import com.baldev.airline.common.payload.response.AirportResponse;
-import com.baldev.airline.common.payload.response.FlightInstanceResponse;
-
+import com.baldev.airline.flightops.payload.request.FlightInstanceRequest;
+import com.baldev.airline.flightops.client.dto.AircraftResponse;
+import com.baldev.airline.flightops.client.dto.AirlineResponse;
+import com.baldev.airline.flightops.client.dto.AirportResponse;
+import com.baldev.airline.flightops.payload.response.FlightInstanceResponse;
 public class FlightInstanceMapper {
 
     public static FlightInstance toEntity(FlightInstanceRequest request, Flight flight) {

@@ -1,7 +1,7 @@
 package com.baldev.airline.location.service;
 
-import com.baldev.airline.common.payload.request.CityRequest;
-import com.baldev.airline.common.payload.response.CityResponse;
+import com.baldev.airline.location.payload.request.CityRequest;
+import com.baldev.airline.location.payload.response.CityResponse;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 

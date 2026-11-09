@@ -1,9 +1,8 @@
 package com.baldev.airline.seat.service;
 
 
-import com.baldev.airline.common.payload.request.SeatMapRequest;
-import com.baldev.airline.common.payload.response.SeatMapResponse;
-
+import com.baldev.airline.seat.payload.request.SeatMapRequest;
+import com.baldev.airline.seat.payload.response.SeatMapResponse;
 public interface SeatMapService {
 
     SeatMapResponse createSeatMap(Long userId, SeatMapRequest request);

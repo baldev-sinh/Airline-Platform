@@ -3,9 +3,8 @@ package com.baldev.airline.pricing.mapper;
 
 import com.baldev.airline.pricing.model.Fare;
 import com.baldev.airline.pricing.model.FareRules;
-import com.baldev.airline.common.payload.request.FareRulesRequest;
-import com.baldev.airline.common.payload.response.FareRulesResponse;
-
+import com.baldev.airline.pricing.payload.request.FareRulesRequest;
+import com.baldev.airline.pricing.payload.response.FareRulesResponse;
 public class FareRuleMapper {
 
     public static FareRules toEntity(FareRulesRequest request, Fare fare){

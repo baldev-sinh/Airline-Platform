@@ -26,6 +26,9 @@ export type UserRole = 'ROLE_USER' | 'ROLE_AIRLINE_OWNER' | 'ROLE_SYSTEM_ADMIN';
 export type CabinClassType = 'ECONOMY' | 'PREMIUM_ECONOMY' | 'BUSINESS' | 'FIRST';
 export type Gender = 'MALE' | 'FEMALE' | 'OTHER';
 export type BookingStatus = 'PENDING' | 'CONFIRMED' | 'CANCELLED' | 'COMPLETED';
+
+/** Where the money of a cancelled ticketed booking stands. */
+export type RefundStatus = 'NONE' | 'PENDING' | 'REFUNDED' | 'FAILED';
 export type PaymentStatus =
   'PENDING' | 'SUCCESS' | 'FAILED' | 'CANCELLED' | 'REFUNDED' | 'PROCESSING';
 export type SeatAvailabilityStatus = 'AVAILABLE' | 'HELD' | 'BOOKED' | 'OCCUPIED' | 'BLOCKED';
@@ -72,10 +75,15 @@ export interface User {
 
 /** AuthResponse */
 export interface AuthResponse {
+  /** Short-lived access token (15 min), sent as "Authorization: Bearer". */
   jwt: string;
   message: string | null;
   title: string | null;
   user: User;
+  /** Single-use: exchanged at POST /auth/refresh for a new pair. Older backends do not send it. */
+  refreshToken?: string | null;
+  accessTokenExpiresAt?: string | null;
+  refreshTokenExpiresAt?: string | null;
 }
 
 // ---------- Locations ----------
@@ -358,6 +366,10 @@ export interface Booking {
   isUpcoming: boolean | null;
   isPast: boolean | null;
   cancellationReason: string | null;
+  /** Older backends do not send the refund fields. */
+  refundStatus?: RefundStatus | null;
+  refundAmount?: number | null;
+  refundedAt?: string | null;
   contactInfo: ContactInfo | null;
 }
 

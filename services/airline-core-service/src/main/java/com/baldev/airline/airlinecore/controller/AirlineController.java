@@ -4,10 +4,10 @@ import com.baldev.airline.common.exception.ForbiddenException;
 import com.baldev.airline.common.web.CurrentUser;
 
 import com.baldev.airline.common.enums.AirlineStatus;
-import com.baldev.airline.common.payload.request.AirlineRequest;
-import com.baldev.airline.common.payload.response.AirlineDropdownItem;
-import com.baldev.airline.common.payload.response.AirlineResponse;
-import com.baldev.airline.common.payload.response.ApiResponse;
+import com.baldev.airline.airlinecore.payload.request.AirlineRequest;
+import com.baldev.airline.airlinecore.payload.response.AirlineDropdownItem;
+import com.baldev.airline.airlinecore.payload.response.AirlineResponse;
+import com.baldev.airline.common.web.ApiResponse;
 import com.baldev.airline.airlinecore.service.AirlineService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;

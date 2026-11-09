@@ -1,0 +1,16 @@
+# notification-service, local profile. Mails go to Mailpit (docker-compose): inbox at http://localhost:8025.
+spring:
+  datasource:
+    url: ${DB_URL:jdbc:mysql://localhost:3312/airline_notification_db}
+  mail:
+    host: ${SMTP_HOST:localhost}
+    port: ${SMTP_PORT:1025}
+    properties:
+      mail.smtp.auth: false
+      mail.smtp.starttls.enable: false
+      mail.smtp.starttls.required: false
+
+airline:
+  notification:
+    from: ${NOTIFICATION_FROM:no-reply@airline.local}
+    site-url: ${PUBLIC_BASE_URL:http://localhost:5173}

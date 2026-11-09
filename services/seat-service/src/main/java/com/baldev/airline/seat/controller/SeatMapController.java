@@ -1,9 +1,12 @@
 package com.baldev.airline.seat.controller;
 
 
-import com.baldev.airline.common.payload.request.SeatMapRequest;
-import com.baldev.airline.common.payload.response.ApiResponse;
-import com.baldev.airline.common.payload.response.SeatMapResponse;
+import com.baldev.airline.common.web.CurrentUser;
+import com.baldev.airline.seat.service.CabinClassService;
+import com.baldev.airline.seat.service.support.SeatOwnership;
+import com.baldev.airline.seat.payload.request.SeatMapRequest;
+import com.baldev.airline.common.web.ApiResponse;
+import com.baldev.airline.seat.payload.response.SeatMapResponse;
 import com.baldev.airline.seat.service.SeatMapService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -17,16 +20,19 @@ import org.springframework.web.bind.annotation.*;
 public class SeatMapController {
 
     private final SeatMapService seatMapService;
+    private final CabinClassService cabinClassService;
+    private final SeatOwnership ownership;
 
 
     @PostMapping
     public ResponseEntity<SeatMapResponse> createSeatMap(
-            @Valid @RequestBody SeatMapRequest seatMapRequest,
-            @RequestHeader("X-User-Id") Long userId
+            @Valid @RequestBody SeatMapRequest seatMapRequest, CurrentUser user
     ) {
+        // The seat map is stored under the caller's airline; the cabin it describes must be theirs too.
+        ownership.requireOwnedAircraft(user, cabinClassService.getCabinClassById(seatMapRequest.getCabinClassId()).getAircraftId());
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(
-                        seatMapService.createSeatMap(userId, seatMapRequest)
+                        seatMapService.createSeatMap(user.id(), seatMapRequest)
                 );
     }
 
@@ -45,12 +51,14 @@ public class SeatMapController {
     @PutMapping("/{id}")
     public ResponseEntity<SeatMapResponse> updateSeatMap(
             @PathVariable Long id,
-            @RequestBody SeatMapRequest request) {
+            @RequestBody SeatMapRequest request, CurrentUser user) {
+        ownership.requireAirline(user, seatMapService.getSeatMapById(id).getAirlineId(), "Seat map", id);
         return ResponseEntity.ok(seatMapService.updateSeatMap(id, request));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<ApiResponse> deleteSeatMap(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse> deleteSeatMap(@PathVariable Long id, CurrentUser user) {
+        ownership.requireAirline(user, seatMapService.getSeatMapById(id).getAirlineId(), "Seat map", id);
         seatMapService.deleteSeatMap(id);
         ApiResponse response = new ApiResponse("Seat Map Deleted");
         return ResponseEntity.ok(response);

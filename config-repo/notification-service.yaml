@@ -1,0 +1,32 @@
+# notification-service: customer e-mails and the in-app inbox, driven by Kafka events.
+spring:
+  mail:
+    host: ${SMTP_HOST}
+    port: ${SMTP_PORT:587}
+    username: ${SMTP_USERNAME:}
+    password: ${SMTP_PASSWORD:}
+    properties:
+      mail.smtp.auth: ${SMTP_AUTH:true}
+      mail.smtp.starttls.enable: ${SMTP_STARTTLS:true}
+      mail.smtp.starttls.required: ${SMTP_STARTTLS:true}
+      # Never let a slow mail server hold a Kafka consumer thread: give up, the retry job tries again later.
+      mail.smtp.connectiontimeout: 5000
+      mail.smtp.timeout: 5000
+      mail.smtp.writetimeout: 5000
+
+airline:
+  notification:
+    from: ${NOTIFICATION_FROM}
+    # Public address of the web app, for links in e-mails.
+    site-url: ${PUBLIC_BASE_URL}
+    email-enabled: ${NOTIFICATION_EMAIL_ENABLED:true}
+    max-attempts: 6
+    retry-interval: 1m
+    # Notifications hold personal data (names, itineraries): deleted after this long.
+    retention: 180d
+
+management:
+  health:
+    mail:
+      # An SMTP outage must not take the service out of rotation: e-mails are queued and retried.
+      enabled: false

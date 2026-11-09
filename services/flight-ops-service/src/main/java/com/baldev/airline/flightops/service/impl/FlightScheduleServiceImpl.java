@@ -2,8 +2,8 @@ package com.baldev.airline.flightops.service.impl;
 
 import com.baldev.airline.common.exception.BusinessRuleException;
 import com.baldev.airline.common.exception.ResourceNotFoundException;
-import com.baldev.airline.common.payload.request.FlightScheduleRequest;
-import com.baldev.airline.common.payload.response.FlightScheduleResponse;
+import com.baldev.airline.flightops.payload.request.FlightScheduleRequest;
+import com.baldev.airline.flightops.payload.response.FlightScheduleResponse;
 import com.baldev.airline.flightops.mapper.FlightScheduleMapper;
 import com.baldev.airline.flightops.model.Flight;
 import com.baldev.airline.flightops.model.FlightSchedule;

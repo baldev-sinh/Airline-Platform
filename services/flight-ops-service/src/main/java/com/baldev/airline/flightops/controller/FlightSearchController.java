@@ -3,8 +3,8 @@ package com.baldev.airline.flightops.controller;
 import java.math.BigDecimal;
 
 import com.baldev.airline.common.enums.CabinClassType;
-import com.baldev.airline.common.payload.request.FlightSearchRequest;
-import com.baldev.airline.common.payload.response.FlightInstanceResponse;
+import com.baldev.airline.flightops.payload.request.FlightSearchRequest;
+import com.baldev.airline.flightops.payload.response.FlightInstanceResponse;
 import com.baldev.airline.flightops.service.FlightSearchService;
 import lombok.RequiredArgsConstructor;
 

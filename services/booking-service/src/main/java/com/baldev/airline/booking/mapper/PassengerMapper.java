@@ -1,9 +1,8 @@
 package com.baldev.airline.booking.mapper;
 
 import com.baldev.airline.booking.model.Passenger;
-import com.baldev.airline.common.payload.request.PassengerRequest;
-import com.baldev.airline.common.payload.response.PassengerResponse;
-
+import com.baldev.airline.booking.payload.request.PassengerRequest;
+import com.baldev.airline.booking.payload.response.PassengerResponse;
 public final class PassengerMapper {
 
     private PassengerMapper() {

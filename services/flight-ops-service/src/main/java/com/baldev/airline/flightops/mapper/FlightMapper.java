@@ -1,9 +1,11 @@
 package com.baldev.airline.flightops.mapper;
 
 import com.baldev.airline.flightops.model.Flight;
-import com.baldev.airline.common.payload.request.FlightRequest;
-import com.baldev.airline.common.payload.response.*;
-
+import com.baldev.airline.flightops.payload.request.FlightRequest;
+import com.baldev.airline.flightops.client.dto.AircraftResponse;
+import com.baldev.airline.flightops.client.dto.AirlineResponse;
+import com.baldev.airline.flightops.client.dto.AirportResponse;
+import com.baldev.airline.flightops.payload.response.FlightResponse;
 public class FlightMapper {
 
     public static Flight toEntity(FlightRequest request){

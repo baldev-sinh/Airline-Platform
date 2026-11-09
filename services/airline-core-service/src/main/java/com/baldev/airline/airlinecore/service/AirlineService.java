@@ -2,9 +2,9 @@ package com.baldev.airline.airlinecore.service;
 
 
 import com.baldev.airline.common.enums.AirlineStatus;
-import com.baldev.airline.common.payload.request.AirlineRequest;
-import com.baldev.airline.common.payload.response.AirlineDropdownItem;
-import com.baldev.airline.common.payload.response.AirlineResponse;
+import com.baldev.airline.airlinecore.payload.request.AirlineRequest;
+import com.baldev.airline.airlinecore.payload.response.AirlineDropdownItem;
+import com.baldev.airline.airlinecore.payload.response.AirlineResponse;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 

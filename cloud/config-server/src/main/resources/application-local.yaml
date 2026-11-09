@@ -1,0 +1,11 @@
+# Local development profile (scripts/start-local.ps1). Never use in production.
+spring:
+  security:
+    user:
+      password: ${CONFIG_SERVER_PASSWORD:local-config-password}
+  cloud:
+    config:
+      server:
+        native:
+          # start-local.ps1 sets CONFIG_REPO_LOCATION to an absolute path; this default assumes the repo root as cwd.
+          search-locations: ${CONFIG_REPO_LOCATION:file:./config-repo/}

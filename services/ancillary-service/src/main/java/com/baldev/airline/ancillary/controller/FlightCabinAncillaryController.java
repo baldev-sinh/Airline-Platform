@@ -1,8 +1,11 @@
 package com.baldev.airline.ancillary.controller;
 
+import com.baldev.airline.common.web.CurrentUser;
+import com.baldev.airline.ancillary.service.AncillaryService;
+import com.baldev.airline.ancillary.service.support.AncillaryOwnership;
 import com.baldev.airline.common.enums.AncillaryType;
-import com.baldev.airline.common.payload.request.FlightCabinAncillaryRequest;
-import com.baldev.airline.common.payload.response.FlightCabinAncillaryResponse;
+import com.baldev.airline.ancillary.payload.request.FlightCabinAncillaryRequest;
+import com.baldev.airline.ancillary.payload.response.FlightCabinAncillaryResponse;
 import com.baldev.airline.ancillary.service.FlightCabinAncillaryService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -18,10 +21,15 @@ import java.util.List;
 public class FlightCabinAncillaryController {
 
     private final FlightCabinAncillaryService service;
+    private final AncillaryService ancillaryService;
+    private final AncillaryOwnership ownership;
 
     @PostMapping
     public ResponseEntity<FlightCabinAncillaryResponse> createFlightCabinAncillary(
-            @Valid @RequestBody FlightCabinAncillaryRequest request) {
+            @Valid @RequestBody FlightCabinAncillaryRequest request, CurrentUser user) {
+        ownership.requireOwnedFlight(user, request.getFlightId());
+        ownership.requireAirline(user, ancillaryService.getById(request.getAncillaryId()).getAirlineId(),
+                "Ancillary", request.getAncillaryId());
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(service.create(request));
     }
@@ -59,12 +67,17 @@ public class FlightCabinAncillaryController {
     @PutMapping("/{id}")
     public ResponseEntity<FlightCabinAncillaryResponse> update(
             @PathVariable Long id,
-            @RequestBody FlightCabinAncillaryRequest request) {
+            @RequestBody FlightCabinAncillaryRequest request, CurrentUser user) {
+        ownership.requireOwnedFlight(user, service.getById(id).getFlightId());
+        if (request.getFlightId() != null) {
+            ownership.requireOwnedFlight(user, request.getFlightId());
+        }
         return ResponseEntity.ok(service.update(id, request));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable Long id) {
+    public ResponseEntity<Void> delete(@PathVariable Long id, CurrentUser user) {
+        ownership.requireOwnedFlight(user, service.getById(id).getFlightId());
         service.delete(id);
         return ResponseEntity.noContent().build();
     }

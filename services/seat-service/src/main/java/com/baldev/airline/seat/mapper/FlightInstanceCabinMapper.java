@@ -2,8 +2,7 @@ package com.baldev.airline.seat.mapper;
 
 
 import com.baldev.airline.seat.model.FlightInstanceCabin;
-import com.baldev.airline.common.payload.response.FlightInstanceCabinResponse;
-
+import com.baldev.airline.seat.payload.response.FlightInstanceCabinResponse;
 import java.util.stream.Collectors;
 
 public class FlightInstanceCabinMapper {

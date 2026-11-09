@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<body>
+<!-- Shared e-mail chrome. Inline styles only: most mail clients drop <style> blocks and external CSS. -->
+<table th:fragment="header" role="presentation" width="100%" cellpadding="0" cellspacing="0"
+       style="background:#0b3d91;color:#ffffff;font-family:Arial,Helvetica,sans-serif;">
+    <tr>
+        <td style="padding:20px 24px;font-size:20px;font-weight:bold;" th:text="${brand}">Baldev Airways</td>
+    </tr>
+</table>
+
+<table th:fragment="footer" role="presentation" width="100%" cellpadding="0" cellspacing="0"
+       style="font-family:Arial,Helvetica,sans-serif;color:#6b7280;font-size:12px;">
+    <tr>
+        <td style="padding:16px 24px;border-top:1px solid #e5e7eb;">
+            You receive this e-mail because of a booking or account at
+            <a th:href="${siteUrl}" th:text="${brand}" style="color:#0b3d91;">Baldev Airways</a>.
+            This is an automated message; replies are not read.
+        </td>
+    </tr>
+</table>
+</body>
+</html>

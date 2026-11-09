@@ -1,7 +1,7 @@
 package com.baldev.airline.flightops.controller;
 
-import com.baldev.airline.common.payload.request.FlightInstanceRequest;
-import com.baldev.airline.common.payload.response.FlightInstanceResponse;
+import com.baldev.airline.flightops.payload.request.FlightInstanceRequest;
+import com.baldev.airline.flightops.payload.response.FlightInstanceResponse;
 import com.baldev.airline.common.web.CurrentUser;
 import com.baldev.airline.flightops.service.FlightInstanceService;
 import jakarta.validation.Valid;

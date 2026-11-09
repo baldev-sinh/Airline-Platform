@@ -1,7 +1,7 @@
 package com.baldev.airline.flightops.controller;
 
-import com.baldev.airline.common.payload.request.FlightScheduleRequest;
-import com.baldev.airline.common.payload.response.FlightScheduleResponse;
+import com.baldev.airline.flightops.payload.request.FlightScheduleRequest;
+import com.baldev.airline.flightops.payload.response.FlightScheduleResponse;
 import com.baldev.airline.common.web.CurrentUser;
 import com.baldev.airline.flightops.service.FlightScheduleService;
 import jakarta.validation.Valid;

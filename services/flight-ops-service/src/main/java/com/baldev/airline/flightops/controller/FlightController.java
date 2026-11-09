@@ -1,8 +1,8 @@
 package com.baldev.airline.flightops.controller;
 
 import com.baldev.airline.common.enums.FlightStatus;
-import com.baldev.airline.common.payload.request.FlightRequest;
-import com.baldev.airline.common.payload.response.FlightResponse;
+import com.baldev.airline.flightops.payload.request.FlightRequest;
+import com.baldev.airline.flightops.payload.response.FlightResponse;
 import com.baldev.airline.common.web.CurrentUser;
 import com.baldev.airline.flightops.service.FlightService;
 import jakarta.validation.Valid;

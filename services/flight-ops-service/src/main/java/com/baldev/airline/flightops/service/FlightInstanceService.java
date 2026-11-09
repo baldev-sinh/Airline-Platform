@@ -1,7 +1,7 @@
 package com.baldev.airline.flightops.service;
 
-import com.baldev.airline.common.payload.request.FlightInstanceRequest;
-import com.baldev.airline.common.payload.response.FlightInstanceResponse;
+import com.baldev.airline.flightops.payload.request.FlightInstanceRequest;
+import com.baldev.airline.flightops.payload.response.FlightInstanceResponse;
 import com.baldev.airline.flightops.model.Flight;
 import com.baldev.airline.flightops.model.FlightInstance;
 import org.springframework.data.domain.Page;

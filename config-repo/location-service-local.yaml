@@ -1,0 +1,4 @@
+# location-service, local profile. Database from docker-compose/docker-compose.yml.
+spring:
+  datasource:
+    url: ${DB_URL:jdbc:mysql://localhost:3305/airline_location_db}

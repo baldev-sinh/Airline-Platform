@@ -3,8 +3,7 @@ package com.baldev.airline.seat.mapper;
 
 import com.baldev.airline.common.enums.SeatAvailabilityStatus;
 import com.baldev.airline.seat.model.SeatInstance;
-import com.baldev.airline.common.payload.response.SeatInstanceResponse;
-
+import com.baldev.airline.seat.payload.response.SeatInstanceResponse;
 public class SeatInstanceMapper {
 
     public static SeatInstanceResponse toResponse(SeatInstance si) {

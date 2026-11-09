@@ -2,8 +2,8 @@ package com.baldev.airline.ancillary.controller.internal;
 
 import com.baldev.airline.ancillary.service.FlightCabinAncillaryService;
 import com.baldev.airline.ancillary.service.FlightMealService;
-import com.baldev.airline.common.payload.request.PriceQuoteRequest;
-import com.baldev.airline.common.payload.response.PriceQuoteResponse;
+import com.baldev.airline.ancillary.payload.request.PriceQuoteRequest;
+import com.baldev.airline.ancillary.payload.response.PriceQuoteResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.PostMapping;

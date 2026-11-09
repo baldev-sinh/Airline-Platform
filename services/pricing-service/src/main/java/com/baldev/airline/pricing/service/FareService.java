@@ -2,9 +2,8 @@ package com.baldev.airline.pricing.service;
 
 
 import com.baldev.airline.pricing.model.Fare;
-import com.baldev.airline.common.payload.request.FareRequest;
-import com.baldev.airline.common.payload.response.FareResponse;
-
+import com.baldev.airline.pricing.payload.request.FareRequest;
+import com.baldev.airline.pricing.payload.response.FareResponse;
 import java.util.List;
 import java.util.Map;
 

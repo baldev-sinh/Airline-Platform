@@ -1,0 +1,17 @@
+# Git backend (SPRING_PROFILES_ACTIVE=git). The repository has the same layout as config-repo/.
+spring:
+  cloud:
+    config:
+      server:
+        git:
+          uri: ${CONFIG_GIT_URI}
+          default-label: ${CONFIG_GIT_LABEL:main}
+          search-paths: ${CONFIG_GIT_SEARCH_PATHS:}
+          username: ${CONFIG_GIT_USERNAME:}
+          password: ${CONFIG_GIT_PASSWORD:}
+          # Clone at startup so a wrong URI or credentials fail the readiness probe, not the first client.
+          clone-on-start: true
+          force-pull: true
+          timeout: 10
+          # Fetch at most every 30 s; clients pick changes up on restart or POST /actuator/refresh.
+          refresh-rate: 30

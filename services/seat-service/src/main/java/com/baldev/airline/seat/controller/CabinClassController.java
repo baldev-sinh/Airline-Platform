@@ -1,9 +1,11 @@
 package com.baldev.airline.seat.controller;
 
 
+import com.baldev.airline.common.web.CurrentUser;
+import com.baldev.airline.seat.service.support.SeatOwnership;
 import com.baldev.airline.common.enums.CabinClassType;
-import com.baldev.airline.common.payload.request.CabinClassRequest;
-import com.baldev.airline.common.payload.response.CabinClassResponse;
+import com.baldev.airline.seat.payload.request.CabinClassRequest;
+import com.baldev.airline.seat.payload.response.CabinClassResponse;
 import com.baldev.airline.seat.service.CabinClassService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -19,11 +21,13 @@ import java.util.List;
 public class CabinClassController {
 
     private final CabinClassService cabinClassService;
+    private final SeatOwnership ownership;
 
     @PostMapping
     public ResponseEntity<CabinClassResponse> createCabinClass(
-            @Valid @RequestBody CabinClassRequest cabinClassRequest
+            @Valid @RequestBody CabinClassRequest cabinClassRequest, CurrentUser user
     ) {
+        ownership.requireOwnedAircraft(user, cabinClassRequest.getAircraftId());
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(
                         cabinClassService.createCabinClass(cabinClassRequest)
@@ -54,12 +58,14 @@ public class CabinClassController {
     @PutMapping("/{id}")
     public ResponseEntity<CabinClassResponse> updateCabinClass(
             @PathVariable Long id,
-            @Valid @RequestBody CabinClassRequest request) {
+            @Valid @RequestBody CabinClassRequest request, CurrentUser user) {
+        ownership.requireOwnedAircraft(user, cabinClassService.getCabinClassById(id).getAircraftId());
         return ResponseEntity.ok(cabinClassService.updateCabinClass(id, request));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteCabinClass(@PathVariable Long id) {
+    public ResponseEntity<Void> deleteCabinClass(@PathVariable Long id, CurrentUser user) {
+        ownership.requireOwnedAircraft(user, cabinClassService.getCabinClassById(id).getAircraftId());
         cabinClassService.deleteCabinClass(id);
         return ResponseEntity.noContent().build();
     }

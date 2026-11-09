@@ -1,9 +1,9 @@
 package com.baldev.airline.payment.service;
 
-import com.baldev.airline.common.payload.dto.PaymentDTO;
-import com.baldev.airline.common.payload.request.PaymentInitiateRequest;
-import com.baldev.airline.common.payload.request.PaymentVerifyRequest;
-import com.baldev.airline.common.payload.response.PaymentInitiateResponse;
+import com.baldev.airline.payment.payload.dto.PaymentDTO;
+import com.baldev.airline.payment.payload.request.PaymentInitiateRequest;
+import com.baldev.airline.payment.payload.request.PaymentVerifyRequest;
+import com.baldev.airline.payment.payload.response.PaymentInitiateResponse;
 import com.baldev.airline.common.web.CurrentUser;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;

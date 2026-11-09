@@ -89,6 +89,12 @@ public class Payment {
 
     public boolean isTerminal() {
         return status == PaymentStatus.SUCCESS || status == PaymentStatus.FAILED
-                || status == PaymentStatus.CANCELLED || status == PaymentStatus.REFUNDED;
+                || status == PaymentStatus.CANCELLED || status == PaymentStatus.REFUNDED
+                || status == PaymentStatus.PARTIALLY_REFUNDED;
+    }
+
+    /** Captured money that can (still) be refunded. */
+    public boolean isRefundable() {
+        return status == PaymentStatus.SUCCESS || status == PaymentStatus.PARTIALLY_REFUNDED;
     }
 }

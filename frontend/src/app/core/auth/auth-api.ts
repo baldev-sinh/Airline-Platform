@@ -21,6 +21,16 @@ export class AuthApi {
     return this.http.post<AuthResponse>(`${this.baseUrl}/auth/signup`, request);
   }
 
+  /** Spends `refreshToken` and returns a new access token and the next refresh token. */
+  refresh(refreshToken: string): Observable<AuthResponse> {
+    return this.http.post<AuthResponse>(`${this.baseUrl}/auth/refresh`, { refreshToken });
+  }
+
+  /** Revokes the session on the server (refresh token family and the current access token). */
+  logout(refreshToken: string | null): Observable<void> {
+    return this.http.post<void>(`${this.baseUrl}/auth/logout`, { refreshToken });
+  }
+
   profile(): Observable<User> {
     return this.http.get<User>(`${this.baseUrl}/api/users/profile`);
   }

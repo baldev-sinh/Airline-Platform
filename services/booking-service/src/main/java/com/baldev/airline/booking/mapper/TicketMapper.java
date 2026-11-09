@@ -1,8 +1,7 @@
 package com.baldev.airline.booking.mapper;
 
 import com.baldev.airline.booking.model.Ticket;
-import com.baldev.airline.common.payload.response.TicketResponse;
-
+import com.baldev.airline.booking.payload.response.TicketResponse;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 

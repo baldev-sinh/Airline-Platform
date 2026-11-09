@@ -8,7 +8,7 @@ import com.baldev.airline.common.event.PaymentFailedEvent;
 import com.baldev.airline.common.exception.BusinessRuleException;
 import com.baldev.airline.common.exception.ResourceNotFoundException;
 import com.baldev.airline.common.exception.UnauthorizedException;
-import com.baldev.airline.common.payload.request.PaymentVerifyRequest;
+import com.baldev.airline.payment.payload.request.PaymentVerifyRequest;
 import com.baldev.airline.common.web.CurrentUser;
 import com.baldev.airline.payment.client.UserClient;
 import com.baldev.airline.payment.config.PaymentProperties;
@@ -56,7 +56,8 @@ class PaymentServiceImplTest {
         PaymentProperties properties = new PaymentProperties("INR", Duration.ofMinutes(16),
                 new PaymentProperties.Razorpay("k", "s", "w", "http://cb"));
         service = new PaymentServiceImpl(repository, gateway, mock(UserClient.class), properties, events,
-                new DirectTransactionTemplate(), Clock.systemUTC());
+                new DirectTransactionTemplate(), Clock.systemUTC(),
+                mock(com.baldev.airline.payment.service.RefundService.class));
 
         payment = Payment.builder()
                 .id(11L).userId(OWNER.id()).bookingId(21L)

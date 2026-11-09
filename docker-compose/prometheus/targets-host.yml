@@ -22,3 +22,7 @@
   labels: { service: payment-service }
 - targets: [ host.docker.internal:5011 ]
   labels: { service: flight-ops-service }
+- targets: [ host.docker.internal:8888 ]
+  labels: { service: config-server }
+- targets: [ host.docker.internal:5012 ]
+  labels: { service: notification-service }

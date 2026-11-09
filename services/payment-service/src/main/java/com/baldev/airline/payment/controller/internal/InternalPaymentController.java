@@ -1,8 +1,8 @@
 package com.baldev.airline.payment.controller.internal;
 
-import com.baldev.airline.common.payload.dto.PaymentDTO;
-import com.baldev.airline.common.payload.request.PaymentInitiateRequest;
-import com.baldev.airline.common.payload.response.PaymentInitiateResponse;
+import com.baldev.airline.payment.payload.dto.PaymentDTO;
+import com.baldev.airline.payment.payload.request.PaymentInitiateRequest;
+import com.baldev.airline.payment.payload.response.PaymentInitiateResponse;
 import com.baldev.airline.payment.service.PaymentService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Size;

@@ -1,8 +1,8 @@
 package com.baldev.airline.seat.service;
 
 
-import com.baldev.airline.common.payload.request.FlightInstanceCabinRequest;
-import com.baldev.airline.common.payload.response.FlightInstanceCabinResponse;
+import com.baldev.airline.seat.payload.request.FlightInstanceCabinRequest;
+import com.baldev.airline.seat.payload.response.FlightInstanceCabinResponse;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
