@@ -149,7 +149,7 @@ Prerequisites: JDK 21, Docker.
 cp docker-compose/.env.example docker-compose/.env    # fill in the secrets (REDIS_PASSWORD at least)
 docker compose -f docker-compose/docker-compose.yml --env-file docker-compose/.env \
   up -d userdb airlinecoredb flightopsdb locationdb pricingdb ancillarydb bookingdb paymentdb seatdb notificationdb \
-        kafka kafka-ui redis mailpit prometheus grafana
+        kafka kafka-ui redis mailpit prometheus grafana otel-collector tempo loki
 
 # 2. Build
 ./mvnw -B verify
@@ -267,8 +267,21 @@ has been applied anywhere.
 - `GET /actuator/health/liveness` and `/actuator/health/readiness`: probes for orchestrators. On the gateway,
   actuator runs on the private management port `5100` (`MANAGEMENT_PORT`), never on the public port 5000.
 - `GET /actuator/prometheus`: metrics (HTTP, JVM, Hikari, Kafka)
-- Traces: W3C `traceparent` propagated across HTTP and Kafka; export with `TRACING_EXPORT_ENABLED=true`
-- Logs: include trace ids; JSON with `LOGGING_STRUCTURED_FORMAT_CONSOLE=ecs`
+- **Traces, logs and metrics in one place (Grafana).** Services send traces over OTLP to an
+  **OpenTelemetry Collector**, which forwards them to **Grafana Tempo**. Services write ECS JSON logs, which the
+  collector tails (Docker's container logs, or `.local-run/*.json` for `start-local.ps1`) and sends to
+  **Grafana Loki**. Prometheus scrapes metrics as before. The W3C `traceparent` is propagated across the gateway,
+  Feign calls and Kafka (outbox), so one request is one trace across every service it touches.
+  ```
+  services --traces (OTLP :4318)--> otel-collector --> Tempo --> Grafana
+  services --JSON logs (files)----> otel-collector --> Loki  --> Grafana
+  services <--scrape /actuator/prometheus-- Prometheus <-- Tempo service graph / span metrics
+  ```
+  In Grafana: *Explore > Tempo* to search traces (each span links to its log lines), *Explore > Loki* to search
+  logs (`{service_name="booking-service"}`; a line with a trace id links to the trace), and the Tempo
+  *Service graph* for who calls whom. Settings: `TRACING_EXPORT_ENABLED`, `TRACING_SAMPLING_PROBABILITY`
+  (1.0 locally, 0.1 in production), `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT`. Health checks and Eureka heartbeats are
+  dropped by the collector. Traces and logs are kept 3 days.
 - Failed Kafka records land on `<topic>-dlt` after retries; alert on DLT lag
 - Outbox: `outbox_events{state="pending"}` should stay near zero; `state="failed"` above zero needs a human
 - Cache: `cache_gets_total{result}` (hit ratio) and `cache_errors_total`; rate limits:

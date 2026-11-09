@@ -60,7 +60,10 @@ x-service-env: &service-env
   DB_USERNAME: airline
   DB_PASSWORD: ${DB_PASSWORD}
   LOGGING_STRUCTURED_FORMAT_CONSOLE: ecs
+  # Traces go to the OpenTelemetry Collector; logs are JSON on stdout, which the collector tails.
+  TRACING_EXPORT_ENABLED: ${TRACING_EXPORT_ENABLED:-true}
   TRACING_SAMPLING_PROBABILITY: ${TRACING_SAMPLING_PROBABILITY:-0.1}
+  OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: http://otel-collector:4318/v1/traces
 
 services:
 
@@ -213,6 +216,9 @@ services:
       - --config.file=/etc/prometheus/prometheus.yml
       - --storage.tsdb.path=/prometheus
       - --storage.tsdb.retention.time=7d
+      # Tempo's metrics generator writes the service graph and span metrics here.
+      - --web.enable-remote-write-receiver
+      - --enable-feature=exemplar-storage
     # host.docker.internal is built into Docker Desktop; this line makes it work on Linux Docker too.
     extra_hosts: [ "host.docker.internal:host-gateway" ]
     volumes:
@@ -220,8 +226,8 @@ services:
       - ./prometheus/targets-${PROMETHEUS_TARGETS:-host}.yml:/etc/prometheus/targets/services.yml:ro
       - prometheus-data:/prometheus
 
-  # Grafana with the Prometheus data source and the "Airline services" dashboard provisioned:
-  # http://localhost:3000, user admin, password GRAFANA_ADMIN_PASSWORD from .env.
+  # Grafana with Prometheus (metrics), Tempo (traces) and Loki (logs) provisioned and linked to each other, and
+  # the "Airline services" dashboard: http://localhost:3000, user admin, password GRAFANA_ADMIN_PASSWORD from .env.
   grafana:
     image: grafana/grafana:13.2.4
     restart: unless-stopped
@@ -239,7 +245,59 @@ services:
       - ./grafana/provisioning:/etc/grafana/provisioning:ro
       - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
       - grafana-data:/var/lib/grafana
-    depends_on: [ prometheus ]
+    depends_on: [ prometheus, tempo, loki ]
+
+  # OpenTelemetry Collector: receives traces (OTLP, also on 127.0.0.1:4317/4318 for services started on this
+  # machine) and tails the services' JSON logs, then sends traces to Tempo and logs to Loki.
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.163.2
+    restart: unless-stopped
+    logging: *logging
+    mem_limit: 256m
+    networks: [ backend ]
+    ports: [ "127.0.0.1:4317:4317", "127.0.0.1:4318:4318" ]
+    # Root only to read Docker's container log files (owned by root); the collector has no other privileges.
+    user: "0"
+    command: [ "--config=/etc/otelcol-contrib/config.yaml" ]
+    volumes:
+      - ./otel-collector/config.yaml:/etc/otelcol-contrib/config.yaml:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - ../.local-run:/host-logs:ro
+    depends_on: [ tempo, loki ]
+
+  # Grafana Tempo: trace storage and search (3 days), read by Grafana.
+  tempo:
+    image: grafana/tempo:2.10.10
+    restart: unless-stopped
+    logging: *logging
+    mem_limit: 512m
+    networks: [ backend ]
+    command: [ "-config.file=/etc/tempo/tempo.yaml" ]
+    volumes:
+      - ./tempo/tempo.yaml:/etc/tempo/tempo.yaml:ro
+      - tempo-data:/var/tempo
+    depends_on:
+      tempo-init: { condition: service_completed_successfully }
+
+  # Tempo runs as user 10001; a fresh volume belongs to root.
+  tempo-init:
+    image: busybox:1.37.0
+    user: "0"
+    command: [ "chown", "-R", "10001:10001", "/var/tempo" ]
+    volumes:
+      - tempo-data:/var/tempo
+
+  # Grafana Loki: log storage and search (3 days), read by Grafana.
+  loki:
+    image: grafana/loki:3.7.9
+    restart: unless-stopped
+    logging: *logging
+    mem_limit: 512m
+    networks: [ backend ]
+    command: [ "-config.file=/etc/loki/loki.yaml" ]
+    volumes:
+      - ./loki/loki.yaml:/etc/loki/loki.yaml:ro
+      - loki-data:/loki
 
   # ---------------------------------------------------------------- platform
   # Configuration for every service, from config-repo/ (mounted here so edits apply on restart or
@@ -483,3 +541,5 @@ volumes:
   kafka-data:
   prometheus-data:
   grafana-data:
+  tempo-data:
+  loki-data:
