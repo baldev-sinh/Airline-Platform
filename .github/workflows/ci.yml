@@ -39,6 +39,15 @@ jobs:
           java-version: '21'
           cache: maven
 
+      # Services take the caller's identity only from the verified access token (CurrentUser), never from
+      # X-User-* request headers, which anyone inside the network could send.
+      - name: No identity headers in service code
+        run: |
+          if grep -rnE '"X-User-|RequestHeaders\.USER_' services/*/src/main; then
+            echo "::error::Read the caller with CurrentUser instead of X-User-* headers"
+            exit 1
+          fi
+
       # Includes the Testcontainers integration tests (MySQL, Kafka, Redis); GitHub runners have Docker.
       - name: Build, unit and integration tests, coverage
         run: ./mvnw -B -ntp verify

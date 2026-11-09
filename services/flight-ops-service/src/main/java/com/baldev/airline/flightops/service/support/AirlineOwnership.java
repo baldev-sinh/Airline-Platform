@@ -13,6 +13,6 @@ public class AirlineOwnership {
 
     /** @return the id of the airline owned by {@code userId}; 404 if the user owns no airline. */
     public Long airlineIdOf(Long userId) {
-        return airlineClient.getAirlineByOwner(userId).getId();
+        return airlineClient.getCallerAirline().getId();
     }
 }

@@ -30,7 +30,7 @@ public class FlightOwnershipVerifier {
         if (user.isSystemAdmin()) {
             return flightAirlineId;
         }
-        Long callerAirlineId = airlineClient.getAirlineByOwner(user.id()).getId();
+        Long callerAirlineId = airlineClient.getCallerAirline().getId();
         if (!Objects.equals(callerAirlineId, flightAirlineId)) {
             // 404, not 403: do not confirm that another airline's flight exists.
             throw ResourceNotFoundException.of("Flight", flightId);

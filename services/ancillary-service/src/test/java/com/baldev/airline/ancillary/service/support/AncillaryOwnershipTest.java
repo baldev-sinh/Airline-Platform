@@ -27,7 +27,7 @@ class AncillaryOwnershipTest {
 
     @BeforeEach
     void callerOwnsAirline10() {
-        when(airlines.getAirlineByOwner(5L)).thenReturn(airline(10L));
+        when(airlines.getCallerAirline()).thenReturn(airline(10L));
     }
 
     @Test

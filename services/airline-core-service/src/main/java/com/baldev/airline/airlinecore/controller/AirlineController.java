@@ -29,18 +29,18 @@ public class AirlineController {
     @PostMapping
     public ResponseEntity<AirlineResponse> createAirline(
             @Valid @RequestBody AirlineRequest airlineRequest,
-            @RequestHeader("X-User-Id") Long userId) {
+            CurrentUser user) {
 
         return ResponseEntity.status(HttpStatus.CREATED).body(
-                airlineService.createAirline(airlineRequest,userId)
+                airlineService.createAirline(airlineRequest,user.id())
         );
 
     }
 
     @GetMapping("/admin")
     public ResponseEntity<AirlineResponse> getAirlineByOwner(
-            @RequestHeader("X-User-Id") Long userId) {
-        return ResponseEntity.ok(airlineService.getAirlineByOwner(userId));
+            CurrentUser user) {
+        return ResponseEntity.ok(airlineService.getAirlineByOwner(user.id()));
     }
 
     @GetMapping("/{id}")
@@ -64,15 +64,15 @@ public class AirlineController {
     @PutMapping
     public ResponseEntity<AirlineResponse> updateAirline(
             @Valid @RequestBody AirlineRequest request,
-            @RequestHeader("X-User-Id") Long userId) {
-        return ResponseEntity.ok(airlineService.updateAirline(request, userId));
+            CurrentUser user) {
+        return ResponseEntity.ok(airlineService.updateAirline(request, user.id()));
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<ApiResponse> deleteAirline(
             @PathVariable Long id,
-            @RequestHeader("X-User-Id") Long userId) {
-        airlineService.deleteAirline(id, userId);
+            CurrentUser user) {
+        airlineService.deleteAirline(id, user.id());
         ApiResponse res=new ApiResponse("airline deleted successfully");
         return ResponseEntity.ok(
                 res

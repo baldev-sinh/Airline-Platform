@@ -40,6 +40,6 @@ public class AncillaryOwnership {
     }
 
     private Long callerAirlineId(CurrentUser user) {
-        return airlineClient.getAirlineByOwner(user.id()).getId();
+        return airlineClient.getCallerAirline().getId();
     }
 }

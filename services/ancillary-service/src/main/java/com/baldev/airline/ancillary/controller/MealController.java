@@ -23,18 +23,18 @@ public class MealController {
     @PostMapping
     public ResponseEntity<MealResponse> createMeal(
             @Valid @RequestBody MealRequest mealRequest,
-            @RequestHeader("X-User-Id") Long userId) {
+            CurrentUser user) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(
-                        mealService.createMeal(userId, mealRequest
+                        mealService.createMeal(user.id(), mealRequest
                         )
                 );
     }
 
     @GetMapping("/airline")
     public ResponseEntity<List<MealResponse>> getMealsByAirlineId(
-            @RequestHeader("X-User-Id") Long userId) {
-        return ResponseEntity.ok(mealService.getByAirlineId(userId));
+            CurrentUser user) {
+        return ResponseEntity.ok(mealService.getByAirlineId(user.id()));
     }
 
     @GetMapping("/{id}")

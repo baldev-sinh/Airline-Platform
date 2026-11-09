@@ -28,7 +28,7 @@ public class MealServiceImpl implements MealService {
     @Override
     public MealResponse createMeal(Long userId, MealRequest request) {
 
-        AirlineResponse airlineResponse = airlineClient.getAirlineByOwner(userId);
+        AirlineResponse airlineResponse = airlineClient.getCallerAirline();
 
         if (mealRepository.existsByCodeAndAirlineId(request.getCode(), airlineResponse.getId())) {
             throw new ConflictException("meal code already exist");
@@ -62,7 +62,7 @@ public class MealServiceImpl implements MealService {
 
     @Override
     public MealResponse updateMeal(Long userId, Long id, MealRequest request) {
-        AirlineResponse airlineResponse = airlineClient.getAirlineByOwner(userId);
+        AirlineResponse airlineResponse = airlineClient.getCallerAirline();
         Meal meal = mealRepository.findById(id).orElseThrow(
                 () -> new ResourceNotFoundException("meal not found with id")
         );
@@ -89,7 +89,7 @@ public class MealServiceImpl implements MealService {
 
     @Override
     public List<MealResponse> getByAirlineId(Long userId) {
-        AirlineResponse airlineResponse = airlineClient.getAirlineByOwner(userId);
+        AirlineResponse airlineResponse = airlineClient.getCallerAirline();
         return mealRepository.findByAirlineId(airlineResponse.getId())
                 .stream().map(
                         MealMapper::toResponse

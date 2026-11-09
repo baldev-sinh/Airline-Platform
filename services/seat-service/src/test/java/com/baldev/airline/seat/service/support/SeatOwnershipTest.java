@@ -34,7 +34,7 @@ class SeatOwnershipTest {
     void callerOwnsAirline10() {
         AirlineResponse airline = new AirlineResponse();
         airline.setId(10L);
-        when(airlines.getAirlineByOwner(5L)).thenReturn(airline);
+        when(airlines.getCallerAirline()).thenReturn(airline);
     }
 
     @Test
@@ -59,6 +59,6 @@ class SeatOwnershipTest {
         ownership.requireAirline(ADMIN, 99L, "Seat map", 3L);
 
         verify(airlines, never()).getAircraftById(anyLong());
-        verify(airlines, never()).getAirlineByOwner(anyLong());
+        verify(airlines, never()).getCallerAirline();
     }
 }
