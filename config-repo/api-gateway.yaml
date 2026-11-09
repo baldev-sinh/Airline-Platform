@@ -1,5 +1,5 @@
 # API gateway: the only component exposed to clients. Validates JWTs, enforces coarse-grained authorization
-# (see AccessPolicy), strips spoofable identity headers and routes to services discovered via Eureka.
+# (see GatewayAccessRules), strips spoofable identity headers and routes to services discovered via Eureka.
 spring:
   http:
     clients:
@@ -10,7 +10,8 @@ spring:
 airline:
   security:
     service-auth:
-      # The gateway verifies tokens in its own AuthenticationFilter (all routes); the servlet filter is for services.
+      # The gateway declares its own Spring Security chain with the access rules (GatewaySecurityConfig); the
+      # default service chain (verify tokens, permit everything) is for the business services.
       enabled: false
   cache:
     enabled: false

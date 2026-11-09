@@ -1,6 +1,5 @@
 package com.baldev.airline.user.config;
 
-import com.baldev.airline.common.security.JwksKeyResolver.Jwk;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
@@ -17,9 +16,11 @@ import java.security.interfaces.RSAPublicKey;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.RSAPublicKeySpec;
 import java.security.spec.X509EncodedKeySpec;
-import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 /**
  * The RSA key that signs access tokens, plus the public keys published for verification.
@@ -38,6 +39,7 @@ public class SigningKeys {
     private final PrivateKey privateKey;
     private final String currentKeyId;
     private final List<Jwk> published;
+    private final Map<String, RSAPublicKey> verificationKeys;
 
     public SigningKeys(SecurityProperties properties) {
         SecurityProperties.Signing signing = properties.security().signing();
@@ -65,16 +67,17 @@ public class SigningKeys {
         }
         this.currentKeyId = signing.keyId() != null && !signing.keyId().isBlank() ? signing.keyId() : thumbprint(publicKey);
 
-        List<Jwk> keys = new ArrayList<>();
-        keys.add(toJwk(currentKeyId, publicKey));
+        Map<String, RSAPublicKey> verification = new LinkedHashMap<>();
+        verification.put(currentKeyId, publicKey);
         for (SecurityProperties.PublishedKey previous : signing.previousKeys()) {
             try {
-                keys.add(toJwk(previous.keyId(), parsePublicKey(previous.publicKey())));
+                verification.put(previous.keyId(), parsePublicKey(previous.publicKey()));
             } catch (GeneralSecurityException | IllegalArgumentException e) {
                 throw new IllegalStateException("Invalid previous public key " + previous.keyId(), e);
             }
         }
-        this.published = List.copyOf(keys);
+        this.verificationKeys = Collections.unmodifiableMap(verification);
+        this.published = verification.entrySet().stream().map(e -> toJwk(e.getKey(), e.getValue())).toList();
         log.info("Token signing key {} active; publishing {} key(s)", currentKeyId, published.size());
     }
 
@@ -84,6 +87,11 @@ public class SigningKeys {
 
     public String currentKeyId() {
         return currentKeyId;
+    }
+
+    /** The same public keys by key id, for verifying tokens in this service without a network round trip. */
+    public Map<String, RSAPublicKey> verificationKeys() {
+        return verificationKeys;
     }
 
     /** Public keys for the JWKS document: the current key first, then retired keys still in use. */

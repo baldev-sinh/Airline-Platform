@@ -30,7 +30,7 @@ class AncillaryServiceImplTest {
     void newExtraBelongsToTheAirlineNotToItsOwnersUserId() {
         // The owner's user id and the airline id differ. Storing the user id made an airline's extras invisible
         // to it (lists filter by airline id) and showed them to whichever airline had that id instead.
-        when(airlineClient.getAirlineByOwner(OWNER_USER_ID))
+        when(airlineClient.getCallerAirline())
                 .thenReturn(AirlineResponse.builder().id(AIRLINE_ID).ownerId(OWNER_USER_ID).build());
         when(ancillaries.save(any(Ancillary.class))).thenAnswer(invocation -> invocation.getArgument(0));
 

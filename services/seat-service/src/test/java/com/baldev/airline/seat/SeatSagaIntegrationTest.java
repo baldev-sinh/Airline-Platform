@@ -39,8 +39,7 @@ import static org.awaitility.Awaitility.await;
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.NONE, properties = {
         "spring.cloud.config.enabled=false",
         "CONFIG_IMPORT=optional:file:../../config-repo/application.yaml,optional:file:../../config-repo/seat-service.yaml",
-        "eureka.client.enabled=false",
-        "airline.security.service-auth.mode=headers"
+        "eureka.client.enabled=false"
 })
 class SeatSagaIntegrationTest {
 

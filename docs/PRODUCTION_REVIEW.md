@@ -54,7 +54,7 @@ notification service. All of it has tests; the Testcontainers tests run against 
 |---|---|---|---|
 | 2 | Events lost between commit and send | **Transactional outbox** in common-lib: events are inserted in the business transaction and relayed to Kafka after commit (ordered per key, `SELECT ... FOR UPDATE` at READ COMMITTED, permanent failures parked as `FAILED`, metrics `outbox_events{state}`, trace context carried over). Used by booking, payment, flight-ops and user-service | `common/outbox`, `V*__transactional_outbox.sql` |
 | 3 | No refunds | **Refund workflow.** Cancelling a ticketed booking applies the fare's rules (`RefundPolicy`: departed, non-refundable, deadline, fee per passenger), voids tickets, releases seats and publishes `refund.requested`; payments that arrive after cancellation or with the wrong amount are refunded too. payment-service refunds through Razorpay, idempotent per refund key (unique key, atomic claim, key stored in the provider's notes), finished by webhook (`refund.processed/failed`) or reconciliation, and publishes `payment.refunded` / `payment.refund-failed`. Tickets become `REFUNDED`; the customer is told | booking `RefundPolicy`, payment `RefundService`, `refund` table |
-| 4 | Services trusted gateway headers; no refresh or revocation | **RS256 tokens with JWKS** (`/.well-known/jwks.json`, key rotation by `kid`), verified by the gateway **and every service** (`JwtAuthenticationFilter`: forged `X-User-*` headers are replaced by the token's identity), token relay on Feign calls. **Refresh tokens**: opaque, hashed at rest, single-use, rotated per family; reuse of a spent token revokes the family and all access tokens. **Revocation** in Redis (logout, "sign out everywhere"). Access tokens now live 15 minutes; the web app refreshes silently (shared within a tab, serialized across tabs) | `common/security`, user `SigningKeys`, `RefreshTokenService` |
+| 4 | Services trusted gateway headers; no refresh or revocation | **RS256 tokens with JWKS** (`/.well-known/jwks.json`, key rotation by `kid`), verified by the gateway and every service (see *Third phase* below: until then only user-service actually did), token relay on Feign calls. **Refresh tokens**: opaque, hashed at rest, single-use, rotated per family; reuse of a spent token revokes the family and all access tokens. **Revocation** in Redis (logout, "sign out everywhere"). Access tokens now live 15 minutes; the web app refreshes silently (shared within a tab, serialized across tabs) | `common/security`, user `SigningKeys`, `RefreshTokenService` |
 | 5 | No circuit breakers | **Resilience4j** where a degraded answer exists: airline/aircraft/airport enrichment in flight-ops. An outage yields `partial: true` responses (never cached) instead of 500s; 4xx answers do not open the breaker. Runs on the caller's thread so token relay and tracing keep working | flight-ops `ReferenceData` |
 | 6 | No rate limiting | **Distributed rate limits** at the gateway: Redis token buckets (atomic Lua, Redis clock) per client IP, with `X-Forwarded-For` believed only from trusted proxies. Policies for login, signup, token refresh, search and everything else; webhooks exempt; 429 with `Retry-After` | gateway `ratelimit`, `config-repo/api-gateway.yaml` |
 | 7 | Cross-tenant writes | **Ownership checks in-service** for cabin classes, seat maps, flight-instance cabins, meals, ancillaries, flight meals, flight-cabin ancillaries, insurance coverages, fare rules and baggage policies (404 for foreign resources). The owning airline is stamped server-side instead of read from the request | `SeatOwnership`, `AncillaryOwnership`, `FlightOwnershipVerifier` |
@@ -69,6 +69,40 @@ Fixed along the way: location `updateCity` rejected keeping a city's own code; `
 airport lists; fare rules lookup returned 500 instead of 404 when a fare had none; baggage policies never stored
 their airline, so listing an airline's policies always came back empty.
 
+## Third phase: Spring Security
+
+Token verification and access control moved from hand-written classes to Spring Security's OAuth2 resource
+server, with identical behaviour proven by black-box parity tests written first against the old code (gateway:
+every access rule for every kind of caller, invalid tokens, headers, CORS, 503, management port; services:
+identity, error codes, anonymous reads, `/internal`). Details, and a plain-language explanation of each part:
+[SECURITY_MIGRATION_PLAN.md](../SECURITY_MIGRATION_PLAN.md).
+
+| Before | Now |
+|---|---|
+| `AccessPolicy` + `AuthenticationFilter` (gateway) | `GatewayAccessRules` + `authorizeHttpRequests` + resource server |
+| `AccessTokenVerifier`, `JwksKeyResolver` | `NimbusJwtDecoder` over a Nimbus `JWKSource`, `AccessTokenValidators` |
+| `JwtAuthenticationFilter` rewriting `X-User-*` headers | `BearerTokenAuthenticationFilter`; `CurrentUser` from the verified `Jwt` |
+
+**Found and fixed during the migration:**
+
+- **Nine of ten services did not verify tokens.** The old servlet filter was conditional on jjwt, which only
+  user-service had on its classpath, so the other services trusted `X-User-*` headers and relied on the gateway
+  and network isolation. The second-phase claim above ("verified by every service") was therefore wrong. Every
+  service now verifies the token itself.
+- Twelve controller parameters and five Feign clients passed the caller's identity as an `X-User-Id` header;
+  they now use `CurrentUser` and the relayed token, and CI rejects `X-User-` in service code.
+- The gateway's security-headers filter was registered without an effective order and ran after everything
+  else; it now runs first and covers every response.
+- The header-trusting switch `SERVICE_AUTH_MODE=headers` is gone.
+
+**Behaviour that changed on purpose:**
+
+- A token without `exp` is rejected (before: accepted if otherwise valid; user-service always sets `exp`).
+- Unknown paths at the gateway answer the same 404 body as hidden ones (`"detail":"Not found"`,
+  `"code":"NOT_FOUND"`) instead of Spring MVC's `"No static resource ..."`. Status and content type unchanged.
+- A direct call to a service endpoint that needs a caller, without a token, is 401 (before: 400 for the
+  endpoints that read the header directly). Through the gateway this cannot happen.
+
 ## What still needs action outside the code
 
 1. **Rotate the leaked credentials.** The Razorpay test key and secret, the DB password and the old JWT secret
@@ -81,8 +115,8 @@ their airline, so listing an airline's policies always came back empty.
    git filter-repo --replace-text replacements.txt
    ```
    CI now runs a gitleaks secret scan on every push and pull request, so a new leak fails the build.
-2. **mTLS between services.** Services now verify the caller's JWT themselves, so identity cannot be forged even
-   from inside the network. Service-to-service endpoints (`/internal/**`) and Kafka are still protected by network
+2. **mTLS between services.** Services verify the caller's JWT themselves (since the third phase), so identity
+   cannot be forged even from inside the network. Service-to-service endpoints (`/internal/**`) and Kafka are still protected by network
    isolation only. In Kubernetes, enable a mesh with strict mTLS (Istio `PeerAuthentication: STRICT`, Linkerd)
    and SASL/TLS on Kafka; nothing in the code needs to change.
 3. **WAF.** Rate limits are in the gateway; put a WAF (Cloudflare, AWS WAF, or Coraza in front of Caddy) at the

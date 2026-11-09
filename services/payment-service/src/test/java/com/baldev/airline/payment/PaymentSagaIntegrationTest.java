@@ -64,7 +64,6 @@ import static org.mockito.Mockito.when;
         "CONFIG_IMPORT=optional:file:../../config-repo/application.yaml,optional:file:../../config-repo/payment-service.yaml,"
                 + "optional:file:../../config-repo/payment-service-payment-stub.yaml",
         "eureka.client.enabled=false",
-        "airline.security.service-auth.mode=headers",
         "airline.outbox.poll-interval=100ms",
         "airline.payment.reconciliation.enabled=false"
 })

@@ -32,7 +32,7 @@ public class SeatMapServiceImpl implements SeatMapService {
     @Override
     public SeatMapResponse createSeatMap(Long userId, SeatMapRequest request) {
 
-        AirlineResponse airlineResponse = airlineClient.getAirlineByOwner(userId);
+        AirlineResponse airlineResponse = airlineClient.getCallerAirline();
         CabinClass cabinClass = cabinClassRepository.findById(request.getCabinClassId())
                 .orElseThrow(
                         () -> new ResourceNotFoundException("cabin class not found with given id")

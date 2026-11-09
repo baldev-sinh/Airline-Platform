@@ -1,6 +1,5 @@
 package com.baldev.airline.common.security;
 
-import com.baldev.airline.common.security.AccessTokenVerifier.VerifiedToken;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -14,7 +13,7 @@ public interface TokenRevocations {
 
     TokenRevocations NONE = new TokenRevocations() {
         @Override
-        public boolean isRevoked(VerifiedToken token) {
+        public boolean isRevoked(String tokenId, Long userId, Instant issuedAt) {
             return false;
         }
 
@@ -27,7 +26,12 @@ public interface TokenRevocations {
         }
     };
 
-    boolean isRevoked(VerifiedToken token);
+    /**
+     * @param tokenId  the token's {@code jti}
+     * @param userId   the token's subject
+     * @param issuedAt the token's {@code iat}, or null
+     */
+    boolean isRevoked(String tokenId, Long userId, Instant issuedAt);
 
     /** Revokes one access token until it would have expired anyway. */
     void revokeToken(String tokenId, Instant expiresAt);

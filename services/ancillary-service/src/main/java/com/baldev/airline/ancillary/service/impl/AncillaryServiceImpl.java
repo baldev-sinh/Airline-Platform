@@ -34,7 +34,7 @@ public class AncillaryServiceImpl implements AncillaryService {
     @Override
     public AncillaryResponse createAncillary(Long userId, AncillaryRequest request) {
 
-        AirlineResponse airlineResponse = airlineClient.getAirlineByOwner(userId);
+        AirlineResponse airlineResponse = airlineClient.getCallerAirline();
 
         Ancillary ancillary = Ancillary.builder()
                 .type(request.getType())
@@ -71,7 +71,7 @@ public class AncillaryServiceImpl implements AncillaryService {
 
     @Override
     public List<AncillaryResponse> getByAirlineId(Long userId) {
-        AirlineResponse airlineResponse = airlineClient.getAirlineByOwner(userId);
+        AirlineResponse airlineResponse = airlineClient.getCallerAirline();
         return ancillaryRepository.findByAirlineId(airlineResponse.getId())
                 .stream()
                 .map(

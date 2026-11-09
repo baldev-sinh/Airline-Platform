@@ -34,8 +34,7 @@ import static org.mockito.Mockito.verify;
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.NONE, properties = {
         "spring.cloud.config.enabled=false",
         "CONFIG_IMPORT=optional:file:../../config-repo/application.yaml,optional:file:../../config-repo/location-service.yaml",
-        "eureka.client.enabled=false",
-        "airline.security.service-auth.mode=headers"
+        "eureka.client.enabled=false"
 })
 class LocationCacheIntegrationTest {
 

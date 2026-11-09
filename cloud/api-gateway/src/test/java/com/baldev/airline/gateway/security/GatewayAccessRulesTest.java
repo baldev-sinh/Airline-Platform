@@ -1,16 +1,14 @@
 package com.baldev.airline.gateway.security;
 
-import com.baldev.airline.gateway.security.AccessPolicy.Access;
+import com.baldev.airline.gateway.security.GatewayAccessRules.Access;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
-import org.springframework.http.HttpMethod;
+import org.springframework.mock.web.MockHttpServletRequest;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** The access table is security-critical: every row here is a regression guard. */
-class AccessPolicyTest {
-
-    private final AccessPolicy policy = new AccessPolicy();
+class GatewayAccessRulesTest {
 
     @ParameterizedTest(name = "{0} {1} -> {2}")
     @CsvSource({
@@ -61,6 +59,7 @@ class AccessPolicyTest {
             "POST,   /api/fares/search,                     AUTHENTICATED",
     })
     void resolvesAccessLevel(String method, String path, Access expected) {
-        assertThat(policy.resolve(HttpMethod.valueOf(method), path)).isEqualTo(expected);
+        MockHttpServletRequest request = new MockHttpServletRequest(method, path);
+        assertThat(GatewayAccessRules.resolve(request)).isEqualTo(expected);
     }
 }

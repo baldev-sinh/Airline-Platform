@@ -21,7 +21,9 @@ import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.kafka.KafkaContainer;
@@ -54,7 +56,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         "CONFIG_IMPORT=optional:file:../../config-repo/application.yaml,optional:file:../../config-repo/notification-service.yaml",
         "eureka.client.enabled=false",
         // This test calls the API with gateway identity headers; JWT verification is covered in common-lib.
-        "airline.security.service-auth.mode=headers",
         "SMTP_HOST=localhost",
         "NOTIFICATION_FROM=no-reply@test.local",
         "PUBLIC_BASE_URL=https://fly.example"
@@ -121,14 +122,20 @@ class NotificationFlowIntegrationTest {
                 .findFirst().orElseThrow();
         assertThat(email.getBody()).contains("9990000000001").contains("https://fly.example/trips/42");
 
-        mvc.perform(get("/api/notifications").header("X-User-Id", "5"))
+        mvc.perform(get("/api/notifications").with(caller(5)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content[0].subject").value(org.hamcrest.Matchers.containsString("ABC123")))
                 .andExpect(jsonPath("$.content[0].recipient").doesNotExist());
-        mvc.perform(get("/api/notifications").header("X-User-Id", "6"))
+        mvc.perform(get("/api/notifications").with(caller(6)))
                 .andExpect(jsonPath("$.content").isEmpty());
-        mvc.perform(get("/api/notifications/unread-count").header("X-User-Id", "5"))
+        mvc.perform(get("/api/notifications/unread-count").with(caller(5)))
                 .andExpect(jsonPath("$.unread").value(1));
+    }
+
+    /** A request authenticated as user {@code id} (a verified token, as the resource server would produce). */
+    private static RequestPostProcessor caller(long id) {
+        return SecurityMockMvcRequestPostProcessors.jwt()
+                .jwt(token -> token.subject(String.valueOf(id)).claim("roles", java.util.List.of("ROLE_USER")));
     }
 
     @Test

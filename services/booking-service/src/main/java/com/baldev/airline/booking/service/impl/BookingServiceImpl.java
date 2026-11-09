@@ -188,7 +188,7 @@ public class BookingServiceImpl implements BookingService {
     @Transactional(readOnly = true)
     public Page<BookingResponse> getBookingsByAirline(CurrentUser user, String search, BookingStatus status,
                                                       Long flightInstanceId, Pageable pageable) {
-        Long airlineId = airlineClient.getAirlineByOwner(user.id()).getId();
+        Long airlineId = airlineClient.getCallerAirline().getId();
         String pattern = (search == null || search.isBlank())
                 ? null
                 : "%" + search.trim().toLowerCase().replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%";
@@ -524,7 +524,7 @@ public class BookingServiceImpl implements BookingService {
             return true;
         }
         return isAirlineStaff(user)
-                && Objects.equals(airlineClient.getAirlineByOwner(user.id()).getId(), booking.getAirlineId());
+                && Objects.equals(airlineClient.getCallerAirline().getId(), booking.getAirlineId());
     }
 
     private static List<Long> nullSafe(List<Long> ids) {

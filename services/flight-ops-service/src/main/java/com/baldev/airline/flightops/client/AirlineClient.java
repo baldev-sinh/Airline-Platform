@@ -6,7 +6,6 @@ import com.baldev.airline.flightops.client.dto.AirlineResponse;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestHeader;
 
 //AIRLINE-CORE-SERVICE
 @FeignClient(name = "airline-core-service")
@@ -21,7 +20,7 @@ public interface AirlineClient {
     AircraftResponse getAircraftById(@PathVariable("id") Long id);
 
     @GetMapping("/api/airlines/admin")
-    AirlineResponse getAirlineByOwner(
-            @RequestHeader("X-User-Id") Long userId);
+    /** The airline owned by the caller (airline-core reads the owner from the relayed access token). */
+    AirlineResponse getCallerAirline();
 
 }

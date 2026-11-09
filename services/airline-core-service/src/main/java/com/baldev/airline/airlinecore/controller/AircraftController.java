@@ -1,6 +1,7 @@
 package com.baldev.airline.airlinecore.controller;
 
 
+import com.baldev.airline.common.web.CurrentUser;
 import com.baldev.airline.airlinecore.payload.request.AircraftRequest;
 import com.baldev.airline.airlinecore.payload.response.AircraftResponse;
 import com.baldev.airline.airlinecore.service.AircraftService;
@@ -22,9 +23,9 @@ public class AircraftController {
     @PostMapping
     public ResponseEntity<AircraftResponse> createAircraft(
            @Valid @RequestBody AircraftRequest aircraftRequest,
-           @RequestHeader("X-User-Id") Long userId
+           CurrentUser user
     ) {
-        AircraftResponse aircraft = aircraftService.createAircraft(aircraftRequest,userId);
+        AircraftResponse aircraft = aircraftService.createAircraft(aircraftRequest,user.id());
         return ResponseEntity.status(HttpStatus.CREATED).body(
                 aircraft
         );
@@ -37,22 +38,22 @@ public class AircraftController {
 
     @GetMapping
     public ResponseEntity<List<AircraftResponse>> listAllAircrafts(
-            @RequestHeader("X-User-Id") Long userId) {
-        return ResponseEntity.ok(aircraftService.listAllAircraftByOwner(userId));
+            CurrentUser user) {
+        return ResponseEntity.ok(aircraftService.listAllAircraftByOwner(user.id()));
     }
 
     @PutMapping("/{id}")
     public ResponseEntity<AircraftResponse> updateAircraft(
             @PathVariable Long id,
             @RequestBody AircraftRequest request,
-            @RequestHeader("X-User-Id") Long userId) {
-        return ResponseEntity.ok(aircraftService.updateAircraft(id, request, userId));
+            CurrentUser user) {
+        return ResponseEntity.ok(aircraftService.updateAircraft(id, request, user.id()));
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteAircraft(@PathVariable Long id,
-                                               @RequestHeader("X-User-Id") Long userId) {
-        aircraftService.deleteAircraft(id,userId);
+                                               CurrentUser user) {
+        aircraftService.deleteAircraft(id,user.id());
         return ResponseEntity.noContent().build();
     }
 }

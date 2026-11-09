@@ -1,10 +1,9 @@
 package com.baldev.airline.common.web;
 
 /**
- * Identity headers set by the API gateway after it validates the caller's JWT.
- *
- * <p>The gateway strips any client-supplied copies of these headers before forwarding, so services may trust
- * them <em>only</em> because services are not reachable except through the gateway (private network).
+ * Identity header names that clients might try to send. Nothing trusts them: the API gateway removes them from
+ * every proxied request, and services take the caller's identity only from the verified access token
+ * ({@link CurrentUser}). Kept so the gateway knows what to strip.
  */
 public final class RequestHeaders {
 
