@@ -120,7 +120,8 @@ function Start-One($svc) {
         Where-Object { $_.Name -notlike '*-plain.jar' } | Select-Object -First 1
     if (-not $jar) { throw "No jar in $($svc.Dir)/target. Build first: ./mvnw -B -DskipTests package" }
     $log = Join-Path $runDir "$($svc.Name).log"
-    $javaArgs = @('-Xmx384m', '-jar', $jar.FullName)
+    # Java4Shell (CVE-2026-114938) mitigation: disable the vulnerable Base64 intrinsic until the JDK is patched.
+    $javaArgs = @('-Xmx384m', '-XX:-UseBASE64Intrinsics', '-jar', $jar.FullName)
     if ($svc.Profiles) { $javaArgs = @("-Dspring.profiles.active=$($svc.Profiles)") + $javaArgs }
     $p = Start-Process java -ArgumentList $javaArgs -RedirectStandardOutput $log -RedirectStandardError "$log.err" `
         -WindowStyle Hidden -PassThru

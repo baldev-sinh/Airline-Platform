@@ -159,6 +159,8 @@
                             <jvmFlags>
                                 <jvmFlag>-XX:MaxRAMPercentage=75.0</jvmFlag>
                                 <jvmFlag>-XX:+ExitOnOutOfMemoryError</jvmFlag>
+                                <!-- Java4Shell (CVE-2026-114938) mitigation: disable the vulnerable Base64 intrinsic until the base image ships a patched JDK. -->
+                                <jvmFlag>-XX:-UseBASE64Intrinsics</jvmFlag>
                                 <jvmFlag>-Djava.security.egd=file:/dev/./urandom</jvmFlag>
                             </jvmFlags>
                             <creationTime>USE_CURRENT_TIMESTAMP</creationTime>
