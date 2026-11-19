@@ -1,0 +1,135 @@
+# OpenTelemetry Collector: the single entry point for traces and logs.
+#
+#   services --OTLP traces--> collector --> Tempo   (traces)
+#   service JSON logs (files) --> collector --> Loki (logs)
+#
+# Services only know the collector's address. Sampling, filtering, batching and the choice of backends live
+# here, so Tempo or Loki can be replaced without touching a service.
+#
+# Logs: services write ECS JSON (Spring Boot structured logging). The collector tails
+#   - Docker's container log files (services running in this Compose project), and
+#   - .local-run/*.json (services started on this machine by scripts/start-local.ps1).
+# Every line keeps its trace id, so Grafana links a log line to its trace and back.
+
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+  # Services in Compose: Docker's json-file logs. Only ECS lines are kept, which drops the databases, Kafka
+  # and the JVM's own startup output.
+  filelog/containers:
+    include: [ /var/lib/docker/containers/*/*-json.log ]
+    start_at: end
+    operators:
+      - type: json_parser
+        timestamp:
+          parse_from: attributes.time
+          layout_type: gotime
+          layout: '2006-01-02T15:04:05.999999999Z07:00'
+      - type: filter
+        expr: 'attributes.log == nil or not (attributes.log matches "^\\{\"@timestamp\"")'
+      - type: json_parser
+        parse_from: attributes.log
+        parse_to: attributes.ecs
+      - type: remove
+        field: attributes.log
+      - type: remove
+        field: attributes.stream
+      - type: remove
+        field: attributes.time
+      # Shared with filelog/host below (YAML anchors), once a line has been parsed into attributes.ecs:
+      - &service-name
+        type: move
+        from: attributes.ecs.service.name
+        to: resource["service.name"]
+      - &severity
+        type: severity_parser
+        parse_from: attributes.ecs.log.level
+      - &trace-context
+        type: trace_parser
+        if: 'attributes.ecs.traceId != nil'
+        trace_id:
+          parse_from: attributes.ecs.traceId
+        span_id:
+          parse_from: attributes.ecs.spanId
+      - &message
+        type: move
+        from: attributes.ecs.message
+        to: body
+      - &logger
+        type: move
+        if: 'attributes.ecs.log.logger != nil'
+        from: attributes.ecs.log.logger
+        to: attributes["logger"]
+      - &stack-trace
+        type: move
+        if: 'attributes.ecs.error != nil and attributes.ecs.error.stack_trace != nil'
+        from: attributes.ecs.error.stack_trace
+        to: attributes["exception.stacktrace"]
+      - &drop-rest
+        type: remove
+        field: attributes.ecs
+
+  # Services started on this machine: start-local.ps1 writes a JSON copy of each log to .local-run/<service>.json.
+  filelog/host:
+    include: [ /host-logs/*.json ]
+    start_at: end
+    operators:
+      - type: json_parser
+        parse_to: attributes.ecs
+        timestamp:
+          parse_from: attributes.ecs["@timestamp"]
+          layout_type: gotime
+          layout: '2006-01-02T15:04:05.999999999Z07:00'
+      - *service-name
+      - *severity
+      - *trace-context
+      - *message
+      - *logger
+      - *stack-trace
+      - *drop-rest
+
+processors:
+  # Refuse data before running out of memory instead of crashing.
+  memory_limiter:
+    check_interval: 1s
+    limit_percentage: 80
+    spike_limit_percentage: 25
+
+  # Prometheus scrapes and Eureka heartbeats would otherwise be most of the traces.
+  filter/noise:
+    error_mode: ignore
+    traces:
+      span:
+        - 'attributes["uri"] != nil and IsMatch(attributes["uri"], "^/actuator")'
+        - 'attributes["http.url"] != nil and IsMatch(attributes["http.url"], "/actuator/|/eureka/")'
+
+  batch:
+    send_batch_size: 1024
+    timeout: 2s
+
+exporters:
+  otlp/tempo:
+    endpoint: tempo:4317
+    tls:
+      insecure: true   # inside the Docker network
+  otlphttp/loki:
+    endpoint: http://loki:3100/otlp
+
+service:
+  telemetry:
+    logs:
+      level: warn
+  pipelines:
+    traces:
+      receivers: [ otlp ]
+      processors: [ memory_limiter, filter/noise, batch ]
+      exporters: [ otlp/tempo ]
+    logs:
+      receivers: [ otlp, filelog/containers, filelog/host ]
+      processors: [ memory_limiter, batch ]
+      exporters: [ otlphttp/loki ]
