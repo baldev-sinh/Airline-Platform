@@ -35,7 +35,7 @@ jobs:
 
       - uses: actions/setup-java@v4
         with:
-          distribution: temurin
+          distribution: corretto
           java-version: '21'
           cache: maven
 
@@ -105,7 +105,7 @@ jobs:
 
       - uses: actions/setup-java@v4
         with:
-          distribution: temurin
+          distribution: corretto
           java-version: '21'
           cache: maven
 

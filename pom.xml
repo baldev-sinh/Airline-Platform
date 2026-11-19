@@ -42,7 +42,9 @@
         <!-- Container image settings (override on the CLI: -Dimage.registry=ghcr.io/acme -Dimage.tag=1.2.3) -->
         <image.registry>baldevsinh</image.registry>
         <image.tag>${project.version}</image.tag>
-        <image.base>eclipse-temurin:21-jre-noble</image.base>
+        <!-- Corretto, matching the local JDK. It shipped the Java4Shell (CVE-2026-114938) fix, 21.0.13.1+2,
+             before Temurin's image did; the floating tag keeps picking up later patches on rebuild. -->
+        <image.base>amazoncorretto:21-al2023-headless</image.base>
     </properties>
 
     <dependencyManagement>
@@ -159,6 +161,8 @@
                             <jvmFlags>
                                 <jvmFlag>-XX:MaxRAMPercentage=75.0</jvmFlag>
                                 <jvmFlag>-XX:+ExitOnOutOfMemoryError</jvmFlag>
+                                <!-- Java4Shell (CVE-2026-114938) mitigation: disable the vulnerable Base64 intrinsic until the base image ships a patched JDK. -->
+                                <jvmFlag>-XX:-UseBASE64Intrinsics</jvmFlag>
                                 <jvmFlag>-Djava.security.egd=file:/dev/./urandom</jvmFlag>
                             </jvmFlags>
                             <creationTime>USE_CURRENT_TIMESTAMP</creationTime>

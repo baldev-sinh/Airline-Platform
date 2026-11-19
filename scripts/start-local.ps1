@@ -136,7 +136,8 @@ function Start-One($svc) {
     $log = Join-Path $runDir "$($svc.Name).log"
     # Human-readable log on stdout (.log) and an ECS JSON copy (.json) for the collector -> Loki.
     $json = (Join-Path $runDir "$($svc.Name).json") -replace '\\', '/'
-    $javaArgs = @('-Xmx384m', '-Dlogging.structured.format.file=ecs', "-Dlogging.file.name=$json", '-jar', $jar.FullName)
+    # -XX:-UseBASE64Intrinsics: Java4Shell (CVE-2026-114938) mitigation, in case the local JDK is not yet patched.
+    $javaArgs = @('-Xmx384m', '-XX:-UseBASE64Intrinsics', '-Dlogging.structured.format.file=ecs', "-Dlogging.file.name=$json", '-jar', $jar.FullName)
     if ($svc.Profiles) { $javaArgs = @("-Dspring.profiles.active=$($svc.Profiles)") + $javaArgs }
     $p = Start-Process java -ArgumentList $javaArgs -RedirectStandardOutput $log -RedirectStandardError "$log.err" `
         -WindowStyle Hidden -PassThru
